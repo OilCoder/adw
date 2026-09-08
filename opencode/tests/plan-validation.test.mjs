@@ -112,17 +112,105 @@ test("path overlap is conservative for recursive directory patterns", () => {
   assert.equal(pathPatternsOverlap("src/users/**", "src/products/service.js"), false)
 })
 
-test("validator accepts final_verification and can cap contracts per route", () => {
+test("validator accepts final_verification", () => {
   const plan = validPlan()
   plan.final_verification = { commands: ["npm test"] }
   assert.equal(validatePlan(plan).valid, true)
 
-  const capped = validatePlan(validPlan(), { maxContracts: 1 })
-  assert.equal(capped.valid, false)
-  assert.ok(capped.errors.some((error) => error.includes("allows at most 1")))
-
   const badFinal = { ...validPlan(), final_verification: { commands: [""] } }
   assert.ok(validatePlan(badFinal).errors.includes("final_verification.commands must be an array of commands"))
+})
+
+test("triage: a direct route that needs more than one contract is re-routed, never rejected", () => {
+  const goalLabels = { ...goal(), routing: { change_shape: "localized", risk: "medium", existing_gate: true, architecture_uncertainty: false, external_research_required: false } }
+  const result = validatePlan(validPlan(), { workClasses, goal: goalLabels, route: "direct" })
+  assert.equal(result.valid, true, result.errors.join("\n"))
+  assert.equal(result.triage.route_goal, "direct")
+  assert.equal(result.triage.route_effective, "planned")
+  assert.deepEqual(result.triage.contradictions.map((item) => [item.label, item.claimed, item.effective]), [["change_shape", "localized", "multi-component"]])
+  assert.match(result.triage.contradictions[0].evidence, /needs 3 contracts/)
+
+  const single = validPlan()
+  single.phases = [single.phases[0]]
+  single.phases[0].contracts[0].requirements[0].covers = ["REQ-1", "REQ-2", "ACC-1"]
+  const fits = validatePlan(single, { workClasses, goal: goalLabels, route: "direct" })
+  assert.equal(fits.triage.route_effective, "direct")
+  assert.deepEqual(fits.triage.contradictions, [])
+  assert.equal(validatePlan(single, { workClasses }).triage, null, "no Goal and no route: nothing to judge")
+})
+
+test("triage: the Planner may raise the risk above the Goal's, and sensitive paths raise it on their own; the code never lowers it", async () => {
+  const riskFloors = JSON.parse(await readFile(new URL("../.opencode/codegen/config/risk-floors.json", import.meta.url), "utf8"))
+  const lowGoal = { ...goal(), routing: { change_shape: "multi-component", risk: "low", existing_gate: true, architecture_uncertainty: false, external_research_required: false } }
+
+  // Declared risk above the Goal's: no error, a contradiction.
+  const declared = validPlan()
+  declared.phases[0].contracts[0].risk = "high"
+  declared.phases[1].contracts[0].risk = "low"
+  declared.phases[2].contracts[0].risk = "low"
+  const raised = validatePlan(declared, { workClasses, goal: lowGoal, route: "planned", riskFloors })
+  assert.equal(raised.valid, true, raised.errors.join("\n"))
+  assert.deepEqual(raised.triage.contradictions.map((item) => [item.label, item.claimed, item.effective]), [["risk", "low", "high"]])
+  assert.equal(raised.triage.risk_effective, "high")
+  assert.equal(raised.triage.contracts[0].risk_effective, "high")
+
+  // Paths raise the floor: a dependency manifest is medium, a migration is high.
+  const paths = validPlan()
+  for (const phase of paths.phases) phase.contracts[0].risk = "low"
+  paths.phases[0].contracts[0].allowed_to_modify = ["src/users/service.js", "package.json"]
+  paths.phases[1].contracts[0].allowed_to_modify = ["db/migrate/**"]
+  const floored = validatePlan(paths, { workClasses, goal: lowGoal, route: "planned", riskFloors })
+  assert.equal(floored.valid, true, floored.errors.join("\n"))
+  const byId = Object.fromEntries(floored.triage.contracts.map((item) => [item.contract_id, item]))
+  assert.equal(byId["users-service"].risk_floor, "medium")
+  assert.equal(byId["users-service"].risk_effective, "medium")
+  assert.deepEqual(byId["users-service"].floor_reasons.map((hit) => [hit.path, hit.risk]), [["package.json", "medium"]])
+  assert.equal(byId["products-service"].risk_effective, "high")
+  assert.equal(byId["integration-api"].risk_effective, "low")
+  assert.equal(floored.triage.risk_effective, "high")
+  assert.ok(floored.triage.contradictions.some((item) => item.evidence.includes("package.json, dependency manifest or lockfile (floor medium)")), JSON.stringify(floored.triage.contradictions))
+
+  // A Goal at high risk is never lowered by a low-risk plan.
+  const highGoal = { ...lowGoal, routing: { ...lowGoal.routing, risk: "high" } }
+  const kept = validatePlan(validPlan(), { workClasses, goal: highGoal, route: "planned", riskFloors })
+  assert.equal(kept.triage.risk_effective, "high")
+  assert.deepEqual(kept.triage.contradictions, [])
+})
+
+test("risk floors match exact paths and directory grants conservatively", async () => {
+  const { allowedPathTouches, riskFloorFor } = await import("../.opencode/codegen/lib/plan-validation.mjs")
+  assert.equal(allowedPathTouches("package.json", "package.json"), true)
+  assert.equal(allowedPathTouches("src/package.json", "package.json"), false)
+  assert.equal(allowedPathTouches("src/auth/login.js", "**/auth/**"), true)
+  assert.equal(allowedPathTouches("src/author.js", "**/auth/**"), false)
+  assert.equal(allowedPathTouches("src/auth/**", "**/auth/**"), true, "the directory itself lies inside the pattern")
+  assert.equal(allowedPathTouches("prisma/**", "prisma/migrations/**"), true, "the pattern's fixed prefix lies inside the directory")
+  assert.equal(allowedPathTouches("src/**", "**/auth/**"), false, "a broad grant does not trigger a floating pattern; the user sees the grant in PLAN.md")
+  assert.equal(allowedPathTouches("Dockerfile.prod", "Dockerfile.*"), true)
+  assert.equal(allowedPathTouches("infra/main.tf", "**/*.tf"), true)
+  const floors = { floors: [{ risk: "high", reason: "secrets", patterns: [".env", ".env.*"] }] }
+  assert.deepEqual(riskFloorFor({ allowed_to_modify: [".env.local", "README.md"] }, floors).floor, "high")
+  assert.deepEqual(riskFloorFor({ allowed_to_modify: ["README.md"] }, floors), { floor: "low", hits: [] })
+})
+
+test("contract budgets above the system ceilings are clamped for the effective route and reported", async () => {
+  const { applyPlanLimits } = await import("../.opencode/codegen/lib/plan-validation.mjs")
+  const limits = JSON.parse(await readFile(new URL("../.opencode/codegen/config/budgets.json", import.meta.url), "utf8"))
+  const plan = validPlan()
+  plan.phases[0].contracts[0].budgets = { max_builder_attempts: 5, max_contract_revisions: 4, max_unplanned_scope_expansion: 0 }
+  const planned = applyPlanLimits(plan, { limits, route: "planned" })
+  assert.equal(planned.plan.phases[0].contracts[0].budgets.max_builder_attempts, 3)
+  assert.equal(planned.plan.phases[0].contracts[0].budgets.max_contract_revisions, 1)
+  assert.deepEqual(planned.adjustments.map((item) => [item.contract_id, item.field, item.from, item.to]), [
+    ["users-service", "budgets.max_builder_attempts", 5, 3],
+    ["users-service", "budgets.max_contract_revisions", 4, 1],
+  ])
+  assert.equal(plan.phases[0].contracts[0].budgets.max_builder_attempts, 5, "the input plan is not mutated")
+  const direct = applyPlanLimits(plan, { limits, route: "direct" })
+  assert.equal(direct.plan.phases[0].contracts[0].budgets.max_builder_attempts, 2, "the direct route allows two attempts")
+  assert.deepEqual(applyPlanLimits(validPlan(), { limits, route: "planned" }).adjustments, [])
+  const reported = validatePlan(plan, { workClasses, goal: goal(), route: "planned", limits })
+  assert.equal(reported.budget_adjustments.length, 2)
 })
 
 test("requirements carry ids and kinds; every automated requirement needs a check; manual ones get none", () => {
@@ -242,12 +330,14 @@ test("check commands that inspect Git state are rejected", async () => {
   assert.ok(result.errors.some((e) => e.includes("check C2 must not inspect Git state")), result.errors.join("; "))
 })
 
-test("a contract cannot carry more risk than its Goal", async () => {
+test("a contract that carries more risk than its Goal is a contradiction the user reviews, not an error", async () => {
   const plan = JSON.parse(await readFile(new URL("./fixtures/orchestrator-basic/plan-template.json", import.meta.url), "utf8"))
+  const fixtureGoal = JSON.parse(await readFile(new URL("./fixtures/orchestrator-basic/.codegen-goal/goal.json", import.meta.url), "utf8"))
   plan.phases[0].contracts[0].risk = "high"
   const classes = new Set(plan.phases.flatMap((p) => p.contracts.map((c) => c.work_class)))
-  assert.ok(validatePlan(plan, { workClasses: classes, maxRisk: "medium" }).errors.some((e) => e.includes("exceeds the Goal's risk medium")))
-  assert.equal(validatePlan(plan, { workClasses: classes, maxRisk: "high" }).errors.filter((e) => e.includes("exceeds")).length, 0)
+  const result = validatePlan(plan, { workClasses: classes, goal: fixtureGoal, route: "planned" })
+  assert.equal(result.valid, true, result.errors.join("\n"))
+  assert.deepEqual(result.triage.contradictions.map((item) => [item.label, item.claimed, item.effective]), [["risk", "medium", "high"]])
 })
 
 test("the fixture plans cover the fixture Goals", async () => {

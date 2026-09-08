@@ -74,3 +74,25 @@ test("the coverage ledger reports per Goal id what passed, what failed, and what
   assert.equal(partial.requirements[0].status, "NOT_VERIFIED")
   assert.equal(partial.requirements[0].claims[1].status, "NOT_RUN")
 })
+
+test("PLAN.md shows the triage against the Goal's labels and the budget adjustments", async () => {
+  const { plan, goal } = await fixtures()
+  const limits = JSON.parse(await readFile(new URL("../.opencode/codegen/config/budgets.json", import.meta.url), "utf8"))
+  const riskFloors = JSON.parse(await readFile(new URL("../.opencode/codegen/config/risk-floors.json", import.meta.url), "utf8"))
+  plan.phases[0].contracts[0].allowed_to_modify = ["lib/alpha.py", "package.json"]
+  plan.phases[0].contracts[0].budgets.max_builder_attempts = 9
+  const lowGoal = { ...goal, routing: { ...goal.routing, risk: "low" } }
+  const markdown = renderPlanMarkdown(plan, lowGoal, { route: "planned", riskFloors, limits })
+  assert.ok(markdown.includes("## Triage"), markdown)
+  assert.ok(markdown.includes("- Route: Goal `planned` → effective `planned`"))
+  assert.ok(markdown.includes("- Risk: Goal `low` → effective `medium`"))
+  assert.ok(markdown.includes("`alpha`: declared `low`, floor `medium`, effective `medium` (package.json: dependency manifest or lockfile)"), markdown)
+  assert.ok(markdown.includes("**Triage contradictions (approving this plan accepts the effective values):**"))
+  assert.ok(markdown.includes("`risk`: Goal said `low`, evidence: alpha: may modify package.json, dependency manifest or lockfile (floor medium) → effective `medium`"))
+  assert.ok(markdown.includes("## Budget adjustments"))
+  assert.ok(markdown.includes("`alpha` `budgets.max_builder_attempts`: 9 → 3 (above the system ceiling 3 for the planned route)"))
+
+  const clean = renderPlanMarkdown((await fixtures()).plan, goal, { route: "planned", riskFloors, limits })
+  assert.ok(clean.includes("No triage contradictions: the plan fits the Goal's labels."))
+  assert.ok(!clean.includes("## Budget adjustments"))
+})

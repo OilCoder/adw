@@ -158,11 +158,19 @@ npm run research -- render .codegen-research/RQ-1.json
 The Researcher runs one configuration certified as `researcher` from the
 Go-preferred `research-synthesis` route. The Runner also sets `OPENCODE_ENABLE_EXA=1` so
 hosted search remains available when needed. The
-report must cite only sources actually retrieved; the validator binds it to the
-Goal question (id, text, budget, allowed source types) and rejects future
-retrieval dates, uncited findings, and over-budget source counts. Research
-reports never edit the Goal: the Goal Manager records accepted conclusions under
-`decisions` on its next run.
+report must cite only sources actually retrieved and give every finding a
+verbatim quote; the validator binds it to the Goal question (id, text, budget,
+allowed source types) and rejects future retrieval dates, uncited findings, and
+over-budget source counts. The runner then fetches every source and searches
+each quote: a source that does not exist or is about something else rejects
+the report (`REPORT_INVALID`); an unverifiable source (403, 5xx, timeout,
+binary) or a quote that is not found marks the finding unverified with its
+confidence forced to `low`, and a report with no verified finding answers
+nothing, so its question stays pending or is waived, never completed. The
+verdicts are written under `verification` in the report and rendered in its
+Markdown (`--source-verification offline` skips the network and is refused in
+installed projects). Research reports never edit the Goal: the Goal Manager
+records accepted conclusions under `decisions` on its next run.
 
 Deliberate a blocking open question that carries a closed option set:
 
@@ -214,10 +222,17 @@ contract requirement declares in `covers` the Goal requirement and
 acceptance-criterion ids it satisfies; a plan that leaves a `must` requirement
 or an automated criterion uncovered is rejected and re-requested with the
 errors as evidence, within `budgets.max_planner_calls`. A valid plan is
-rendered as `PLAN.md` next to it. On the planned route the run then stops as
-`PLAN_REVIEW_REQUIRED`: the user reviews `PLAN.md` and the run continues with
-`--plan <path>` (the direct route builds straight through). Then, for each
-execution wave:
+rendered as `PLAN.md` next to it. The Goal's triage is judged again with the
+plan's evidence, only upward: a direct route that needs more than one contract
+becomes planned, and each contract's effective risk is the highest of what the
+Planner declared and the floor its paths imply
+(`.opencode/codegen/config/risk-floors.json`). On the planned route, or when
+the plan contradicts the Goal's labels, the run then stops as
+`PLAN_REVIEW_REQUIRED`: the user reviews `PLAN.md` (coverage, triage
+contradictions, budget adjustments) and the run continues with `--plan <path>`;
+approving the plan accepts the effective route and risk. Contract budgets above
+the system ceilings (`.opencode/codegen/config/budgets.json`) are clamped when
+the contract is sealed. Then, for each execution wave:
 
 1. creates one detached Git worktree per contract under `.codegen-run/<run>/`
    (excluded through `.git/info/exclude`, never the tracked `.gitignore`),

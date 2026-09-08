@@ -6,11 +6,23 @@
   "status": "COMPLETE",
   "summary": "The ORM raises IntegrityError on unique violations; a custom domain error must be mapped in the service.",
   "findings": [
-    { "id": "F-1", "claim": "Unique constraints raise IntegrityError", "source_ids": ["S-1"], "confidence": "high" }
+    {
+      "id": "F-1",
+      "claim": "Unique constraints raise IntegrityError",
+      "source_ids": [
+        "S-1"
+      ],
+      "confidence": "high",
+      "quote": "Unique constraints raise IntegrityError when a duplicate value is inserted."
+    }
   ],
-  "alternatives": ["Application-level existence check before insert"],
+  "alternatives": [
+    "Application-level existence check before insert"
+  ],
   "recommendation": "Use the database constraint and map IntegrityError to EmailAlreadyExists.",
-  "risks": ["Race condition if only the application check is used"],
+  "risks": [
+    "Race condition if only the application check is used"
+  ],
   "sources": [
     {
       "id": "S-1",
@@ -21,7 +33,13 @@
       "source_type": "official"
     }
   ],
-  "limitations": ["Only the current major version was checked"],
+  "limitations": [
+    "Only the current major version was checked"
+  ],
   "unanswered_questions": [],
-  "budget": { "max_sources": 3, "max_minutes": 10, "sources_used": 1 }
+  "budget": {
+    "max_sources": 3,
+    "max_minutes": 10,
+    "sources_used": 1
+  }
 }

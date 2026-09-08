@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "notes": [
+    "Minimum risk implied by the paths a contract may modify. The Goal Manager's risk label is a first look; once the Planner names concrete paths, the orchestrator raises the effective risk to the highest floor any allowed path touches. It never lowers a label the user approved.",
+    "A contradiction (effective risk above the Goal's) pauses the run for plan review; approving the plan accepts the effective risk, which then governs Builder and Gate Designer admission.",
+    "Patterns are globs: * matches within one path segment, ** matches across segments. An allowed dir/** touches a floor when the directory itself lies inside the pattern or the pattern's fixed prefix lies inside the directory; a broad grant like src/** does not trigger **/auth/** on its own, so the user reviews broad grants in PLAN.md.",
+    "These defaults are a starting point. Edit this file to match the project."
+  ],
+  "floors": [
+    {
+      "risk": "medium",
+      "reason": "dependency manifest or lockfile",
+      "patterns": [
+        "package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock", "bun.lock",
+        "requirements.txt", "requirements/**", "pyproject.toml", "poetry.lock", "Pipfile", "Pipfile.lock", "setup.py", "setup.cfg",
+        "go.mod", "go.sum", "Cargo.toml", "Cargo.lock", "Gemfile", "Gemfile.lock", "composer.json", "composer.lock",
+        "*.csproj", "pom.xml", "build.gradle", "build.gradle.kts"
+      ]
+    },
+    {
+      "risk": "medium",
+      "reason": "CI, container, or build configuration",
+      "patterns": [
+        ".github/**", ".gitlab-ci.yml", ".circleci/**", "Jenkinsfile",
+        "Dockerfile", "Dockerfile.*", "docker-compose*.yml", "docker-compose*.yaml", "Makefile",
+        ".opencode/**", "opencode.json"
+      ]
+    },
+    {
+      "risk": "high",
+      "reason": "database migration",
+      "patterns": ["**/migrations/**", "**/migrate/**", "alembic/**", "prisma/migrations/**", "db/migrate/**"]
+    },
+    {
+      "risk": "high",
+      "reason": "authentication, payments, or security code",
+      "patterns": [
+        "**/auth/**", "**/authentication/**", "**/authorization/**",
+        "**/payments/**", "**/payment/**", "**/billing/**",
+        "**/security/**", "**/secrets/**", "**/crypto/**"
+      ]
+    },
+    {
+      "risk": "high",
+      "reason": "infrastructure or secrets",
+      "patterns": ["terraform/**", "**/*.tf", "k8s/**", "kubernetes/**", "helm/**", "infra/**", "infrastructure/**", ".env", ".env.*"]
+    }
+  ]
+}

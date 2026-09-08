@@ -153,3 +153,24 @@ test("a Goal with no planner budget is invalid because nothing could ever build 
   assert.equal(result.valid, false)
   assert.ok(result.errors.some((error) => error.includes("max_planner_calls must be at least 1")))
 })
+
+test("budgets a model wrote are clamped to the system limits and the adjustments are rendered", async () => {
+  const { applyGoalLimits, renderGoalMarkdown } = await import("../.opencode/codegen/lib/goal.mjs")
+  const { readFile } = await import("node:fs/promises")
+  const limits = JSON.parse(await readFile(new URL("../.opencode/codegen/config/budgets.json", import.meta.url), "utf8"))
+  const goal = JSON.parse(await readFile(new URL("./fixtures/goal-research/goal.json", import.meta.url), "utf8"))
+  const greedy = { ...goal, budgets: { max_research_questions: 9, max_research_calls: 0, max_planner_calls: 7, max_derived_tasks: 3 } }
+  const { goal: clamped, adjustments } = applyGoalLimits(greedy, limits)
+  assert.deepEqual(clamped.budgets, { max_research_questions: 5, max_research_calls: 1, max_planner_calls: 3, max_derived_tasks: 3 })
+  assert.deepEqual(adjustments.map((item) => [item.field, item.from, item.to]), [
+    ["budgets.max_research_questions", 9, 5],
+    ["budgets.max_research_calls", 0, 1],
+    ["budgets.max_planner_calls", 7, 3],
+  ])
+  assert.match(adjustments[1].reason, /1 required pending research question/)
+  assert.deepEqual(applyGoalLimits(goal, limits).adjustments, [], "a Goal within limits is untouched")
+  const markdown = renderGoalMarkdown(clamped, { adjustments })
+  assert.ok(markdown.includes("## Budget adjustments"))
+  assert.ok(markdown.includes("`budgets.max_planner_calls`: 7 → 3 (above the system ceiling 3)"))
+  assert.ok(!renderGoalMarkdown(clamped).includes("## Budget adjustments"))
+})

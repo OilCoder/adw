@@ -20,62 +20,270 @@
     "budget"
   ],
   "properties": {
-    "schema_version": { "const": 1 },
-    "report_id": { "type": "string", "minLength": 1 },
-    "question_id": { "type": "string", "minLength": 1 },
-    "question": { "type": "string", "minLength": 1 },
-    "status": { "enum": ["COMPLETE", "BLOCKED"] },
-    "summary": { "type": "string", "minLength": 1 },
+    "schema_version": {
+      "const": 1
+    },
+    "report_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "question_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "COMPLETE",
+        "BLOCKED"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
     "findings": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "claim", "source_ids", "confidence"],
+        "required": [
+          "id",
+          "claim",
+          "source_ids",
+          "confidence",
+          "quote"
+        ],
         "properties": {
-          "id": { "type": "string", "minLength": 1 },
-          "claim": { "type": "string", "minLength": 1 },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "claim": {
+            "type": "string",
+            "minLength": 1
+          },
           "source_ids": {
             "type": "array",
             "minItems": 1,
-            "items": { "type": "string", "minLength": 1 },
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
             "uniqueItems": true
           },
-          "confidence": { "enum": ["low", "medium", "high"] }
+          "confidence": {
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "quote": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "description": "Verbatim excerpt from one of the cited sources that supports the claim. The runner fetches the source and searches for this text; a finding whose quote is not found is reported as unverified with confidence forced to low."
+          }
         }
       }
     },
-    "alternatives": { "$ref": "#/$defs/strings" },
-    "recommendation": { "type": "string" },
-    "risks": { "$ref": "#/$defs/strings" },
+    "alternatives": {
+      "$ref": "#/$defs/strings"
+    },
+    "recommendation": {
+      "type": "string"
+    },
+    "risks": {
+      "$ref": "#/$defs/strings"
+    },
     "sources": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "title", "url", "publisher", "retrieved_at", "source_type"],
+        "required": [
+          "id",
+          "title",
+          "url",
+          "publisher",
+          "retrieved_at",
+          "source_type"
+        ],
         "properties": {
-          "id": { "type": "string", "minLength": 1 },
-          "title": { "type": "string", "minLength": 1 },
-          "url": { "type": "string", "pattern": "^https://" },
-          "publisher": { "type": "string", "minLength": 1 },
-          "retrieved_at": { "type": "string", "format": "date-time" },
-          "source_type": { "enum": ["official", "independent", "vendor", "community"] }
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "pattern": "^https://"
+          },
+          "publisher": {
+            "type": "string",
+            "minLength": 1
+          },
+          "retrieved_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "source_type": {
+            "enum": [
+              "official",
+              "independent",
+              "vendor",
+              "community"
+            ]
+          }
         }
       }
     },
-    "limitations": { "$ref": "#/$defs/strings" },
-    "unanswered_questions": { "$ref": "#/$defs/strings" },
+    "limitations": {
+      "$ref": "#/$defs/strings"
+    },
+    "unanswered_questions": {
+      "$ref": "#/$defs/strings"
+    },
     "budget": {
       "type": "object",
-      "required": ["max_sources", "max_minutes", "sources_used"],
+      "required": [
+        "max_sources",
+        "max_minutes",
+        "sources_used"
+      ],
       "properties": {
-        "max_sources": { "type": "integer", "minimum": 1 },
-        "max_minutes": { "type": "integer", "minimum": 1 },
-        "sources_used": { "type": "integer", "minimum": 0 }
+        "max_sources": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_minutes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sources_used": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
+    },
+    "verification": {
+      "type": "object",
+      "description": "Written by the runner after fetching every source, never by the Researcher. mode fetch is the only mode an installed project runs; offline is maintenance-only.",
+      "required": [
+        "mode",
+        "verified_at",
+        "sources",
+        "findings"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "fetch",
+            "offline"
+          ]
+        },
+        "verified_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "status"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "status": {
+                "enum": [
+                  "verified",
+                  "unverifiable",
+                  "missing",
+                  "mismatched",
+                  "skipped"
+                ]
+              },
+              "http_status": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "title_matched": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "detail": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "status"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "status": {
+                "enum": [
+                  "verified",
+                  "unverified",
+                  "skipped"
+                ]
+              },
+              "source_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "detail": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "confidence_forced_low": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
     }
   },
   "$defs": {
-    "strings": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+    "strings": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
   },
   "additionalProperties": false
 }

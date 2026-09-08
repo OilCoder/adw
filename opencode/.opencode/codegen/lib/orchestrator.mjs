@@ -6,7 +6,7 @@ import { runFinalGate } from "./final-gate.mjs"
 import { checkGateReadiness, materializeGate } from "./gate.mjs"
 import { routeGoal } from "./goal-routing.mjs"
 import { validateGoal } from "./goal.mjs"
-import { validatePlan } from "./plan-validation.mjs"
+import { applyPlanLimits, validatePlan } from "./plan-validation.mjs"
 import {
   cherryPick,
   commitPaths,
@@ -69,6 +69,8 @@ export async function orchestrate({
   goalPath,
   planPath = null,
   registry,
+  limits = null,
+  riskFloors = null,
   runners,
   runId,
   concurrency = 2,
@@ -89,6 +91,8 @@ export async function orchestrate({
     stop_reason: null,
     goal_id: null,
     route: null,
+    triage: null,
+    budget_adjustments: [],
     plan_id: null,
     plan_path: null,
     plan_markdown: null,
@@ -145,9 +149,8 @@ export async function orchestrate({
   state.base_revision = baseRevision
 
   // 2. Plan: reuse a plan the user reviewed, or ask the Planner. The direct
-  //    route is the Planner constrained to exactly one contract.
+  //    route asks for one contract; a plan that needs more is re-routed.
   const workClasses = new Set(Object.keys(registry.routes))
-  const maxContracts = routing.route === "direct" ? 1 : null
   let plan
   if (planPath) {
     plan = JSON.parse(await readFile(path.resolve(directory, planPath), "utf8"))
@@ -165,14 +168,14 @@ export async function orchestrate({
     while (true) {
       state.planner_calls += 1
       output = `.codegen-plan/${runId}${state.planner_calls > 1 ? `-${state.planner_calls}` : ""}.json`
-      await emit("PLAN_REQUESTED", { output, max_contracts: maxContracts, attempt: state.planner_calls, evidence })
+      await emit("PLAN_REQUESTED", { output, route: routing.route, attempt: state.planner_calls, evidence })
       const summary = await runners.planner({
         directory,
         objective: goal.objective,
         goal: goalPath,
         output,
         minimumStatus,
-        maxContracts,
+        route: routing.route,
         evidence,
       })
       await emit("PLAN_GENERATED", { result: summary.result, output, attempt: state.planner_calls, markdown: summary.markdown ?? null })
@@ -194,27 +197,46 @@ export async function orchestrate({
     state.plan_path = output
   }
   // The plan is validated against the Goal: every must requirement and every
-  // automated acceptance criterion has to be claimed by some contract.
-  const planValidation = validatePlan(plan, { workClasses, maxContracts, maxRisk: goal.routing.risk, goal })
+  // automated acceptance criterion has to be claimed by some contract. The
+  // Goal's triage is judged again with the plan's evidence: a direct route
+  // that needs more than one contract becomes planned, and a contract's
+  // effective risk is the highest of what the Planner declared and what its
+  // paths imply. The code only ever raises a label; a raise is a
+  // contradiction the user accepts at plan review.
+  const planValidation = validatePlan(plan, { workClasses, goal, route: routing.route, riskFloors, limits })
   await emit("PLAN_VALIDATED", { valid: planValidation.valid, errors: planValidation.errors, execution_waves: planValidation.execution_waves })
   if (!planValidation.valid) return stop("PLAN_INVALID", planValidation.errors.join("; "))
   if (plan.base_revision !== baseRevision) {
     return stop("PLAN_STALE", `plan base_revision ${plan.base_revision} is not HEAD ${baseRevision}`)
   }
   state.plan_id = plan.plan_id
-  const phasesById = new Map(plan.phases.map((phase) => [phase.phase_id, phase]))
-  await emit("DAG_READY", { waves: planValidation.execution_waves })
+  state.triage = planValidation.triage
+  state.route = planValidation.triage.route_effective
+  for (const contradiction of planValidation.triage.contradictions) await emit("TRIAGE_CONTRADICTED", contradiction)
+  const riskByContract = new Map(planValidation.triage.contracts.map((item) => [item.contract_id, item.risk_effective]))
+  await emit("DAG_READY", { waves: planValidation.execution_waves, route: state.route, risk_effective: planValidation.triage.risk_effective })
 
-  // On the planned route the user reviews PLAN.md before anyone builds: the
-  // run stops here, before any worktree exists, and resumes when orchestrate
-  // is called again with the reviewed plan. The direct route (one contract)
-  // builds straight through.
-  if (routing.route === "planned" && !state.plan_reviewed) {
+  // On the planned route, or whenever the plan contradicts the Goal's
+  // triage, the user reviews PLAN.md before anyone builds: the run stops
+  // here, before any worktree exists, and resumes when orchestrate is called
+  // again with the reviewed plan. A direct route that fits its labels builds
+  // straight through.
+  const needsReview = state.route === "planned" || planValidation.triage.contradictions.length > 0
+  if (needsReview && !state.plan_reviewed) {
     return stop("PLAN_REVIEW_REQUIRED", `review ${state.plan_markdown ?? state.plan_path} and orchestrate again with --plan ${state.plan_path}`, {
       plan_path: state.plan_path,
       plan_markdown: state.plan_markdown,
+      contradictions: planValidation.triage.contradictions,
     })
   }
+
+  // Contract budgets are clamped to the system ceilings for the effective
+  // route; the plan file keeps the Planner's numbers.
+  const limited = applyPlanLimits(plan, { limits, route: state.route })
+  plan = limited.plan
+  state.budget_adjustments = limited.adjustments
+  for (const adjustment of limited.adjustments) await emit("BUDGET_ADJUSTED", adjustment)
+  const phasesById = new Map(plan.phases.map((phase) => [phase.phase_id, phase]))
 
   // 3. Integration branch, isolated from the user's checkout.
   await createWorktree({
@@ -256,11 +278,14 @@ export async function orchestrate({
       await writeFile(path.join(contractDirectory, "contract.json"), `${JSON.stringify(sealed, null, 2)}\n`)
       await commitPaths(worktree, [".codegen-contract"], `codegen: seal ${contract.contract_id}`, { force: true })
 
+      const riskEffective = riskByContract.get(contract.contract_id) ?? contract.risk
       const record = {
         contract_id: contract.contract_id,
         phase_id: phaseId,
         worktree,
         status: "PREPARED",
+        risk_effective: riskEffective,
+        budgets: contract.budgets,
         gate_readiness: null,
         attempts: [],
         result_commit: null,
@@ -271,12 +296,24 @@ export async function orchestrate({
       let readiness = await checkGateReadiness({ directory: worktree, contract: sealed, timeoutSeconds: gateTimeoutSeconds })
       if (!readiness.ready && readiness.fixable) {
         await emit("GATE_DESIGN_REQUESTED", { contract_id: contract.contract_id, reasons: readiness.reasons })
+        // The Goal said a Gate already existed; the evidence says otherwise.
+        // Recorded, never silently corrected: the Gate Designer resolves it.
+        if (goal.routing.existing_gate) {
+          const contradiction = {
+            label: "existing_gate",
+            claimed: true,
+            effective: false,
+            evidence: `${contract.contract_id}: ${readiness.reasons.join(", ")}; the Gate Designer had to make the checks real`,
+          }
+          state.triage.contradictions.push(contradiction)
+          await emit("TRIAGE_CONTRADICTED", contradiction)
+        }
         state.gate_designer_calls += 1
         const design = await runners.gateDesigner({
           directory: worktree,
           contract: ".codegen-contract/contract.json",
           workClass: contract.work_class,
-          risk: contract.risk,
+          risk: riskEffective,
           minimumStatus,
         })
         await emit("GATE_DESIGNED", { contract_id: contract.contract_id, result: design.result })
@@ -308,7 +345,7 @@ export async function orchestrate({
           directory: record.worktree,
           contract: ".codegen-contract/contract.json",
           workClass: contract.work_class,
-          risk: contract.risk,
+          risk: record.risk_effective,
           minimumStatus,
           evidence,
         })
@@ -319,7 +356,7 @@ export async function orchestrate({
         record.attempts.push({ attempt, result, evidence, summary })
         const outcome = classifyBuilderOutcome(result, { attempt, maxAttempts })
         if (result === "NO_BUILDER_ADMITTED") {
-          outcome.reason = `no builder admitted for ${contract.work_class} at risk ${contract.risk}: ${(summary.rejected ?? []).slice(0, 4).map((r) => `${r.configuration_id} (${(r.reasons ?? []).join(", ")})`).join("; ")}`
+          outcome.reason = `no builder admitted for ${contract.work_class} at risk ${record.risk_effective}: ${(summary.rejected ?? []).slice(0, 4).map((r) => `${r.configuration_id} (${(r.reasons ?? []).join(", ")})`).join("; ")}`
         }
         if (outcome.disposition === "ACCEPT") {
           record.result_commit = await commitPaths(

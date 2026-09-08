@@ -174,6 +174,47 @@ export function validateGoal(goal) {
   return { valid: errors.length === 0, errors }
 }
 
+// The Goal Manager proposes budgets; the system owns their ceilings and
+// floors. Values above a ceiling are cut to it, and max_research_calls is
+// raised to the number of required pending questions so a deliberation can
+// never end without researching what the Goal says it needs. Every change
+// is returned so the runner can report it before the user approves.
+export function applyGoalLimits(goal, limits) {
+  const adjusted = structuredClone(goal)
+  const adjustments = []
+  const budgets = adjusted?.budgets
+  if (!budgets || typeof budgets !== "object" || !limits?.goal) return { goal: adjusted, adjustments }
+  const requiredPending = (Array.isArray(adjusted.research_questions) ? adjusted.research_questions : []).filter(
+    (item) => item?.required && item?.status === "pending",
+  ).length
+  const questionCount = Array.isArray(adjusted.research_questions) ? adjusted.research_questions.length : 0
+  const floors = { max_research_calls: requiredPending, max_research_questions: questionCount, max_planner_calls: 1 }
+  for (const [field, ceiling] of Object.entries(limits.goal)) {
+    const current = budgets[field]
+    if (!Number.isInteger(current)) continue
+    const floor = floors[field] ?? 0
+    let next = current
+    let reason = null
+    if (Number.isInteger(ceiling) && next > ceiling) {
+      next = ceiling
+      reason = `above the system ceiling ${ceiling}`
+    }
+    if (next < floor && floor <= (Number.isInteger(ceiling) ? ceiling : floor)) {
+      next = floor
+      reason = field === "max_research_calls"
+        ? `below the ${floor} required pending research question${floor === 1 ? "" : "s"}`
+        : field === "max_research_questions"
+          ? `below the ${floor} research question${floor === 1 ? "" : "s"} the Goal lists`
+          : "below the minimum of 1"
+    }
+    if (next !== current) {
+      budgets[field] = next
+      adjustments.push({ field: `budgets.${field}`, from: current, to: next, reason })
+    }
+  }
+  return { goal: adjusted, adjustments }
+}
+
 export function sealApprovedGoal(goal) {
   const current = validateGoal(goal)
   if (!current.valid) throw new Error(`Cannot approve invalid Goal: ${current.errors.join("; ")}`)
@@ -188,9 +229,19 @@ function bullets(items, format) {
   return items.length > 0 ? items.map((item) => `- ${format(item)}`).join("\n") : "- None"
 }
 
-export function renderGoalMarkdown(goal) {
+export function renderGoalMarkdown(goal, { adjustments = [] } = {}) {
   const validation = validateGoal(goal)
   if (!validation.valid) throw new Error(`Cannot render invalid goal: ${validation.errors.join("; ")}`)
+  const adjustmentSection =
+    adjustments.length > 0
+      ? `
+## Budget adjustments
+
+The system clamped these budgets before rendering:
+
+${bullets(adjustments, (item) => `\`${item.field}\`: ${item.from} → ${item.to} (${item.reason})`)}
+`
+      : ""
   return `# ${goal.title}
 
 **Goal ID:** \`${goal.goal_id}\`<br>
@@ -254,5 +305,5 @@ ${bullets(goal.open_questions, (item) => `\`${item.id}\`${item.blocking ? " [blo
 - Research calls: ${goal.budgets.max_research_calls}
 - Planner calls: ${goal.budgets.max_planner_calls}
 - Derived tasks: ${goal.budgets.max_derived_tasks}
-`
+${adjustmentSection}`
 }

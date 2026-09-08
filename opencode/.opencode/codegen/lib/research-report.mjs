@@ -1,4 +1,7 @@
 const SOURCE_TYPES = new Set(["official", "independent", "vendor", "community"])
+const SOURCE_STATUSES = new Set(["verified", "unverifiable", "missing", "mismatched", "skipped"])
+const FINDING_STATUSES = new Set(["verified", "unverified", "skipped"])
+const MAX_QUOTE_LENGTH = 300
 
 function text(value) {
   return typeof value === "string" && value.trim().length > 0
@@ -12,6 +15,28 @@ function stringList(value, label, errors) {
     return
   }
   if (value.some((item) => !text(item))) errors.push(`${label} contains empty text`)
+}
+
+function validateVerification(verification, report, errors) {
+  if (!["fetch", "offline"].includes(verification?.mode)) errors.push("verification.mode must be fetch or offline")
+  if (!text(verification?.verified_at) || Number.isNaN(new Date(verification.verified_at).getTime())) {
+    errors.push("verification.verified_at must be an ISO date-time")
+  }
+  const sourceIds = new Set((report?.sources ?? []).map((source) => source?.id))
+  const findingIds = new Set((report?.findings ?? []).map((finding) => finding?.id))
+  for (const [label, items, ids, statuses] of [
+    ["sources", verification?.sources, sourceIds, SOURCE_STATUSES],
+    ["findings", verification?.findings, findingIds, FINDING_STATUSES],
+  ]) {
+    if (!Array.isArray(items)) {
+      errors.push(`verification.${label} must be an array`)
+      continue
+    }
+    for (const item of items) {
+      if (!ids.has(item?.id)) errors.push(`verification.${label}: unknown id ${item?.id}`)
+      if (!statuses.has(item?.status)) errors.push(`verification.${label}: invalid status for ${item?.id}`)
+    }
+  }
 }
 
 export function validateResearchReport(report, question = null, { now = new Date() } = {}) {
@@ -54,6 +79,10 @@ export function validateResearchReport(report, question = null, { now = new Date
     else if (findingIds.has(finding.id)) errors.push(`duplicate finding id: ${finding.id}`)
     else findingIds.add(finding.id)
     if (!text(finding?.claim)) errors.push(`${finding?.id}: claim is required`)
+    // The quote is what the runner searches for in the fetched source; a
+    // finding without one cannot be verified and is not accepted.
+    if (!text(finding?.quote)) errors.push(`${finding?.id}: quote is required (a verbatim excerpt from a cited source)`)
+    else if (finding.quote.length > MAX_QUOTE_LENGTH) errors.push(`${finding?.id}: quote exceeds ${MAX_QUOTE_LENGTH} characters`)
     if (!CONFIDENCE.has(finding?.confidence)) errors.push(`${finding?.id}: confidence is invalid`)
     if (!Array.isArray(finding?.source_ids) || finding.source_ids.length === 0) {
       errors.push(`${finding?.id}: finding must cite at least one source`)
@@ -80,6 +109,7 @@ export function validateResearchReport(report, question = null, { now = new Date
   if (report?.budget?.sources_used > report?.budget?.max_sources) {
     errors.push("source count exceeds research budget")
   }
+  if (report?.verification !== undefined) validateVerification(report.verification, report, errors)
   if (question) {
     if (report?.question_id !== question.id) errors.push("question_id does not match Goal")
     if (report?.question !== question.question) errors.push("question text does not match Goal")
@@ -98,8 +128,41 @@ export function validateResearchReport(report, question = null, { now = new Date
   return { valid: errors.length === 0, errors }
 }
 
+// Which findings the runner could not verify by retrieval.
+export function unverifiedFindings(report) {
+  if (report?.verification?.mode !== "fetch") return []
+  return (report.verification.findings ?? []).filter((item) => item.status === "unverified").map((item) => item.id)
+}
+
+// A report answers its question only when it is COMPLETE and at least one
+// finding was verified by retrieval. A COMPLETE report with every finding
+// unverified is evidence nobody could check: it is treated like BLOCKED.
+export function reportAnswers(report) {
+  if (report?.status !== "COMPLETE") return false
+  const findings = report.findings ?? []
+  if (findings.length === 0) return false
+  const unverified = unverifiedFindings(report)
+  return unverified.length < findings.length
+}
+
 function bullets(items, format = (item) => item) {
   return items.length > 0 ? items.map((item) => `- ${format(item)}`).join("\n") : "- None"
+}
+
+function sourceLabel(report, sourceId) {
+  const entry = report.verification?.sources?.find((item) => item.id === sourceId)
+  if (!entry) return ""
+  if (entry.status === "verified") return " [verified]"
+  if (entry.status === "skipped") return " [verification skipped]"
+  return ` [${entry.status.toUpperCase()}: ${entry.detail ?? ""}]`
+}
+
+function findingLabel(report, findingId) {
+  const entry = report.verification?.findings?.find((item) => item.id === findingId)
+  if (!entry) return ""
+  if (entry.status === "verified") return " [verified]"
+  if (entry.status === "skipped") return " [verification skipped]"
+  return ` [UNVERIFIED (por confirmar): ${entry.detail ?? ""}]`
 }
 
 export function renderResearchMarkdown(report) {
@@ -107,12 +170,14 @@ export function renderResearchMarkdown(report) {
   if (!validation.valid) {
     throw new Error(`Cannot render invalid research report: ${validation.errors.join("; ")}`)
   }
-  const sourceById = new Map(report.sources.map((source) => [source.id, source]))
+  const verificationLine = report.verification
+    ? `<br>\n**Source verification:** \`${report.verification.mode}\`${report.verification.mode === "fetch" ? ` (${report.verification.sources.filter((item) => item.status === "verified").length}/${report.verification.sources.length} sources verified, ${report.verification.findings.filter((item) => item.status === "verified").length}/${report.verification.findings.length} findings verified)` : " (maintenance only, nothing fetched)"}`
+    : ""
   return `# Research: ${report.question}
 
 **Report ID:** \`${report.report_id}\`<br>
 **Question ID:** \`${report.question_id}\`<br>
-**Status:** \`${report.status}\`
+**Status:** \`${report.status}\`${verificationLine}
 
 ## Summary
 
@@ -120,7 +185,7 @@ ${report.summary}
 
 ## Findings
 
-${bullets(report.findings, (finding) => `\`${finding.id}\` [${finding.confidence}]: ${finding.claim} (${finding.source_ids.join(", ")})`)}
+${bullets(report.findings, (finding) => `\`${finding.id}\` [${finding.confidence}]: ${finding.claim} (${finding.source_ids.join(", ")})${findingLabel(report, finding.id)}\n  > ${finding.quote}`)}
 
 ## Alternatives
 
@@ -136,7 +201,7 @@ ${bullets(report.risks)}
 
 ## Sources
 
-${bullets(report.sources, (source) => `\`${source.id}\` [${source.title}](${source.url}) - ${source.publisher}, ${source.retrieved_at}`)}
+${bullets(report.sources, (source) => `\`${source.id}\` [${source.title}](${source.url}) - ${source.publisher}, ${source.retrieved_at}${sourceLabel(report, source.id)}`)}
 
 ## Limitations
 

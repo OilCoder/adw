@@ -46,6 +46,36 @@ export async function loadRegistry(systemRoot) {
   )
 }
 
+// System ceilings and floors for model-written budgets (config/budgets.json).
+export async function loadLimits(systemRoot) {
+  return JSON.parse(await readFile(path.join(systemRoot, ".opencode/codegen/config/budgets.json"), "utf8"))
+}
+
+// Minimum risk implied by the paths a contract may modify (config/risk-floors.json).
+export async function loadRiskFloors(systemRoot) {
+  return JSON.parse(await readFile(path.join(systemRoot, ".opencode/codegen/config/risk-floors.json"), "utf8"))
+}
+
+export const SOURCE_VERIFICATIONS = ["fetch", "offline"]
+
+// Research sources are fetched and checked by default. `offline` skips the
+// network and is a maintenance option of the harness repository (tests and
+// smokes); an installed project always verifies.
+export async function resolveSourceVerification(args, systemRoot) {
+  const value = args["source-verification"] ?? "fetch"
+  if (!SOURCE_VERIFICATIONS.includes(value)) {
+    throw new Error(`source-verification must be one of: ${SOURCE_VERIFICATIONS.join(", ")}`)
+  }
+  if (value !== "fetch" && (await isInstalledProject(systemRoot))) {
+    const error = new Error(
+      "MAINTENANCE_ONLY: source verification cannot be skipped in an installed project; research citations are always fetched and checked",
+    )
+    error.code = "MAINTENANCE_ONLY"
+    throw error
+  }
+  return value
+}
+
 // An installed project carries the installer manifest; the harness repository
 // does not. Admission below `qualified` is a maintenance option of the harness
 // repository (smokes and certification) and is refused in installed projects.

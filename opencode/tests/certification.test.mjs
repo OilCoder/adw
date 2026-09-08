@@ -10,7 +10,7 @@ import {
   checkRelease,
   recordCertification,
 } from "../.opencode/codegen/lib/certification.mjs"
-import { INSTALL_MANIFEST, resolveMinimumStatus, resolvePinnedConfiguration } from "../.opencode/codegen/lib/cli.mjs"
+import { INSTALL_MANIFEST, resolveMinimumStatus, resolvePinnedConfiguration, resolveSourceVerification } from "../.opencode/codegen/lib/cli.mjs"
 import { ROLES } from "../.opencode/codegen/lib/model-selection.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -86,6 +86,10 @@ test("admission below qualified is refused in an installed project", async () =>
     await assert.rejects(resolveMinimumStatus({ "minimum-status": "candidate" }, root), /MAINTENANCE_ONLY/)
     await assert.rejects(resolvePinnedConfiguration({ configuration: "builder-go-minimax-m3" }, root), /MAINTENANCE_ONLY/)
     await assert.rejects(resolveMinimumStatus({ "minimum-status": "production" }, root), /must be one of/)
+    // Research citations are always fetched and checked in an installed project.
+    assert.equal(await resolveSourceVerification({}, root), "fetch")
+    await assert.rejects(resolveSourceVerification({ "source-verification": "offline" }, root), /MAINTENANCE_ONLY/)
+    await assert.rejects(resolveSourceVerification({ "source-verification": "trust" }, root), /must be one of/)
   } finally {
     await rm(root, { recursive: true, force: true })
   }

@@ -2,6 +2,7 @@ import { REQUIREMENT_KINDS, REQUIREMENT_VERIFICATIONS, contractChecks, contractR
 
 const RISKS = new Set(["low", "medium", "high"])
 const RISK_RANK = { low: 0, medium: 1, high: 2 }
+const ROUTES = new Set(["direct", "planned"])
 const SAFE_PATH = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/@*+-]+(?:\/[A-Za-z0-9._/@*+-]+)*$/
 
 function nonEmptyString(value) {
@@ -272,11 +273,150 @@ function coverageErrors(coverage) {
   return errors
 }
 
-// `maxRisk` is the Goal's routing.risk: a contract never carries more risk
-// than the Goal it implements, so the route's admitted Builders stay eligible.
-// `goal`, when given, adds the coverage rules: the plan must account for
-// every must requirement and every automated acceptance criterion.
-export function validatePlan(plan, { workClasses = null, maxContracts = null, maxRisk = null, goal = null } = {}) {
+// Risk floors: a glob over the paths a contract may modify implies a minimum
+// risk. `*` stays within one segment, `**` crosses segments.
+function globToRegExp(pattern) {
+  let source = ""
+  for (let index = 0; index < pattern.length; index += 1) {
+    const char = pattern[index]
+    if (char === "*") {
+      if (pattern[index + 1] === "*") {
+        const slashAfter = pattern[index + 2] === "/"
+        source += slashAfter ? "(?:.*/)?" : ".*"
+        index += slashAfter ? 2 : 1
+      } else {
+        source += "[^/]*"
+      }
+    } else if (/[.+?^${}()|[\]\\]/.test(char)) {
+      source += `\\${char}`
+    } else {
+      source += char
+    }
+  }
+  return new RegExp(`^${source}$`)
+}
+
+function fixedPrefix(pattern) {
+  const star = pattern.indexOf("*")
+  return star === -1 ? pattern : pattern.slice(0, star)
+}
+
+// An exact allowed path touches a floor when the glob matches it. An allowed
+// dir/** touches a floor when the directory lies inside the glob (probed with
+// a file below it) or the glob's fixed prefix lies inside the directory.
+export function allowedPathTouches(allowed, floorPattern) {
+  const regexp = globToRegExp(floorPattern)
+  if (!allowed.endsWith("/**")) return regexp.test(allowed)
+  const directory = allowed.slice(0, -3)
+  if (regexp.test(`${directory}/probe`)) return true
+  const prefix = fixedPrefix(floorPattern)
+  return prefix.startsWith(`${directory}/`)
+}
+
+export function riskFloorFor(contract, riskFloors) {
+  const hits = []
+  for (const floor of riskFloors?.floors ?? []) {
+    if (!RISKS.has(floor?.risk)) continue
+    for (const allowed of contract?.allowed_to_modify ?? []) {
+      const pattern = (floor.patterns ?? []).find((candidate) => allowedPathTouches(allowed, candidate))
+      if (pattern) hits.push({ path: allowed, pattern, risk: floor.risk, reason: floor.reason ?? pattern })
+    }
+  }
+  const floor = hits.reduce((highest, hit) => (RISK_RANK[hit.risk] > RISK_RANK[highest] ? hit.risk : highest), "low")
+  return { floor, hits }
+}
+
+// The Goal Manager's triage (shape, risk) is a first look. Once the Planner
+// names contracts and paths, the code judges again and only ever raises: a
+// direct route that needs more than one contract becomes planned; a
+// contract's effective risk is the highest of its declared risk and the floor
+// its paths imply. Anything above the Goal's labels is a contradiction the
+// user must accept at plan review. Nothing here lowers an approved label.
+export function triageAssessment(plan, { goal = null, route = null, riskFloors = null } = {}) {
+  const contracts = (plan?.phases ?? []).flatMap((phase) => phase?.contracts ?? [])
+  const goalRisk = goal?.routing?.risk ?? null
+  const contradictions = []
+  const assessments = contracts.map((contract) => {
+    const declared = RISKS.has(contract?.risk) ? contract.risk : "low"
+    const { floor, hits } = riskFloorFor(contract, riskFloors)
+    const effective = RISK_RANK[floor] > RISK_RANK[declared] ? floor : declared
+    if (goalRisk && RISK_RANK[declared] > RISK_RANK[goalRisk]) {
+      contradictions.push({
+        label: "risk",
+        claimed: goalRisk,
+        effective: declared,
+        evidence: `${contract?.contract_id ?? "?"}: the Planner declared risk ${declared}`,
+      })
+    }
+    if (goalRisk && RISK_RANK[floor] > RISK_RANK[goalRisk]) {
+      for (const hit of hits.filter((item) => RISK_RANK[item.risk] > RISK_RANK[goalRisk])) {
+        contradictions.push({
+          label: "risk",
+          claimed: goalRisk,
+          effective: hit.risk,
+          evidence: `${contract?.contract_id ?? "?"}: may modify ${hit.path}, ${hit.reason} (floor ${hit.risk})`,
+        })
+      }
+    }
+    return { contract_id: contract?.contract_id ?? "?", risk_declared: declared, risk_floor: floor, floor_reasons: hits, risk_effective: effective }
+  })
+  let routeEffective = ROUTES.has(route) ? route : null
+  if (route === "direct" && contracts.length > 1) {
+    routeEffective = "planned"
+    contradictions.push({
+      label: "change_shape",
+      claimed: goal?.routing?.change_shape ?? "localized",
+      effective: "multi-component",
+      evidence: `the plan needs ${contracts.length} contracts; the direct route holds one`,
+    })
+  }
+  const riskEffective = assessments.reduce(
+    (highest, item) => (RISK_RANK[item.risk_effective] > RISK_RANK[highest] ? item.risk_effective : highest),
+    goalRisk ?? "low",
+  )
+  return {
+    route_goal: route,
+    route_effective: routeEffective,
+    risk_goal: goalRisk,
+    risk_effective: riskEffective,
+    existing_gate_goal: goal?.routing?.existing_gate ?? null,
+    contradictions,
+    contracts: assessments,
+  }
+}
+
+// Contract budgets the Planner wrote are clamped to the system ceilings
+// before sealing. The plan file keeps the Planner's numbers; the sealed
+// contract carries the clamped ones, and every change is reported.
+export function applyPlanLimits(plan, { limits = null, route = "planned" } = {}) {
+  const adjusted = structuredClone(plan)
+  const adjustments = []
+  const contractLimits = limits?.contract
+  if (!contractLimits) return { plan: adjusted, adjustments }
+  const attemptsCeiling = contractLimits.max_builder_attempts?.[route === "direct" ? "direct" : "planned"]
+  const revisionsCeiling = contractLimits.max_contract_revisions
+  for (const phase of adjusted?.phases ?? []) {
+    for (const contract of phase?.contracts ?? []) {
+      const budgets = contract?.budgets
+      if (!budgets) continue
+      if (Number.isInteger(attemptsCeiling) && Number.isInteger(budgets.max_builder_attempts) && budgets.max_builder_attempts > attemptsCeiling) {
+        adjustments.push({ contract_id: contract.contract_id, field: "budgets.max_builder_attempts", from: budgets.max_builder_attempts, to: attemptsCeiling, reason: `above the system ceiling ${attemptsCeiling} for the ${route} route` })
+        budgets.max_builder_attempts = attemptsCeiling
+      }
+      if (Number.isInteger(revisionsCeiling) && Number.isInteger(budgets.max_contract_revisions) && budgets.max_contract_revisions > revisionsCeiling) {
+        adjustments.push({ contract_id: contract.contract_id, field: "budgets.max_contract_revisions", from: budgets.max_contract_revisions, to: revisionsCeiling, reason: `above the system ceiling ${revisionsCeiling}` })
+        budgets.max_contract_revisions = revisionsCeiling
+      }
+    }
+  }
+  return { plan: adjusted, adjustments }
+}
+
+// `goal`, when given, adds the coverage rules (every must requirement and
+// every automated acceptance criterion accounted for) and the triage
+// assessment against the Goal's labels. `route`, `riskFloors`, and `limits`
+// feed the triage and the budget clamp report; none of them rejects a plan.
+export function validatePlan(plan, { workClasses = null, goal = null, route = null, riskFloors = null, limits = null } = {}) {
   const errors = []
   if (plan?.schema_version !== 1) errors.push("schema_version must be 1")
   for (const field of ["plan_id", "objective", "base_revision"]) {
@@ -292,15 +432,9 @@ export function validatePlan(plan, { workClasses = null, maxContracts = null, ma
       errors.push("final_verification.commands must not inspect Git state")
     }
   }
-  if (maxContracts !== null && Array.isArray(plan?.phases)) {
-    const total = plan.phases.reduce((sum, phase) => sum + (phase?.contracts?.length ?? 0), 0)
-    if (total > maxContracts) {
-      errors.push(`plan defines ${total} contracts but this route allows at most ${maxContracts}`)
-    }
-  }
   if (!Array.isArray(plan?.phases) || plan.phases.length === 0) {
     errors.push("phases must be a non-empty array")
-    return { valid: false, errors, execution_waves: [], coverage: null }
+    return { valid: false, errors, execution_waves: [], coverage: null, triage: null, budget_adjustments: [] }
   }
 
   const phasesById = new Map()
@@ -334,9 +468,6 @@ export function validatePlan(plan, { workClasses = null, maxContracts = null, ma
       else contractIds.add(contractId)
       if (!nonEmptyString(contract?.objective)) errors.push(`${contractId}: objective is required`)
       if (!RISKS.has(contract?.risk)) errors.push(`${contractId}: invalid risk`)
-      else if (maxRisk && RISK_RANK[contract.risk] > RISK_RANK[maxRisk]) {
-        errors.push(`${contractId}: risk ${contract.risk} exceeds the Goal's risk ${maxRisk}; a contract cannot carry more risk than its Goal`)
-      }
       if (!nonEmptyString(contract?.work_class)) errors.push(`${contractId}: work_class is required`)
       else if (workClasses && !workClasses.has(contract.work_class)) {
         errors.push(`${contractId}: unknown work_class ${contract.work_class}`)
@@ -425,6 +556,8 @@ export function validatePlan(plan, { workClasses = null, maxContracts = null, ma
 
   const coverage = goal ? planCoverage(plan, goal) : null
   if (coverage) errors.push(...coverageErrors(coverage))
+  const triage = goal || route ? triageAssessment(plan, { goal, route, riskFloors }) : null
+  const budgetAdjustments = limits ? applyPlanLimits(plan, { limits, route: triage?.route_effective ?? route ?? "planned" }).adjustments : []
 
-  return { valid: errors.length === 0, errors, execution_waves: waves ?? [], coverage }
+  return { valid: errors.length === 0, errors, execution_waves: waves ?? [], coverage, triage, budget_adjustments: budgetAdjustments }
 }

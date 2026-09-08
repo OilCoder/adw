@@ -108,8 +108,20 @@ export async function changedFilesSince(directory, rev) {
 // and its Gate under .codegen-contract/ belong to the run, not the product,
 // and must travel with the worktree commit even when the project ignores them.
 export async function commitPaths(directory, paths, message, { force = false } = {}) {
-  if (paths.length === 0) return null
-  await git(directory, ["add", "-A", ...(force ? ["-f"] : []), "--", ...paths])
+  // allowed_to_modify is a permission, not an obligation: a path the Builder
+  // never created or touched has no match for git and must not fail the
+  // commit. Paths present on disk or tracked (a deletion) are staged.
+  const present = []
+  for (const candidate of paths) {
+    if (await exists(path.join(directory, candidate))) {
+      present.push(candidate)
+      continue
+    }
+    const tracked = await git(directory, ["ls-files", "--", candidate], { allowFailure: true })
+    if (tracked.stdout.trim()) present.push(candidate)
+  }
+  if (present.length === 0) return null
+  await git(directory, ["add", "-A", ...(force ? ["-f"] : []), "--", ...present])
   const staged = await git(directory, ["diff", "--cached", "--quiet"], { allowFailure: true })
   if (staged.exitCode === 0) return null
   await git(directory, ["commit", "-q", "-m", message])

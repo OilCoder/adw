@@ -66,21 +66,28 @@ function run(script, args, { directory, bin }, env = {}) {
 test("run-researcher runs one admitted configuration, validates, and renders the report", async () => {
   const tree = await worktree()
   try {
-    const result = await run("run-researcher.mjs", ["--question", "RQ-1", "--minimum-status", "candidate"], tree, {
+    const result = await run("run-researcher.mjs", ["--question", "RQ-1", "--minimum-status", "candidate", "--source-verification", "offline"], tree, {
       FAKE_OUTPUT_FIXTURE: path.join(fixtures, "report.json"),
     })
     assert.equal(result.code, 0, result.stderr)
     const summary = JSON.parse(result.stdout)
     assert.equal(summary.result, "COMPLETE")
     assert.equal(summary.user_action, null)
+    assert.equal(summary.verification.mode, "offline")
+    assert.equal(summary.answers, true)
+    const stored = JSON.parse(await readFile(path.join(tree.directory, ".codegen-research/RQ-1.json"), "utf8"))
+    assert.equal(stored.verification.mode, "offline")
     assert.equal(summary.attempts.length, 1)
     assert.equal(summary.attempts[0].configuration.provider, "opencode-go")
     assert.equal(summary.markdown, ".codegen-research/RQ-1.md")
     const markdown = await readFile(path.join(tree.directory, ".codegen-research/RQ-1.md"), "utf8")
     assert.ok(markdown.startsWith("# Research: Does the ORM support"))
+    assert.ok(markdown.includes("**Source verification:** `offline`"))
+    assert.ok(markdown.includes("> Unique constraints raise IntegrityError when a duplicate value is inserted."))
     const log = JSON.parse((await readFile(path.join(tree.directory, "fake.log"), "utf8")).trim())
     assert.equal(log.agent, "researcher")
     assert.ok(log.prompt.includes("at most 3 sources"))
+    assert.ok(log.prompt.includes("verbatim quote"))
     assert.equal(log.exa, "1")
   } finally {
     await rm(tree.directory, { recursive: true, force: true })
@@ -93,7 +100,7 @@ test("run-researcher rejects a report that does not answer the Goal question", a
     const mismatched = path.join(tree.directory, "mismatched.json")
     const report = JSON.parse(await readFile(path.join(fixtures, "report.json"), "utf8"))
     await writeFile(mismatched, JSON.stringify({ ...report, question_id: "RQ-9" }))
-    const result = await run("run-researcher.mjs", ["--question", "RQ-1", "--minimum-status", "candidate"], tree, {
+    const result = await run("run-researcher.mjs", ["--question", "RQ-1", "--minimum-status", "candidate", "--source-verification", "offline"], tree, {
       FAKE_OUTPUT_FIXTURE: mismatched,
     })
     assert.equal(result.code, 1)
@@ -143,7 +150,7 @@ test("run-goal stops and requests a recharge when the Zen balance is exhausted",
     assert.equal(summary.markdown, null)
     assert.equal(summary.routing, null)
     assert.deepEqual(summary.research_reports, [
-      { path: ".codegen-research/RQ-1.json", report_id: "RR-1", question_id: "RQ-1", status: "COMPLETE" },
+      { path: ".codegen-research/RQ-1.json", report_id: "RR-1", question_id: "RQ-1", status: "COMPLETE", answers: true, unverified_findings: [] },
     ])
     const calls = (await readFile(path.join(tree.directory, "fake.log"), "utf8")).trim().split("\n").map(JSON.parse)
     assert.equal(calls.length, 1)

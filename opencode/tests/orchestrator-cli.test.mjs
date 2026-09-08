@@ -36,6 +36,12 @@ if (agent === "planner") {
   const retry = /This is a retry/.test(prompt)
   if (process.env.FAKE_PLAN_INVALID_FIRST && !retry) plan.phases[0].contracts[0].allowed_to_modify = ["lib/*.py"]
   if (process.env.FAKE_PLAN_UNCOVERED_FIRST && !retry) for (const phase of plan.phases) for (const c of phase.contracts) c.requirements[0].covers = ["ACC-1"]
+  // FAKE_PLAN_TOUCH_MANIFEST: the first contract may also modify package.json (a risk floor).
+  if (process.env.FAKE_PLAN_TOUCH_MANIFEST) plan.phases[0].contracts[0].allowed_to_modify.push("package.json")
+  // FAKE_PLAN_ATTEMPTS: every contract asks for that many builder attempts.
+  if (process.env.FAKE_PLAN_ATTEMPTS) for (const phase of plan.phases) for (const c of phase.contracts) c.budgets.max_builder_attempts = Number(process.env.FAKE_PLAN_ATTEMPTS)
+  // FAKE_PLAN_TRIVIAL_CHECK: the first contract's check passes on the baseline.
+  if (process.env.FAKE_PLAN_TRIVIAL_CHECK) plan.phases[0].contracts[0].verification.checks[0].command = "true"
   fs.mkdirSync(path.dirname(output), { recursive: true })
   fs.writeFileSync(output, JSON.stringify(plan, null, 2))
   log({ agent, prompt, retry })
@@ -51,6 +57,12 @@ if (agent === "planner") {
   const solution = path.join(process.env.FAKE_SOLUTIONS, contract.contract_id + (wrong ? "-wrong" : "") + ".py")
   fs.copyFileSync(solution, contract.allowed_to_modify[0])
   log({ agent, contract_id: contract.contract_id, cwd: process.cwd(), start, end: Date.now(), retry, evidence, evidence_exists: evidenceExists, checks: contract.verification.checks.map((c) => c.command) })
+  done()
+} else if (agent === "gate-designer") {
+  // Makes the trivial check real: the contract's unit test.
+  const contract = JSON.parse(fs.readFileSync(".codegen-contract/contract.json", "utf8"))
+  fs.writeFileSync(".codegen-contract/checks/C1.sh", "#!/usr/bin/env bash\\nset -euo pipefail\\npython3 -m unittest tests/test_" + contract.contract_id + ".py\\n")
+  log({ agent, contract_id: contract.contract_id, prompt })
   done()
 } else {
   log({ agent, prompt })
@@ -228,21 +240,97 @@ test("direct route: the Planner is capped at one contract, the run has one wave,
     assert.deepEqual(state.final_gate.changed_files, ["lib/alpha.py"])
     assert.equal(state.goal_coverage.summary.verified, 2)
     const planner = (await readLog(tree)).find((entry) => entry.agent === "planner")
-    assert.match(planner.prompt, /exactly one phase containing exactly one contract/)
+    assert.match(planner.prompt, /write one phase with one contract if the change fits in one/)
     assert.match(planner.prompt, /requirement \(must\) REQ-1: All unit tests pass/)
+    assert.equal(state.triage.route_effective, "direct")
+    assert.equal(state.triage.risk_effective, "low")
+    assert.deepEqual(state.triage.contradictions, [])
+    assert.deepEqual(state.budget_adjustments, [])
+    assert.equal(state.waves[0].contracts[0].risk_effective, "low")
   } finally {
     await rm(tree.directory, { recursive: true, force: true })
   }
 })
 
-test("direct route rejects a plan with more than one contract", async () => {
+test("direct route: a plan that needs more than one contract is re-routed to planned and pauses for review", async () => {
   const tree = await project(path.join(fixture, "goal-direct.json"))
   try {
+    const goalPath = path.join(tree.directory, ".codegen-goal/goal.json")
+    const goal = JSON.parse(await readFile(goalPath, "utf8"))
+    await writeFile(goalPath, JSON.stringify({ ...goal, in_scope: ["lib/alpha.py", "lib/beta.py", "lib/gamma.py"] }))
     const result = await orchestrate(tree, ["--run-id", "r5"])
-    assert.equal(result.code, 1)
+    assert.equal(result.code, 0, result.stderr)
     const state = JSON.parse(result.stdout)
-    assert.equal(state.status, "PLAN_FAILED")
+    assert.equal(state.status, "PLAN_REVIEW_REQUIRED")
+    assert.equal(state.planner_calls, 1)
+    assert.equal(state.route, "planned")
+    assert.equal(state.triage.route_goal, "direct")
+    assert.deepEqual(state.triage.contradictions.map((item) => [item.label, item.claimed, item.effective]), [["change_shape", "localized", "multi-component"]])
     assert.equal(state.waves.length, 0)
+    const names = await events(tree, "r5")
+    assert.ok(names.includes("TRIAGE_CONTRADICTED"))
+    assert.ok(!names.includes("PLAN_RETRY"), "re-routing costs no planner retry")
+    const markdown = await readFile(path.join(tree.directory, state.plan_markdown), "utf8")
+    assert.ok(markdown.includes("- Route: Goal `direct` → effective `planned`"), markdown)
+
+    // The reviewed plan builds as a planned run: three contracts, two waves.
+    const built = await orchestrate(tree, ["--run-id", "r5b", "--plan", state.plan_path])
+    assert.equal(built.code, 0, built.stderr)
+    const done = JSON.parse(built.stdout)
+    assert.equal(done.status, "COMPLETED")
+    assert.equal(done.route, "planned")
+    assert.equal(done.waves.length, 2)
+  } finally {
+    await rm(tree.directory, { recursive: true, force: true })
+  }
+})
+
+test("direct route: a path with a risk floor raises the effective risk, pauses for review, and governs builder admission", async () => {
+  const tree = await project(path.join(fixture, "goal-direct.json"))
+  try {
+    const env = { FAKE_PLAN_TEMPLATE: path.join(fixture, "plan-direct.json"), FAKE_PLAN_TOUCH_MANIFEST: "1", FAKE_PLAN_ATTEMPTS: "5" }
+    const paused = await orchestrate(tree, ["--run-id", "r12"], env)
+    assert.equal(paused.code, 0, paused.stderr)
+    const review = JSON.parse(paused.stdout)
+    assert.equal(review.status, "PLAN_REVIEW_REQUIRED")
+    assert.equal(review.route, "direct")
+    assert.equal(review.triage.risk_goal, "low")
+    assert.equal(review.triage.risk_effective, "medium")
+    assert.deepEqual(review.triage.contradictions.map((item) => [item.label, item.claimed, item.effective]), [["risk", "low", "medium"]])
+    assert.match(review.triage.contradictions[0].evidence, /package\.json, dependency manifest or lockfile/)
+
+    const built = await orchestrate(tree, ["--run-id", "r12b", "--plan", review.plan_path], env)
+    assert.equal(built.code, 0, built.stderr)
+    const state = JSON.parse(built.stdout)
+    assert.equal(state.status, "COMPLETED")
+    const alpha = state.waves[0].contracts[0]
+    assert.equal(alpha.risk_effective, "medium", "the effective risk is what the builder is admitted against")
+    // The Planner asked for 5 attempts; the direct route allows 2, and the sealed contract says so.
+    assert.deepEqual(state.budget_adjustments.map((item) => [item.contract_id, item.field, item.from, item.to]), [["alpha", "budgets.max_builder_attempts", 5, 2]])
+    assert.equal(alpha.budgets.max_builder_attempts, 2)
+    assert.ok((await events(tree, "r12b")).includes("BUDGET_ADJUSTED"))
+    const plan = JSON.parse(await readFile(path.join(tree.directory, review.plan_path), "utf8"))
+    assert.equal(plan.phases[0].contracts[0].budgets.max_builder_attempts, 5, "the plan file keeps the Planner's numbers")
+  } finally {
+    await rm(tree.directory, { recursive: true, force: true })
+  }
+})
+
+test("direct route: a Gate the Goal said existed but the Gate Designer had to write is recorded as a triage contradiction", async () => {
+  const tree = await project(path.join(fixture, "goal-direct.json"))
+  try {
+    const result = await orchestrate(tree, ["--run-id", "r13"], { FAKE_PLAN_TEMPLATE: path.join(fixture, "plan-direct.json"), FAKE_PLAN_TRIVIAL_CHECK: "1" })
+    assert.equal(result.code, 0, result.stderr)
+    const state = JSON.parse(result.stdout)
+    assert.equal(state.status, "COMPLETED", JSON.stringify(state.stop_reason))
+    assert.equal(state.gate_designer_calls, 1)
+    assert.deepEqual(state.triage.contradictions.map((item) => [item.label, item.claimed, item.effective]), [["existing_gate", true, false]])
+    assert.match(state.triage.contradictions[0].evidence, /check-passes-on-baseline:C1/)
+    const names = await events(tree, "r13")
+    assert.ok(names.includes("GATE_DESIGN_REQUESTED"))
+    assert.ok(names.includes("TRIAGE_CONTRADICTED"))
+    const designer = (await readLog(tree)).find((entry) => entry.agent === "gate-designer")
+    assert.match(designer.prompt, /checks\/C1\.sh passes on the untouched baseline/)
   } finally {
     await rm(tree.directory, { recursive: true, force: true })
   }

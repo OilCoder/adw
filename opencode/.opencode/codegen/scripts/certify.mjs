@@ -281,10 +281,15 @@ const CERTIFICATIONS = {
         timeout,
       )
       await keep(directory, artifacts, [".codegen-research"])
-      const pass = run.summary?.result === "COMPLETE"
+      // The certification bar is the runtime bar: the report must answer,
+      // which means at least one finding verified by retrieval.
+      const pass = run.summary?.result === "COMPLETE" && run.summary?.answers === true
+      const unverified = run.summary?.unverified_findings ?? []
       return {
         result: pass ? "PASS" : "FAIL",
-        detail: pass ? "report COMPLETE with validated citations" : `${run.summary?.result ?? run.stderr.trim()}: ${(run.summary?.validation?.errors ?? []).join("; ")}`,
+        detail: pass
+          ? `report COMPLETE, citations fetched and verified${unverified.length > 0 ? ` (unverified: ${unverified.join(", ")})` : ""}`
+          : `${run.summary?.result ?? run.stderr.trim()}${run.summary?.result === "COMPLETE" ? " but no finding verified by retrieval" : ""}: ${(run.summary?.validation?.errors ?? []).join("; ")}`,
         summary: run.summary,
         records: pass ? [{ configurationId, role: "researcher" }] : [],
       }

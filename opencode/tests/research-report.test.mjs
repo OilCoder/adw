@@ -84,3 +84,48 @@ test("report is bound to the Goal question it answers", async () => {
     assert.ok(result.errors.includes(expected), `expected "${expected}" in ${result.errors}`)
   }
 })
+
+test("every finding needs a verbatim quote; verification verdicts written by the runner are validated and rendered", async () => {
+  const report = await fixture("report")
+  const noQuote = { ...report, findings: [{ ...report.findings[0], quote: "" }] }
+  assert.ok(validateResearchReport(noQuote).errors.includes("F-1: quote is required (a verbatim excerpt from a cited source)"))
+  const longQuote = { ...report, findings: [{ ...report.findings[0], quote: "x".repeat(301) }] }
+  assert.ok(validateResearchReport(longQuote).errors.includes("F-1: quote exceeds 300 characters"))
+
+  const { reportAnswers, unverifiedFindings } = await import("../.opencode/codegen/lib/research-report.mjs")
+  const verified = {
+    ...report,
+    verification: {
+      mode: "fetch",
+      verified_at: "2026-09-08T00:00:00Z",
+      sources: [{ id: "S-1", status: "verified", http_status: 200, title_matched: true, detail: null }],
+      findings: [{ id: "F-1", status: "verified", source_id: "S-1", detail: "quote found in S-1" }],
+    },
+  }
+  assert.deepEqual(validateResearchReport(verified), { valid: true, errors: [] })
+  assert.equal(reportAnswers(verified), true)
+  assert.deepEqual(unverifiedFindings(verified), [])
+  assert.ok(renderResearchMarkdown(verified).includes("(1/1 sources verified, 1/1 findings verified)"))
+
+  const unverified = {
+    ...verified,
+    findings: [{ ...report.findings[0], confidence: "low" }],
+    verification: {
+      ...verified.verification,
+      sources: [{ id: "S-1", status: "unverifiable", http_status: 403, title_matched: null, detail: "HTTP 403" }],
+      findings: [{ id: "F-1", status: "unverified", source_id: null, detail: "no cited source could be verified", confidence_forced_low: true }],
+    },
+  }
+  assert.equal(reportAnswers(unverified), false, "a COMPLETE report with nothing verified answers nothing")
+  assert.deepEqual(unverifiedFindings(unverified), ["F-1"])
+  const markdown = renderResearchMarkdown(unverified)
+  assert.ok(markdown.includes("[UNVERIFIED (por confirmar): no cited source could be verified]"), markdown)
+  assert.ok(markdown.includes("[UNVERIFIABLE: HTTP 403]"))
+
+  const bad = { ...verified, verification: { ...verified.verification, mode: "guess", sources: [{ id: "S-9", status: "verified" }] } }
+  const errors = validateResearchReport(bad).errors
+  assert.ok(errors.includes("verification.mode must be fetch or offline"))
+  assert.ok(errors.includes("verification.sources: unknown id S-9"))
+  assert.equal(reportAnswers({ ...report, status: "BLOCKED" }), false)
+  assert.equal(reportAnswers(report), true, "a report without verification (offline or legacy) is taken at face value")
+})

@@ -43,10 +43,15 @@ export function verifyRevision(before, after, { reports = [], decisions = [] } =
   if (after?.status === "SEALED") errors.push("revision returned SEALED without user approval")
   for (const report of reports) {
     const question = (after?.research_questions ?? []).find((item) => item.id === report.question_id)
+    // A report answers its question when it is COMPLETE and at least one
+    // finding was verified by retrieval (`answers`, computed by the runner).
+    // A BLOCKED report, or a COMPLETE one nobody could verify, answers
+    // nothing: the question may stay pending (the Goal then stays open) or
+    // be waived, never completed. An answering report must be folded in.
+    const answers = report.answers ?? report.status !== "BLOCKED"
     if (!question) errors.push(`research question ${report.question_id} disappeared`)
-    // A BLOCKED report answers nothing: the question may stay pending (the
-    // Goal then stays open) or be waived. A COMPLETE report must be folded in.
-    else if (question.status === "pending" && report.status !== "BLOCKED") errors.push(`research question ${report.question_id} still pending although report ${report.report_id} answers it`)
+    else if (question.status === "pending" && answers) errors.push(`research question ${report.question_id} still pending although report ${report.report_id} answers it`)
+    else if (question.status === "completed" && !answers) errors.push(`research question ${report.question_id} marked completed although report ${report.report_id} ${report.status === "BLOCKED" ? "is BLOCKED" : "has no verified finding"}`)
   }
   for (const decision of decisions) {
     const question = (after?.open_questions ?? []).find((item) => item.id === decision.question_id)

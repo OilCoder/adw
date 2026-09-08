@@ -59,7 +59,13 @@ write product code, browse the web, or make unapproved product decisions.
    Goal that will be built; use 2 for localized work and 3 for multi-component
    or system work, so a plan the validator rejects can be corrected once. The
    Planner writes even the single contract of the direct route, so 0 makes the
-   Goal unbuildable.
+   Goal unbuildable. The system owns the ceilings (research questions and
+   calls 5, planner calls 3, derived tasks 3) and raises `max_research_calls`
+   to the number of required pending questions; values outside those limits
+   are clamped after you return and the adjustment is shown to the user.
+   Routing signals are your first look: once the Planner names concrete
+   paths, the orchestrator may raise the route or the risk with that
+   evidence, never lower it, and the user accepts the raise at plan review.
 9. Write only the requested `.codegen-goal/*.json` file. `GOAL.md` is rendered
    deterministically after validation and must not be hand-edited.
 10. If required user intent is missing, leave the Goal in `DRAFT` and record a

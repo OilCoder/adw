@@ -7,12 +7,23 @@ import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { loadRegistry, newRunId, parseArguments, requireGitHead, resolveInsideProject, resolveMinimumStatus, runsDirectory, exists } from "../lib/cli.mjs"
+import { loadRegistry, newRunId, parseArguments, requireGitHead, resolveInsideProject, resolveMinimumStatus, resolveSourceVerification, runsDirectory, exists } from "../lib/cli.mjs"
 import { deliberationPlan, readyForApproval, verifyRevision } from "../lib/deliberation.mjs"
 import { validateGoal } from "../lib/goal.mjs"
 import { validateDecision } from "../lib/opinions.mjs"
 import { runProcess } from "../lib/process.mjs"
-import { validateResearchReport } from "../lib/research-report.mjs"
+import { reportAnswers, unverifiedFindings, validateResearchReport } from "../lib/research-report.mjs"
+
+function reportEntry(question, report, file) {
+  return {
+    question_id: question.id,
+    report_id: report.report_id,
+    path: file,
+    status: report.status,
+    answers: reportAnswers(report),
+    unverified_findings: unverifiedFindings(report),
+  }
+}
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url))
 const systemRoot = path.resolve(scriptDirectory, "../../..")
@@ -39,6 +50,7 @@ async function main() {
   const directory = path.resolve(args.directory ?? process.cwd())
   await requireGitHead(directory)
   const minimumStatus = await resolveMinimumStatus(args, systemRoot)
+  const sourceVerification = await resolveSourceVerification(args, systemRoot)
   await loadRegistry(systemRoot)
   const goalFile = resolveInsideProject(directory, args.goal ?? ".codegen-goal/goal.json", "Goal")
   if (!(await exists(goalFile.absolute))) throw new Error(`Goal does not exist: ${goalFile.relative}`)
@@ -65,7 +77,7 @@ async function main() {
     const file = path.join(directory, ".codegen-research", `${question.id}.json`)
     if (!(await exists(file))) continue
     const report = await readJson(file)
-    if (validateResearchReport(report, question).valid) reports.push({ question_id: question.id, report_id: report.report_id, path: path.relative(directory, file), status: report.status })
+    if (validateResearchReport(report, question).valid) reports.push(reportEntry(question, report, path.relative(directory, file)))
   }
   const decisions = []
   for (const question of goal.open_questions) {
@@ -85,8 +97,8 @@ async function main() {
 
   // 1. Research, one runner per question, in budget order.
   for (const questionId of plan.research) {
-    const run = await spawnRunner("run-researcher.mjs", { question: questionId, goal: goalFile.relative, "minimum-status": minimumStatus, timeout, display }, directory)
-    summary.research.push({ question_id: questionId, result: run.result, output: run.output ?? null, user_action: run.user_action ?? null })
+    const run = await spawnRunner("run-researcher.mjs", { question: questionId, goal: goalFile.relative, "minimum-status": minimumStatus, "source-verification": sourceVerification, timeout, display }, directory)
+    summary.research.push({ question_id: questionId, result: run.result, output: run.output ?? null, answers: run.answers ?? false, unverified_findings: run.unverified_findings ?? [], fabricated: run.verification?.fabricated ?? [], user_action: run.user_action ?? null })
     if (run.user_action) {
       summary.user_action = run.user_action
       return finish("USER_ACTION_REQUIRED", 1)
@@ -94,7 +106,7 @@ async function main() {
     if (run.validation?.valid) {
       const question = goal.research_questions.find((item) => item.id === questionId)
       const report = await readJson(path.join(directory, run.output))
-      reports.push({ question_id: question.id, report_id: report.report_id, path: run.output, status: report.status })
+      reports.push(reportEntry(question, report, run.output))
     }
   }
 

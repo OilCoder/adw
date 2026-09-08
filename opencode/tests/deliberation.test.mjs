@@ -81,3 +81,18 @@ test("verifyRevision checks the revision against the evidence, not the model's w
   const renamed = verifyRevision(before, { ...good, goal_id: "other" }, { reports, decisions })
   assert.ok(renamed.errors.some((e) => e.includes("goal_id changed")))
 })
+
+test("verifyRevision: a report that answers nothing never completes its question", () => {
+  const before = goalWith({})
+  const completed = goalWith({ status: "DECIDED", research_questions: [{ ...fixture.research_questions[0], status: "completed" }], decisions: [{ id: "D-1", question: "q", decision: "d", rationale: "r", research_report_ids: ["RR-1"] }] })
+  const unverified = [{ question_id: "RQ-1", report_id: "RR-1", status: "COMPLETE", answers: false }]
+  const rejected = verifyRevision(before, completed, { reports: unverified })
+  assert.ok(rejected.errors.some((e) => e.includes("RQ-1 marked completed although report RR-1 has no verified finding")), rejected.errors.join("\n"))
+  const pending = verifyRevision(before, { ...completed, research_questions: fixture.research_questions }, { reports: unverified })
+  assert.deepEqual(pending.errors, [], "the question may stay pending")
+  assert.equal(pending.ready_for_approval, false)
+  const waived = verifyRevision(before, { ...completed, research_questions: [{ ...fixture.research_questions[0], status: "waived" }] }, { reports: unverified })
+  assert.deepEqual(waived.errors, [])
+  const answering = verifyRevision(before, completed, { reports: [{ ...unverified[0], answers: true }] })
+  assert.deepEqual(answering.errors, [])
+})

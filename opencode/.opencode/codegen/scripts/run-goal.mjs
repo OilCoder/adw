@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url"
 import { runExecutionPlan, selectExecutionPlan } from "../lib/builder-runner.mjs"
 import {
   exists,
+  loadLimits,
   loadRegistry,
   newRunId,
   parseArguments,
@@ -18,11 +19,11 @@ import {
 } from "../lib/cli.mjs"
 import { readyForApproval } from "../lib/deliberation.mjs"
 import { routeGoal } from "../lib/goal-routing.mjs"
-import { renderGoalMarkdown, sealApprovedGoal, validateGoal } from "../lib/goal.mjs"
+import { applyGoalLimits, renderGoalMarkdown, sealApprovedGoal, validateGoal } from "../lib/goal.mjs"
 import { validateDecision } from "../lib/opinions.mjs"
 import { resolveDisplay, runAgentProcess } from "../lib/agent-run.mjs"
 import { runProcess } from "../lib/process.mjs"
-import { validateResearchReport } from "../lib/research-report.mjs"
+import { reportAnswers, unverifiedFindings, validateResearchReport } from "../lib/research-report.mjs"
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url))
 const systemRoot = path.resolve(scriptDirectory, "../../..")
@@ -31,15 +32,17 @@ const USAGE =
   "usage: run-goal.mjs --intent <text> [--reports a.json,b.json] [--output .codegen-goal/goal.json] [--allow-sealed true] | --revise <goal.json> [--reports ...] [--decisions ...] [--intent <user guidance>] | --approve <goal.json>"
 
 // Approval is deterministic: the user approved this exact Goal, so it is sealed
-// in place without another model call. Nothing else changes.
+// in place without another model call. Budgets are clamped to the system
+// limits first, so nothing sealed can spend more than the system allows.
 async function approve(directory, goalArgument) {
   const goalFile = resolveInsideProject(directory, goalArgument, "Goal")
   if (!(await exists(goalFile.absolute))) throw new Error(`Goal does not exist: ${goalFile.relative}`)
   const goal = JSON.parse(await readFile(goalFile.absolute, "utf8"))
-  const sealed = sealApprovedGoal(goal)
+  const limited = applyGoalLimits(goal, await loadLimits(systemRoot))
+  const sealed = sealApprovedGoal(limited.goal)
   await writeFile(goalFile.absolute, `${JSON.stringify(sealed, null, 2)}\n`)
   const markdown = path.join(path.dirname(goalFile.absolute), "GOAL.md")
-  await writeFile(markdown, renderGoalMarkdown(sealed))
+  await writeFile(markdown, renderGoalMarkdown(sealed, { adjustments: limited.adjustments }))
   const routing = routeGoal(sealed)
   const summary = {
     result: "SEALED",
@@ -48,6 +51,7 @@ async function approve(directory, goalArgument) {
     markdown: path.relative(directory, markdown),
     goal_id: sealed.goal_id,
     previous_status: goal.status,
+    budget_adjustments: limited.adjustments,
     routing,
   }
   process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`)
@@ -62,9 +66,23 @@ async function loadReports(directory, list, goal = null) {
     const question = goal?.research_questions.find((entry) => entry.id === report.question_id) ?? null
     const validation = validateResearchReport(report, question)
     if (!validation.valid) throw new Error(`Research report ${file.relative} is invalid: ${validation.errors.join("; ")}`)
-    reports.push({ path: file.relative, report_id: report.report_id, question_id: report.question_id, status: report.status })
+    reports.push({
+      path: file.relative,
+      report_id: report.report_id,
+      question_id: report.question_id,
+      status: report.status,
+      answers: reportAnswers(report),
+      unverified_findings: unverifiedFindings(report),
+    })
   }
   return reports
+}
+
+// How a report is described to the Goal Manager: whether it answers its
+// question, and which findings nobody could verify by retrieval.
+function describeReport(item) {
+  const verification = item.unverified_findings.length > 0 ? `, unverified findings (por confirmar): ${item.unverified_findings.join(", ")}` : ""
+  return `${item.path} (${item.report_id}, answers ${item.question_id}, ${item.status}${item.answers ? "" : ", answers nothing"}${verification})`
 }
 
 async function loadDecisions(directory, list, goal) {
@@ -125,17 +143,25 @@ async function callGoalManager({ directory, args, output, prompt, title, lines, 
   let routing = null
   let markdown = null
   let goal = null
+  let adjustments = []
   if (result === "SUCCESS" && !(await exists(output.absolute))) result = "GOAL_NOT_WRITTEN"
   if (result === "SUCCESS") {
     try {
-      goal = JSON.parse(await readFile(output.absolute, "utf8"))
+      const written = JSON.parse(await readFile(output.absolute, "utf8"))
+      // The model proposes budgets; the system clamps them to its limits and
+      // rewrites the Goal before validating, so the user approves the
+      // clamped numbers and sees every adjustment in GOAL.md.
+      const limited = applyGoalLimits(written, await loadLimits(systemRoot))
+      goal = limited.goal
+      adjustments = limited.adjustments
+      if (adjustments.length > 0) await writeFile(output.absolute, `${JSON.stringify(goal, null, 2)}\n`)
       validation = validateGoal(goal)
       if (validation.valid && goal.status === "SEALED" && args["allow-sealed"] !== "true") {
         validation = { valid: false, errors: ["Goal returned SEALED without explicit user approval (--allow-sealed true)"] }
         result = "SEALED_WITHOUT_APPROVAL"
       } else if (validation.valid) {
         markdown = path.join(path.dirname(output.absolute), "GOAL.md")
-        await writeFile(markdown, renderGoalMarkdown(goal))
+        await writeFile(markdown, renderGoalMarkdown(goal, { adjustments }))
         routing = routeGoal(goal)
         result = goal.status
       } else {
@@ -146,7 +172,7 @@ async function callGoalManager({ directory, args, output, prompt, title, lines, 
       result = "GOAL_INVALID"
     }
   }
-  return { result, validation, routing, markdown: markdown ? path.relative(directory, markdown) : null, execution, goal, lines }
+  return { result, validation, routing, markdown: markdown ? path.relative(directory, markdown) : null, execution, goal, adjustments, lines }
 }
 
 async function draft(directory, args, minimumStatus, configurationId) {
@@ -161,7 +187,7 @@ async function draft(directory, args, minimumStatus, configurationId) {
     `Convert this user intent into a Goal: ${args.intent}`,
     `Write the complete Goal to ${output.relative}.`,
     reports.length > 0
-      ? `Use these validated research reports as evidence: ${reports.map((item) => `${item.path} (${item.report_id}, answers ${item.question_id})`).join("; ")}.`
+      ? `Use these validated research reports as evidence: ${reports.map(describeReport).join("; ")}. A finding marked unverified is "por confirmar": never turn it into a decision without saying so in the rationale.`
       : "No research reports are available; turn unknown facts into research_questions.",
     args["allow-sealed"] === "true"
       ? "The user has explicitly approved sealing this Goal if nothing blocks it."
@@ -178,6 +204,7 @@ async function draft(directory, args, minimumStatus, configurationId) {
     user_action: call.execution.user_action,
     attempts: call.execution.attempts,
     validation: call.validation,
+    budget_adjustments: call.adjustments,
     routing: call.routing,
     ready_for_approval: call.goal ? readyForApproval(call.goal) : false,
     artifacts,
@@ -211,8 +238,8 @@ async function revise(directory, args, minimumStatus, configurationId) {
     `Revise the existing Goal at ${output.relative}: read it first and rewrite it in place, keeping goal_id "${before.goal_id}" and every requirement the user stated.`,
     ...(reports.length
       ? [
-          `Research reports (validated): ${reports.map((item) => `${item.path} (${item.report_id}, answers ${item.question_id}, ${item.status})`).join("; ")}.`,
-          "Mark each answered research question completed (waived only when a BLOCKED report leaves it unanswerable and no decision depends on it) and record the accepted conclusions under decisions, citing the report ids in research_report_ids.",
+          `Research reports (validated and checked by retrieval): ${reports.map(describeReport).join("; ")}.`,
+          "Mark each research question whose report answers it completed, and record the accepted conclusions under decisions, citing the report ids in research_report_ids. A report that answers nothing (BLOCKED, or no finding verified by retrieval) never completes its question: leave it pending, or waive it with the reason when no decision depends on it. A finding marked unverified is \"por confirmar\": do not turn it into a decision without saying so in the rationale.",
         ]
       : []),
     ...(decisions.length
@@ -237,6 +264,7 @@ async function revise(directory, args, minimumStatus, configurationId) {
     user_action: call.execution.user_action,
     attempts: call.execution.attempts,
     validation: call.validation,
+    budget_adjustments: call.adjustments,
     routing: call.routing,
     ready_for_approval: call.goal ? readyForApproval(call.goal) : false,
     artifacts,

@@ -39,6 +39,8 @@ test("installer copies runtime files and safely merges project configuration", a
     assert.match(first.stdout, /Installation complete/)
     assert.equal(await exists(path.join(target, ".opencode", "agents", "builder.md")), true)
     assert.equal(await exists(path.join(target, ".opencode", "codegen", "lib", "model-selection.mjs")), true)
+    assert.equal(await exists(path.join(target, ".opencode", "codegen", "config", "budgets.json")), true, "system budget limits are installed")
+    assert.equal(await exists(path.join(target, ".opencode", "codegen", "config", "risk-floors.json")), true, "risk floors are installed")
     assert.equal(await exists(path.join(target, ".opencode", "node_modules")), false)
     assert.equal(await exists(path.join(target, ".opencode", "codegen", "runs")), false)
 

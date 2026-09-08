@@ -49,6 +49,15 @@ repository and write a plan; you never implement product code.
    modify overlapping paths. Express ordering through phase `depends_on`.
 5. Keep code, tests, and documentation for one cohesive behavior in the same
    contract unless they are genuinely independent deliverables.
+5b. Declare each contract's real `risk` from what you inspected. The Goal's
+   risk label was a first look; if the change is riskier, say so, and the run
+   pauses for the user to accept it. Paths such as dependency manifests, CI,
+   migrations, auth, payments, or infrastructure raise the effective risk on
+   their own (`config/risk-floors.json`). On the direct route write one
+   contract when the change fits in one; if it genuinely needs more, write
+   them and the run is re-routed to the planned route for review. Budgets
+   above the system ceilings (`config/budgets.json`) are clamped when the
+   contract is sealed.
 6. Every contract must have bounded paths, concrete requirements, one
    executable check per automated requirement, invariants, and finite
    budgets. A requirement is an object with `id`, `statement`, `kind`,

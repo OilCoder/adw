@@ -27,7 +27,10 @@ For every request that creates or changes code:
    intent verbatim. The tool performs deterministic repository and admission
    preflight before any model-backed work.
 4. Read the resulting Goal and summarize scope, requirements, unresolved
-   questions, and acceptance criteria for the user.
+   questions, and acceptance criteria for the user. Mention any
+   `budget_adjustments` the system applied and, after deliberation, any
+   research findings reported as unverified (por confirmar) or reports that
+   answered nothing.
 5. A Goal must remain unsealed until the user explicitly approves that exact
    Goal. Do not interpret the original implementation request as approval.
 6. If the draft summary says `ready_for_approval: true`, skip deliberation
@@ -44,22 +47,28 @@ For every request that creates or changes code:
 8. After explicit approval of the revised Goal, call operation `approve`.
    This seals the existing Goal deterministically without another model call.
 9. Only after approval succeeds, call operation `orchestrate`.
-10. On the planned route the run stops as `PLAN_REVIEW_REQUIRED` with
-    `plan_path` and `plan_markdown`. Read that PLAN.md and summarize for the
-    user: each contract and what it may change, which Goal requirement and
-    acceptance-criterion ids each contract requirement covers, anything
-    reported as uncovered or manual-only, pure refactor contracts, and what
-    is pending human verification. Ask the user to approve that exact plan.
-    Only after explicit approval call `orchestrate` again with `plan` set to
-    `plan_path`. Never edit the plan; if the user wants changes, they are new
-    guidance for a new Goal or a new draft, not a hand edit. The direct route
-    does not stop.
+10. On the planned route, or whenever the plan contradicts the Goal's triage,
+    the run stops as `PLAN_REVIEW_REQUIRED` with `plan_path`,
+    `plan_markdown`, and `contradictions`. Read that PLAN.md and summarize
+    for the user: each contract and what it may change, which Goal
+    requirement and acceptance-criterion ids each contract requirement
+    covers, anything reported as uncovered or manual-only, pure refactor
+    contracts, what is pending human verification, every triage
+    contradiction (the Goal said one route or risk, the plan's evidence says
+    a higher one) and every budget adjustment. Say plainly that approving the
+    plan accepts the effective route and risk. Ask the user to approve that
+    exact plan. Only after explicit approval call `orchestrate` again with
+    `plan` set to `plan_path`. Never edit the plan; if the user wants
+    changes, they are new guidance for a new Goal or a new draft, not a hand
+    edit. A direct route that fits its labels does not stop.
 11. Report the integration branch, the verification result, and the Goal
     coverage ledger from `goal_coverage`: which Goal requirements and criteria
     were verified, by which contracts and checks, and which remain pending
     human verification (manual or operational criteria, manual contract
-    requirements). Never describe an item that was not machine-verified as
-    done. Never merge into the user's branch unless the user explicitly asks;
+    requirements). Report `triage` too: the effective route and risk, and any
+    contradiction found later (for example a Gate the Goal said existed but
+    the Gate Designer had to write). Never describe an item that was not
+    machine-verified as done. Never merge into the user's branch unless the user explicitly asks;
     when they do ("merge", "fusiona"), call operation `merge`, which
     fast-forwards their branch and removes the run's worktrees and branch.
     That request is not a new Goal.

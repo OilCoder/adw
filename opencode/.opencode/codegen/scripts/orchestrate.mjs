@@ -4,7 +4,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { builderFamily } from "../lib/certification.mjs"
-import { loadRegistry, newRunId, parseArguments, requireGitHead, resolveMinimumStatus } from "../lib/cli.mjs"
+import { loadLimits, loadRegistry, loadRiskFloors, newRunId, parseArguments, requireGitHead, resolveMinimumStatus } from "../lib/cli.mjs"
 import { orchestrate } from "../lib/orchestrator.mjs"
 import { runProcess } from "../lib/process.mjs"
 
@@ -44,6 +44,8 @@ async function main() {
     goalPath: args.goal ?? ".codegen-goal/goal.json",
     planPath: args.plan ?? null,
     registry,
+    limits: await loadLimits(systemRoot),
+    riskFloors: await loadRiskFloors(systemRoot),
     runId,
     concurrency: Number(args.concurrency ?? 2),
     keepWorktrees: args["keep-worktrees"] === "true",
@@ -53,10 +55,10 @@ async function main() {
       `[${record.at}] ${record.event}${record.contract_id ? ` ${record.contract_id}` : ""}${record.event === "RUN_STOPPED" && record.reason ? `: ${record.reason}` : ""}\n`,
     ),
     runners: {
-      planner: ({ directory: cwd, objective, goal, output, maxContracts, evidence }) =>
+      planner: ({ directory: cwd, objective, goal, output, route, evidence }) =>
         spawnRunner(
           "run-planner.mjs",
-          { objective, goal, output, "minimum-status": minimumStatus, "max-contracts": maxContracts, evidence, timeout, display },
+          { objective, goal, output, "minimum-status": minimumStatus, route, evidence, timeout, display },
           cwd,
         ),
       gateDesigner: ({ directory: cwd, contract, workClass, risk }) =>

@@ -46,7 +46,7 @@ Los roles describen responsabilidades lógicas. **Un rol no equivale necesariame
 |---|---|---|
 | Usuario / Goal Owner | Define el resultado que se desea obtener | Siempre |
 | Router / Clasificador | Escoge ruta directa, planificada o deliberativa | Siempre, pero puede ser lógica ligera |
-| Researcher | Investiga documentación, alternativas o información externa | Solo cuando falta conocimiento |
+| Researcher | Investiga documentación, alternativas o información externa; cita fuentes que el sistema recupera y contrasta | Solo cuando falta conocimiento |
 | Advisors / Opinion Agents | Producen análisis independientes sobre decisiones difíciles | Solo en alta incertidumbre o riesgo |
 | Reconciler | Compara opiniones y fija una decisión técnica | Solo cuando hubo opiniones múltiples |
 | Planner / Engineer | Inspecciona el repositorio, diseña el cambio y redacta el contrato | Siempre |
@@ -224,6 +224,26 @@ Sus posibles decisiones son:
 | Deliberativa | Alta incertidumbre, arquitectura, bug sistémico o riesgo importante |
 
 El Router evita que una función sencilla pase por opiniones, réplicas, conciliación y múltiples fases.
+
+La clasificación inicial es provisional: la escribe un modelo antes de que nadie
+estudie el cambio a fondo. El orquestador la vuelve a juzgar con evidencia
+determinista cuando la tiene, y solo hacia arriba: al validar el plan, una ruta
+directa que necesita más de un contrato pasa a planificada, y el riesgo efectivo
+de un contrato es el mayor entre el que declara el Planner y el suelo que
+implican las rutas que puede modificar (manifiestos de dependencias, CI,
+migraciones, autenticación, pagos, infraestructura); en la preparación del Gate,
+un Gate que el Goal decía existente y hubo que escribir queda registrado. Una
+contradicción nunca se aplica en silencio ni baja una etiqueta aprobada: la
+corrida se detiene para que el usuario revise el plan y, al aprobarlo, acepte la
+ruta y el riesgo efectivos, que son los que gobiernan qué Builder se admite. La
+incertidumbre de arquitectura y la necesidad de investigación externa no tienen
+evidencia determinista y el código no las desmiente.
+
+La investigación se contrasta por recuperación real: cada fuente citada se
+descarga y cada hallazgo lleva un extracto literal que el sistema busca en ella.
+Una fuente inexistente o ajena al título citado invalida el informe; un
+extracto que no aparece deja el hallazgo sin verificar, con confianza baja, y un
+informe sin ningún hallazgo verificado no responde su pregunta.
 
 ### 5.3 Planner
 
@@ -526,11 +546,12 @@ Se usa para cambios localizados y de bajo riesgo.
 
 Características:
 
-- un contrato;
+- un contrato, o reencaminada a la ruta planificada si el plan demuestra que no cabe en uno;
 - un Builder;
 - verificación determinista;
-- máximo dos intentos;
+- máximo dos intentos, impuesto por el sistema;
 - sin opiniones ni fases;
+- sin pausa de revisión, salvo que el plan contradiga el triaje del Goal;
 - revisión adicional solo si el contrato contiene criterios no automatizables.
 
 ### 8.2 Ruta planificada
@@ -612,13 +633,20 @@ flowchart TD
 
 El mismo Builder puede corregir una implementación cuando el contrato sigue siendo válido. Se regresa al Planner cuando el fallo revela que el contrato era incorrecto, incompleto o imposible.
 
-### 9.3 Presupuesto inicial recomendado
+### 9.3 Presupuestos: quien propone no fija el techo
 
 ```yaml
-max_builder_attempts: 2
-max_contract_revisions: 1
+max_builder_attempts: 2        # techo del sistema en ruta directa; 3 en ruta planificada
+max_contract_revisions: 1      # techo del sistema
 max_unplanned_scope_expansion: 0
 ```
+
+Los presupuestos los propone un modelo (el Goal Manager en el Goal, el Planner
+en el contrato) y los techos y suelos los fija el sistema en su configuración.
+El código recorta lo que excede el techo y sube lo que no llega al suelo (por
+ejemplo, tantas llamadas de investigación como preguntas obligatorias haya), y
+cada ajuste se muestra al usuario antes de aprobar. Nada gasta más de lo que el
+sistema permite.
 
 Después de agotar esos límites, el sistema no repite indefinidamente. Debe escalar capacidad, solicitar una decisión o detener el trabajo con evidencia.
 

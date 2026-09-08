@@ -56,7 +56,17 @@ the evidence and admission methodology.
 - Research happens only for a `research_questions` entry that is `pending`,
   through `.opencode/codegen/scripts/run-researcher.mjs`, within the Goal's
   research budget. The Researcher cites only sources it actually retrieved and
-  never edits the Goal; the Goal Manager records conclusions under `decisions`.
+  gives every finding a verbatim quote; the runner fetches every source and
+  searches the quote. A source that does not exist or is about something else
+  rejects the report; an unverifiable source or a missing quote marks the
+  finding unverified with confidence forced to low, and a report with no
+  verified finding answers nothing (the question stays pending or is waived,
+  never completed). The Researcher never edits the Goal; the Goal Manager
+  records conclusions under `decisions`.
+- Budgets a model writes are clamped to the system limits in
+  `.opencode/codegen/config/budgets.json` (Goal budgets by `run-goal.mjs`,
+  contract budgets by the orchestrator when sealing); every adjustment is
+  reported and rendered before the user approves.
 - `deliberate.mjs` sequences the deliberative route (CODE_GENERATION_FLOW
   §8.3): Researcher per pending question, advisors and reconciler per blocking
   question with options, then `run-goal.mjs --revise` so the Goal Manager folds
@@ -80,8 +90,17 @@ the evidence and admission methodology.
   automated acceptance criterion uncovered is rejected and re-requested with
   the errors as evidence. `PLAN.md` is rendered next to the plan. On the
   planned route the run stops as `PLAN_REVIEW_REQUIRED` until the user
-  approves that plan and `orchestrate` is called again with it; the direct
-  route builds straight through.
+  approves that plan and `orchestrate` is called again with it; a direct
+  route that fits the Goal's labels builds straight through.
+- The Goal's triage is judged again with the plan's evidence, only upward: a
+  direct route that needs more than one contract becomes planned; a contract's
+  effective risk is the highest of the risk the Planner declared and the floor
+  its `allowed_to_modify` paths imply (`config/risk-floors.json`); a Gate the
+  Goal called existing but the Gate Designer had to write is recorded. Any
+  contradiction pauses for plan review (direct route included), is listed in
+  PLAN.md and `state.triage`, and approving the plan accepts the effective
+  route and risk, which govern Builder and Gate Designer admission. Nothing
+  lowers a label the user approved.
 - Every contract builds in its own Git worktree under `.codegen-run/<run>/`
   from the current integration head. Results are cherry-picked onto the branch
   `codegen/<run>`. The user's checkout is never modified.

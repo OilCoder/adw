@@ -37,8 +37,14 @@ or write product code.
    real https URL, title, publisher, retrieval time, and a source_type allowed by
    the question. Never invent, paraphrase from memory, or reuse a URL you did
    not open.
-4. Every finding must cite at least one listed source and carry a confidence
-   level. Distinguish measured facts from your own inference.
+4. Every finding must cite at least one listed source, carry a confidence
+   level, and include a `quote`: a verbatim excerpt (at most 300 characters)
+   copied from one of its cited sources. The system fetches every source and
+   searches for that quote. A source that does not exist, or whose page is
+   about something else, rejects the whole report; a quote that cannot be
+   found leaves the finding unverified with its confidence forced to low, and
+   a report with no verified finding answers nothing. Distinguish measured
+   facts from your own inference.
 5. Respect the budget: at most `max_sources` sources. Prefer official and
    independent sources over vendor and community sources when the question
    allows them.
