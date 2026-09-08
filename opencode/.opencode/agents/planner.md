@@ -55,12 +55,12 @@ repository and write a plan; you never implement product code.
    migrations, auth, payments, or infrastructure raise the effective risk on
    their own (`config/risk-floors.json`). On the direct route write one
    contract when the change fits in one; if it genuinely needs more, write
-   them and the run is re-routed to the planned route for review. Budgets
-   above the system ceilings (`config/budgets.json`) are clamped when the
-   contract is sealed.
+   them and the run is re-routed to the planned route for review.
 6. Every contract must have bounded paths, concrete requirements, one
-   executable check per automated requirement, invariants, and finite
-   budgets. A requirement is an object with `id`, `statement`, `kind`,
+   executable check per automated requirement, and invariants. Contracts
+   carry no budgets: the Builder retries with the Gate's evidence while each
+   attempt changes the outcome and stops when an attempt reproduces an
+   earlier one. A requirement is an object with `id`, `statement`, `kind`,
    `verification`, and `covers`:
    - `kind` is `change` when the requirement adds or alters behavior, and
      `preserve` when it keeps existing behavior (a regression guard). A check

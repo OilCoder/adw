@@ -173,7 +173,6 @@
         "forbidden",
         "requirements",
         "verification",
-        "budgets",
         "response"
       ],
       "properties": {
@@ -244,28 +243,6 @@
                 "type": "string",
                 "minLength": 1
               }
-            }
-          },
-          "additionalProperties": false
-        },
-        "budgets": {
-          "type": "object",
-          "required": [
-            "max_builder_attempts",
-            "max_contract_revisions",
-            "max_unplanned_scope_expansion"
-          ],
-          "properties": {
-            "max_builder_attempts": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "max_contract_revisions": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "max_unplanned_scope_expansion": {
-              "const": 0
             }
           },
           "additionalProperties": false

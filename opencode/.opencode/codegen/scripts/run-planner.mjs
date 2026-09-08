@@ -12,7 +12,6 @@ import { renderPlanMarkdown } from "../lib/coverage.mjs"
 import { validatePlan } from "../lib/plan-validation.mjs"
 import {
   exists,
-  loadLimits,
   loadRegistry,
   loadRiskFloors,
   newRunId,
@@ -86,13 +85,11 @@ async function main() {
   await mkdir(artifacts, { recursive: true })
   const display = resolveDisplay(args)
   const route = args.route ?? null
-  const limits = await loadLimits(systemRoot)
   const riskFloors = await loadRiskFloors(systemRoot)
   const goal = args.goal ? JSON.parse(await readFile(path.resolve(directory, args.goal), "utf8")) : null
   const goalRisk = goal?.routing?.risk ?? null
   const evidencePath = args.evidence ? path.resolve(directory, args.evidence) : null
   const evidence = evidencePath ? JSON.parse(await readFile(evidencePath, "utf8")) : null
-  const attemptsCeiling = limits.contract?.max_builder_attempts?.[route === "direct" ? "direct" : "planned"]
   const prompt = [
     `Plan this objective: ${args.objective}`,
     ...(args.goal ? [`The sealed Goal with requirements, constraints, and acceptance criteria is at ${args.goal}; read it first.`] : []),
@@ -101,9 +98,6 @@ async function main() {
     "Paths in allowed_to_modify are exact file paths or dir/**; read and forbidden also accept *.ext globs. Never use other wildcards.",
     ...(goalRisk
       ? [`The Goal was triaged at risk ${goalRisk}. Declare each contract's real risk: if your inspection shows more risk than the Goal assumed, say so; the run then pauses for the user to accept it instead of building on a wrong label. Paths such as dependency manifests, CI, migrations, auth, payments, or infrastructure raise the effective risk on their own.`]
-      : []),
-    ...(Number.isInteger(attemptsCeiling)
-      ? [`Budgets: max_builder_attempts at most ${attemptsCeiling} on this route and max_contract_revisions at most ${limits.contract?.max_contract_revisions ?? 1}; higher values are clamped when the contract is sealed.`]
       : []),
     "Requirements are objects with id, statement, kind (change: adds or alters behavior; preserve: keeps existing behavior), verification (automated, or manual when no command can judge it), and covers (Goal ids). verification.checks lists one executable check per automated requirement: id, covers (requirement ids), command. A check covering a change requirement must fail on the untouched repository and pass once the requirement is met; a check covering only preserve requirements must already pass. Never declare an expected baseline: it follows from the kinds. A contract with only manual requirements has no Gate and is rejected.",
     ...(goal ? [coverageBrief(goal)] : []),
@@ -151,7 +145,6 @@ async function main() {
         goal,
         route,
         riskFloors,
-        limits,
       })
       const revision = await runProcess("git", ["rev-parse", "HEAD"], {
         cwd: directory,
@@ -169,7 +162,7 @@ async function main() {
       // model, so the user can review contracts and Goal coverage.
       if (validation.valid) {
         markdown = outputPath.replace(/\.json$/, ".md")
-        await writeFile(markdown, renderPlanMarkdown(generatedPlan, goal, { route, riskFloors, limits }))
+        await writeFile(markdown, renderPlanMarkdown(generatedPlan, goal, { route, riskFloors }))
       }
     } catch (error) {
       validation = { valid: false, errors: [`Plan is not valid JSON: ${error.message}`] }
@@ -186,7 +179,6 @@ async function main() {
     validation: validation ? { valid: validation.valid, errors: validation.errors, execution_waves: validation.execution_waves ?? [] } : null,
     coverage: validation?.coverage ?? null,
     triage: validation?.triage ?? null,
-    budget_adjustments: validation?.budget_adjustments ?? [],
     artifacts,
   }
   await writeFile(path.join(artifacts, "summary.json"), `${JSON.stringify(report, null, 2)}\n`)

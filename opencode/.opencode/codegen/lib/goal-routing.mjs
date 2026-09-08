@@ -24,13 +24,6 @@ export function routeGoal(goal) {
     if (deliberativeSignals.length === 0) {
       return { status: "GOAL_NOT_SEALED", route: null, reasons: ["goal-requires-user-approval"] }
     }
-    if (goal.budgets.max_research_calls === 0 && pendingResearch.length > 0) {
-      return {
-        status: "BUDGET_BLOCKED",
-        route: null,
-        reasons: [...deliberativeSignals, "no-research-budget"],
-      }
-    }
     return {
       status: "ROUTED",
       route: "deliberative",
@@ -41,11 +34,6 @@ export function routeGoal(goal) {
         "DECISION_RECONCILED",
         "GOAL_REVISED",
       ],
-      budgets: {
-        planner_calls: 0,
-        research_calls: goal.budgets.max_research_calls,
-        opinion_calls: 0,
-      },
     }
   }
 
@@ -65,19 +53,9 @@ export function routeGoal(goal) {
         "BUILDER_DISPATCHED",
         "VERIFICATION_STARTED",
       ],
-      // The Planner still writes the single contract of the direct route.
-      budgets: {
-        planner_calls: 1,
-        research_calls: 0,
-        opinion_calls: 0,
-        contracts: 1,
-      },
     }
   }
 
-  if (goal.budgets.max_planner_calls === 0) {
-    return { status: "BUDGET_BLOCKED", route: null, reasons: ["no-planner-budget"] }
-  }
   return {
     status: "ROUTED",
     route: "planned",
@@ -94,10 +72,5 @@ export function routeGoal(goal) {
       "DAG_READY",
       "WAVE_READY",
     ],
-    budgets: {
-      planner_calls: goal.budgets.max_planner_calls,
-      research_calls: 0,
-      opinion_calls: 0,
-    },
   }
 }

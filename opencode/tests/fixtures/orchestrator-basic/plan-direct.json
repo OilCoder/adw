@@ -24,7 +24,6 @@
             "checks": [{ "id": "C1", "covers": ["R1"], "command": "python3 -m unittest tests/test_alpha.py" }],
             "invariants": ["Only lib/alpha.py changes"]
           },
-          "budgets": { "max_builder_attempts": 2, "max_contract_revisions": 0, "max_unplanned_scope_expansion": 0 },
           "response": ["status", "changed files"]
         }
       ]

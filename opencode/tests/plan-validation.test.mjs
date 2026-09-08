@@ -22,11 +22,6 @@ function contract(contractId, allowedPath, { covers = [] } = {}) {
       checks: [{ id: "C1", covers: ["R1"], command: "npm test" }],
       invariants: ["No files outside the contract change"],
     },
-    budgets: {
-      max_builder_attempts: 2,
-      max_contract_revisions: 1,
-      max_unplanned_scope_expansion: 0,
-    },
     response: ["status", "changed files", "verification"],
   }
 }
@@ -191,26 +186,6 @@ test("risk floors match exact paths and directory grants conservatively", async 
   const floors = { floors: [{ risk: "high", reason: "secrets", patterns: [".env", ".env.*"] }] }
   assert.deepEqual(riskFloorFor({ allowed_to_modify: [".env.local", "README.md"] }, floors).floor, "high")
   assert.deepEqual(riskFloorFor({ allowed_to_modify: ["README.md"] }, floors), { floor: "low", hits: [] })
-})
-
-test("contract budgets above the system ceilings are clamped for the effective route and reported", async () => {
-  const { applyPlanLimits } = await import("../.opencode/codegen/lib/plan-validation.mjs")
-  const limits = JSON.parse(await readFile(new URL("../.opencode/codegen/config/budgets.json", import.meta.url), "utf8"))
-  const plan = validPlan()
-  plan.phases[0].contracts[0].budgets = { max_builder_attempts: 5, max_contract_revisions: 4, max_unplanned_scope_expansion: 0 }
-  const planned = applyPlanLimits(plan, { limits, route: "planned" })
-  assert.equal(planned.plan.phases[0].contracts[0].budgets.max_builder_attempts, 3)
-  assert.equal(planned.plan.phases[0].contracts[0].budgets.max_contract_revisions, 1)
-  assert.deepEqual(planned.adjustments.map((item) => [item.contract_id, item.field, item.from, item.to]), [
-    ["users-service", "budgets.max_builder_attempts", 5, 3],
-    ["users-service", "budgets.max_contract_revisions", 4, 1],
-  ])
-  assert.equal(plan.phases[0].contracts[0].budgets.max_builder_attempts, 5, "the input plan is not mutated")
-  const direct = applyPlanLimits(plan, { limits, route: "direct" })
-  assert.equal(direct.plan.phases[0].contracts[0].budgets.max_builder_attempts, 2, "the direct route allows two attempts")
-  assert.deepEqual(applyPlanLimits(validPlan(), { limits, route: "planned" }).adjustments, [])
-  const reported = validatePlan(plan, { workClasses, goal: goal(), route: "planned", limits })
-  assert.equal(reported.budget_adjustments.length, 2)
 })
 
 test("requirements carry ids and kinds; every automated requirement needs a check; manual ones get none", () => {

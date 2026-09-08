@@ -6,7 +6,7 @@ import { runFinalGate } from "./final-gate.mjs"
 import { checkGateReadiness, materializeGate } from "./gate.mjs"
 import { routeGoal } from "./goal-routing.mjs"
 import { validateGoal } from "./goal.mjs"
-import { applyPlanLimits, validatePlan } from "./plan-validation.mjs"
+import { validatePlan } from "./plan-validation.mjs"
 import {
   cherryPick,
   commitPaths,
@@ -32,12 +32,24 @@ const BLOCKING_STOPS = new Set([
   "PARTIAL_EXECUTION",
 ])
 
-export function classifyBuilderOutcome(result, { attempt, maxAttempts }) {
+// What the next attempt would be told: the result and the checks or paths
+// behind it. An attempt that reproduces the signature of an earlier one would
+// be retried with exactly the same evidence, which CODE_GENERATION_FLOW §4
+// forbids, so the loop stops there. There is no attempt cap: the loop runs
+// while each attempt brings new evidence.
+export function attemptSignature(result, summary = {}) {
+  const failing = (summary.verification ?? []).filter((check) => check.exit_code !== 0).map((check) => check.check_id).sort()
+  const outside = [...(summary.outside_scope ?? [])].sort()
+  return JSON.stringify({ result, failing, outside })
+}
+
+// `repeats` is the number of the earlier attempt this one reproduced, or null.
+export function classifyBuilderOutcome(result, { attempt, repeats = null }) {
   if (result === "PASS") return { disposition: "ACCEPT" }
   const retriable = result === "GATE_FAIL" || result === "SCOPE_FAIL" || result === "NO_CHANGES"
   if (retriable) {
-    if (attempt < maxAttempts) return { disposition: "RETRY", reason: result }
-    return { disposition: "STOP", status: "BUILD_FAILED", reason: `${result} after ${attempt} attempts` }
+    if (repeats === null) return { disposition: "RETRY", reason: result }
+    return { disposition: "STOP", status: "BUILD_FAILED", reason: `no progress: attempt ${attempt} reproduced attempt ${repeats} (${result})` }
   }
   if (result === "CONTRACT_BLOCKED") return { disposition: "STOP", status: "REPLAN_REQUIRED", reason: result }
   if (USER_ACTION_STOPS.has(result)) return { disposition: "STOP", status: "USER_ACTION_REQUIRED", reason: result }
@@ -69,7 +81,6 @@ export async function orchestrate({
   goalPath,
   planPath = null,
   registry,
-  limits = null,
   riskFloors = null,
   runners,
   runId,
@@ -92,7 +103,6 @@ export async function orchestrate({
     goal_id: null,
     route: null,
     triage: null,
-    budget_adjustments: [],
     plan_id: null,
     plan_path: null,
     plan_markdown: null,
@@ -157,12 +167,11 @@ export async function orchestrate({
     state.plan_path = planPath
     state.plan_reviewed = true
   } else {
-    if ((routing.budgets?.planner_calls ?? goal.budgets.max_planner_calls) < 1 && routing.route !== "direct") {
-      return stop("BUDGET_BLOCKED", "no planner budget")
-    }
     // A plan the validator rejects is re-requested with the errors as
-    // evidence while the Goal's planner budget allows; any other failure stops.
-    const budget = routing.budgets?.planner_calls ?? goal.budgets.max_planner_calls
+    // evidence while the errors change. A plan that reproduces the errors of
+    // an earlier attempt would be re-requested with the same evidence, so
+    // the run stops there (no progress). Any other failure stops at once.
+    const errorSets = []
     let evidence = null
     let output = null
     while (true) {
@@ -183,8 +192,13 @@ export async function orchestrate({
         state.plan_markdown = summary.markdown ?? null
         break
       }
-      const retriable = summary.result === "PLAN_INVALID" && state.planner_calls < Math.max(1, budget)
-      if (!retriable) return stop("PLAN_FAILED", summary.result, { validation: summary.validation ?? null, attempts: state.planner_calls })
+      if (summary.result !== "PLAN_INVALID") return stop("PLAN_FAILED", summary.result, { validation: summary.validation ?? null, attempts: state.planner_calls })
+      const errors = [...(summary.validation?.errors ?? [])].sort()
+      const repeats = errorSets.findIndex((item) => item.length === errors.length && item.every((error, index) => error === errors[index]))
+      errorSets.push(errors)
+      if (repeats !== -1) {
+        return stop("PLAN_FAILED", `no progress: attempt ${state.planner_calls} reproduced the validation errors of attempt ${repeats + 1}`, { validation: summary.validation ?? null, attempts: state.planner_calls })
+      }
       evidence = `.codegen-plan/${runId}-${state.planner_calls}.evidence.json`
       await mkdir(path.dirname(path.resolve(directory, evidence)), { recursive: true })
       await writeFile(
@@ -203,7 +217,7 @@ export async function orchestrate({
   // effective risk is the highest of what the Planner declared and what its
   // paths imply. The code only ever raises a label; a raise is a
   // contradiction the user accepts at plan review.
-  const planValidation = validatePlan(plan, { workClasses, goal, route: routing.route, riskFloors, limits })
+  const planValidation = validatePlan(plan, { workClasses, goal, route: routing.route, riskFloors })
   await emit("PLAN_VALIDATED", { valid: planValidation.valid, errors: planValidation.errors, execution_waves: planValidation.execution_waves })
   if (!planValidation.valid) return stop("PLAN_INVALID", planValidation.errors.join("; "))
   if (plan.base_revision !== baseRevision) {
@@ -230,12 +244,6 @@ export async function orchestrate({
     })
   }
 
-  // Contract budgets are clamped to the system ceilings for the effective
-  // route; the plan file keeps the Planner's numbers.
-  const limited = applyPlanLimits(plan, { limits, route: state.route })
-  plan = limited.plan
-  state.budget_adjustments = limited.adjustments
-  for (const adjustment of limited.adjustments) await emit("BUDGET_ADJUSTED", adjustment)
   const phasesById = new Map(plan.phases.map((phase) => [phase.phase_id, phase]))
 
   // 3. Integration branch, isolated from the user's checkout.
@@ -285,7 +293,6 @@ export async function orchestrate({
         worktree,
         status: "PREPARED",
         risk_effective: riskEffective,
-        budgets: contract.budgets,
         gate_readiness: null,
         attempts: [],
         result_commit: null,
@@ -337,9 +344,9 @@ export async function orchestrate({
 
     // 4b. Build contracts of the wave concurrently.
     await pool(prepared, concurrency, async ({ contract, record }) => {
-      const maxAttempts = contract.budgets.max_builder_attempts
+      const signatures = []
       let evidence = null
-      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      for (let attempt = 1; ; attempt += 1) {
         await emit("BUILDER_DISPATCHED", { contract_id: contract.contract_id, attempt, evidence })
         const summary = await runners.builder({
           directory: record.worktree,
@@ -353,8 +360,11 @@ export async function orchestrate({
         // NO_MATCH instead of a result; that is a blocking stop with the
         // admission reasons, not an unknown result.
         const result = summary.result ?? (summary.status === "NO_MATCH" ? "NO_BUILDER_ADMITTED" : summary.status)
-        record.attempts.push({ attempt, result, evidence, summary })
-        const outcome = classifyBuilderOutcome(result, { attempt, maxAttempts })
+        const signature = attemptSignature(result, summary)
+        const repeats = signatures.includes(signature) ? signatures.indexOf(signature) + 1 : null
+        signatures.push(signature)
+        record.attempts.push({ attempt, result, evidence, repeats, summary })
+        const outcome = classifyBuilderOutcome(result, { attempt, repeats })
         if (result === "NO_BUILDER_ADMITTED") {
           outcome.reason = `no builder admitted for ${contract.work_class} at risk ${record.risk_effective}: ${(summary.rejected ?? []).slice(0, 4).map((r) => `${r.configuration_id} (${(r.reasons ?? []).join(", ")})`).join("; ")}`
         }
@@ -383,9 +393,6 @@ export async function orchestrate({
         await emit("CONTRACT_FAILED", { contract_id: contract.contract_id, attempt, status: outcome.status, reason: outcome.reason })
         return
       }
-      record.status = "BUILD_FAILED"
-      record.stop = `budget exhausted after ${maxAttempts} attempts`
-      await emit("CONTRACT_FAILED", { contract_id: contract.contract_id, status: "BUILD_FAILED", reason: record.stop })
     })
     await persist()
 

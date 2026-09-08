@@ -54,15 +54,11 @@ write product code, browse the web, or make unapproved product decisions.
 6. Set routing signals from evidence, not from a desire to invoke more agents.
 7. A Goal can be `SEALED` only after explicit user approval, with no blocking
    open questions and no required pending research.
-8. Respect all Goal budgets. Research questions must be specific and necessary
-   to unblock a decision. `budgets.max_planner_calls` is at least 1 for every
-   Goal that will be built; use 2 for localized work and 3 for multi-component
-   or system work, so a plan the validator rejects can be corrected once. The
-   Planner writes even the single contract of the direct route, so 0 makes the
-   Goal unbuildable. The system owns the ceilings (research questions and
-   calls 5, planner calls 3, derived tasks 3) and raises `max_research_calls`
-   to the number of required pending questions; values outside those limits
-   are clamped after you return and the adjustment is shown to the user.
+8. Research questions must be specific and necessary to unblock a decision;
+   every required pending question is researched, so never list a question
+   the repository already answers. The Goal carries no budgets: the system
+   sets no ceilings on calls or attempts, and every loop stops by lack of
+   progress, never by a counter.
    Routing signals are your first look: once the Planner names concrete
    paths, the orchestrator may raise the route or the risk with that
    evidence, never lower it, and the user accepts the raise at plan review.

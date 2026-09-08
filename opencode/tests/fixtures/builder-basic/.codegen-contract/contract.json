@@ -28,11 +28,6 @@
       "The contract, gate, tests, and OpenCode configuration remain unchanged."
     ]
   },
-  "budgets": {
-    "max_builder_attempts": 1,
-    "max_contract_revisions": 0,
-    "max_unplanned_scope_expansion": 0
-  },
   "response": [
     "status",
     "changed files",

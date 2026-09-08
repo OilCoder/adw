@@ -46,11 +46,6 @@ export async function loadRegistry(systemRoot) {
   )
 }
 
-// System ceilings and floors for model-written budgets (config/budgets.json).
-export async function loadLimits(systemRoot) {
-  return JSON.parse(await readFile(path.join(systemRoot, ".opencode/codegen/config/budgets.json"), "utf8"))
-}
-
 // Minimum risk implied by the paths a contract may modify (config/risk-floors.json).
 export async function loadRiskFloors(systemRoot) {
   return JSON.parse(await readFile(path.join(systemRoot, ".opencode/codegen/config/risk-floors.json"), "utf8"))

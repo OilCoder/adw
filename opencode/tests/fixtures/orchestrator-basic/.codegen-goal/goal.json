@@ -24,11 +24,5 @@
     "existing_gate": true,
     "architecture_uncertainty": false,
     "external_research_required": false
-  },
-  "budgets": {
-    "max_research_questions": 0,
-    "max_research_calls": 0,
-    "max_planner_calls": 1,
-    "max_derived_tasks": 0
   }
 }

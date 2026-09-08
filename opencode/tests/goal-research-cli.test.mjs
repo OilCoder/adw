@@ -86,7 +86,6 @@ test("run-researcher runs one admitted configuration, validates, and renders the
     assert.ok(markdown.includes("> Unique constraints raise IntegrityError when a duplicate value is inserted."))
     const log = JSON.parse((await readFile(path.join(tree.directory, "fake.log"), "utf8")).trim())
     assert.equal(log.agent, "researcher")
-    assert.ok(log.prompt.includes("at most 3 sources"))
     assert.ok(log.prompt.includes("verbatim quote"))
     assert.equal(log.exa, "1")
   } finally {

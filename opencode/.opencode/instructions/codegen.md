@@ -54,8 +54,8 @@ the evidence and admission methodology.
   before the Planner. Small, sealed, low-risk work with an existing Gate takes
   the direct route; never invoke research, opinions, or the Planner for it.
 - Research happens only for a `research_questions` entry that is `pending`,
-  through `.opencode/codegen/scripts/run-researcher.mjs`, within the Goal's
-  research budget. The Researcher cites only sources it actually retrieved and
+  through `.opencode/codegen/scripts/run-researcher.mjs`, one call per
+  required pending question. The Researcher cites only sources it actually retrieved and
   gives every finding a verbatim quote; the runner fetches every source and
   searches the quote. A source that does not exist or is about something else
   rejects the report; an unverifiable source or a missing quote marks the
@@ -63,10 +63,12 @@ the evidence and admission methodology.
   verified finding answers nothing (the question stays pending or is waived,
   never completed). The Researcher never edits the Goal; the Goal Manager
   records conclusions under `decisions`.
-- Budgets a model writes are clamped to the system limits in
-  `.opencode/codegen/config/budgets.json` (Goal budgets by `run-goal.mjs`,
-  contract budgets by the orchestrator when sealing); every adjustment is
-  reported and rendered before the user approves.
+- Neither the Goal nor a contract carries budgets. The system sets no
+  ceilings on calls or attempts; cost is controlled outside it (OpenCode and
+  the provider). Every loop stops by lack of progress: a Builder attempt that
+  reproduces an earlier one (same result, same failing checks or paths), or a
+  Planner attempt that reproduces earlier validation errors, stops the run
+  with evidence.
 - `deliberate.mjs` sequences the deliberative route (CODE_GENERATION_FLOW
   §8.3): Researcher per pending question, advisors and reconciler per blocking
   question with options, then `run-goal.mjs --revise` so the Goal Manager folds

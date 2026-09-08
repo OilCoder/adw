@@ -159,9 +159,9 @@ The Researcher runs one configuration certified as `researcher` from the
 Go-preferred `research-synthesis` route. The Runner also sets `OPENCODE_ENABLE_EXA=1` so
 hosted search remains available when needed. The
 report must cite only sources actually retrieved and give every finding a
-verbatim quote; the validator binds it to the Goal question (id, text, budget,
-allowed source types) and rejects future retrieval dates, uncited findings, and
-over-budget source counts. The runner then fetches every source and searches
+verbatim quote; the validator binds it to the Goal question (id, text,
+allowed source types) and rejects future retrieval dates and uncited findings.
+The runner then fetches every source and searches
 each quote: a source that does not exist or is about something else rejects
 the report (`REPORT_INVALID`); an unverifiable source (403, 5xx, timeout,
 binary) or a quote that is not found marks the finding unverified with its
@@ -194,8 +194,8 @@ npm run deliberate                       # Researcher per pending question, opin
 npm run goal:run -- --revise .codegen-goal/goal.json --intent "answers to the questions without options"
 ```
 
-`deliberate.mjs` reads the Goal, runs the Researcher on every `pending`
-question within `budgets.max_research_calls` (required first), runs
+`deliberate.mjs` reads the Goal, runs the Researcher on every required
+`pending` question, runs
 `run-opinions.mjs` on every blocking open question that carries options, and
 then asks the Goal Manager (`run-goal.mjs --revise`) to fold the validated
 reports and proposed decisions into the Goal, keeping the previous version as
@@ -221,7 +221,8 @@ the DAG, the paths, the risk ceiling, and its coverage of the Goal. Every
 contract requirement declares in `covers` the Goal requirement and
 acceptance-criterion ids it satisfies; a plan that leaves a `must` requirement
 or an automated criterion uncovered is rejected and re-requested with the
-errors as evidence, within `budgets.max_planner_calls`. A valid plan is
+errors as evidence while the errors change; a plan that reproduces the errors
+of an earlier attempt stops the run as `PLAN_FAILED` (no progress). A valid plan is
 rendered as `PLAN.md` next to it. The Goal's triage is judged again with the
 plan's evidence, only upward: a direct route that needs more than one contract
 becomes planned, and each contract's effective risk is the highest of what the
@@ -229,10 +230,8 @@ Planner declared and the floor its paths imply
 (`.opencode/codegen/config/risk-floors.json`). On the planned route, or when
 the plan contradicts the Goal's labels, the run then stops as
 `PLAN_REVIEW_REQUIRED`: the user reviews `PLAN.md` (coverage, triage
-contradictions, budget adjustments) and the run continues with `--plan <path>`;
-approving the plan accepts the effective route and risk. Contract budgets above
-the system ceilings (`.opencode/codegen/config/budgets.json`) are clamped when
-the contract is sealed. Then, for each execution wave:
+contradictions) and the run continues with `--plan <path>`; approving the plan
+accepts the effective route and risk. Then, for each execution wave:
 
 1. creates one detached Git worktree per contract under `.codegen-run/<run>/`
    (excluded through `.git/info/exclude`, never the tracked `.gitignore`),
@@ -247,7 +246,10 @@ the contract is sealed. Then, for each execution wave:
    `preserve` check failing on the baseline is not fixable and stops the run;
 3. runs Builders concurrently (`--concurrency`), retrying with an evidence file
    that carries every check's result on `GATE_FAIL`, `SCOPE_FAIL`, or
-   `NO_CHANGES` within the contract's `max_builder_attempts`;
+   `NO_CHANGES` while each attempt changes the outcome; an attempt that
+   reproduces an earlier one (same result, same failing checks or paths outside
+   scope) stops the contract as `BUILD_FAILED` with reason "no progress". There
+   is no attempt cap: cost is controlled in OpenCode and at the provider;
    `CONTRACT_BLOCKED` stops as `REPLAN_REQUIRED`, provider failures stop as
    `ESCALATE`, while an exhausted Zen balance stops as `USER_ACTION_REQUIRED`
    with recharge instructions;

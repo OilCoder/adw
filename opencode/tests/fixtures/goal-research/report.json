@@ -36,10 +36,5 @@
   "limitations": [
     "Only the current major version was checked"
   ],
-  "unanswered_questions": [],
-  "budget": {
-    "max_sources": 3,
-    "max_minutes": 10,
-    "sources_used": 1
-  }
+  "unanswered_questions": []
 }

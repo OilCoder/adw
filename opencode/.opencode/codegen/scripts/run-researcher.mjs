@@ -63,9 +63,6 @@ async function main() {
   if (question.status !== "pending") {
     throw new Error(`Research question ${question.id} is ${question.status}, not pending`)
   }
-  if (goal.budgets.max_research_calls < 1) {
-    throw new Error("Goal budget does not allow research calls")
-  }
 
   const registry = await loadRegistry(systemRoot)
   const plan = selectExecutionPlan(registry, "researcher", {
@@ -92,7 +89,6 @@ async function main() {
     `Research question ${question.id} from ${goalFile.relative}: ${question.question}`,
     `Why it is needed: ${question.why_needed}`,
     `Allowed source types: ${question.allowed_source_types.join(", ")}.`,
-    `Budget: at most ${question.budget.max_sources} sources and ${question.budget.max_minutes} minutes.`,
     `Write the complete report to ${output.relative} with question_id "${question.id}" and the question text copied verbatim.`,
     "Cite only sources you actually retrieved, and give every finding a verbatim quote (at most 300 characters) copied from one of its sources: the system fetches each source and searches for that quote. A source that does not exist rejects the report; a quote that cannot be found leaves the finding unverified. If blocked, write a BLOCKED report instead of guessing.",
   ].join("\n")
@@ -101,7 +97,7 @@ async function main() {
   const run = await runAgentProcess({
     directory,
     args: ["run", "--format", "json", "--model", configuration.model, "--agent", "researcher", prompt],
-    timeoutSeconds: Number(args.timeout ?? question.budget.max_minutes * 60),
+    timeoutSeconds: Number(args.timeout ?? 900),
     // Keep hosted Exa available if the selected Go model needs it.
     env: { OPENCODE_ENABLE_EXA: process.env.OPENCODE_ENABLE_EXA ?? "1" },
     display,

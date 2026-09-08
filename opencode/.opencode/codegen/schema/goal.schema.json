@@ -19,8 +19,7 @@
     "decisions",
     "research_questions",
     "open_questions",
-    "routing",
-    "budgets"
+    "routing"
   ],
   "properties": {
     "schema_version": {
@@ -103,9 +102,6 @@
     },
     "routing": {
       "$ref": "#/$defs/routing"
-    },
-    "budgets": {
-      "$ref": "#/$defs/budgets"
     }
   },
   "$defs": {
@@ -257,8 +253,7 @@
         "why_needed",
         "required",
         "status",
-        "allowed_source_types",
-        "budget"
+        "allowed_source_types"
       ],
       "properties": {
         "id": {
@@ -295,23 +290,6 @@
             ]
           },
           "uniqueItems": true
-        },
-        "budget": {
-          "type": "object",
-          "required": [
-            "max_sources",
-            "max_minutes"
-          ],
-          "properties": {
-            "max_sources": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "max_minutes": {
-              "type": "integer",
-              "minimum": 1
-            }
-          }
         }
       }
     },
@@ -378,34 +356,6 @@
         },
         "external_research_required": {
           "type": "boolean"
-        }
-      }
-    },
-    "budgets": {
-      "type": "object",
-      "required": [
-        "max_research_questions",
-        "max_research_calls",
-        "max_planner_calls",
-        "max_derived_tasks"
-      ],
-      "properties": {
-        "max_research_questions": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "max_research_calls": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "max_planner_calls": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "At least 1: the Planner writes every contract, including the single contract of the direct route."
-        },
-        "max_derived_tasks": {
-          "type": "integer",
-          "minimum": 0
         }
       }
     }

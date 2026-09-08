@@ -16,8 +16,7 @@
     "risks",
     "sources",
     "limitations",
-    "unanswered_questions",
-    "budget"
+    "unanswered_questions"
   ],
   "properties": {
     "schema_version": {
@@ -148,28 +147,6 @@
     },
     "unanswered_questions": {
       "$ref": "#/$defs/strings"
-    },
-    "budget": {
-      "type": "object",
-      "required": [
-        "max_sources",
-        "max_minutes",
-        "sources_used"
-      ],
-      "properties": {
-        "max_sources": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "max_minutes": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "sources_used": {
-          "type": "integer",
-          "minimum": 0
-        }
-      }
     },
     "verification": {
       "type": "object",

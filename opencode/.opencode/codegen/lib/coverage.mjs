@@ -26,7 +26,7 @@ function renderContract(contract) {
     "",
     contract.objective,
     "",
-    `- Work class: \`${contract.work_class}\`; risk: \`${contract.risk}\`; builder attempts: ${contract.budgets?.max_builder_attempts ?? "?"}`,
+    `- Work class: \`${contract.work_class}\`; risk: \`${contract.risk}\``,
     `- May modify: ${(contract.allowed_to_modify ?? []).map((item) => `\`${item}\``).join(", ") || "nothing"}`,
     `- Forbidden: ${(contract.forbidden ?? []).map((item) => `\`${item}\``).join(", ") || "none"}`,
     "",
@@ -53,11 +53,10 @@ function renderContract(contract) {
 }
 
 // PLAN.md is rendered deterministically after validation, never by the
-// Planner. With a Goal it carries the coverage section, the triage against
-// the Goal's labels, and the budget adjustments the user reviews before the
-// Builders run.
-export function renderPlanMarkdown(plan, goal = null, { route = null, riskFloors = null, limits = null } = {}) {
-  const validation = validatePlan(plan, { goal, route, riskFloors, limits })
+// Planner. With a Goal it carries the coverage section and the triage against
+// the Goal's labels the user reviews before the Builders run.
+export function renderPlanMarkdown(plan, goal = null, { route = null, riskFloors = null } = {}) {
+  const validation = validatePlan(plan, { goal, route, riskFloors })
   if (!validation.valid) throw new Error(`Cannot render invalid plan: ${validation.errors.join("; ")}`)
   const coverage = validation.coverage
   const triage = validation.triage
@@ -91,16 +90,6 @@ export function renderPlanMarkdown(plan, goal = null, { route = null, riskFloors
       triage.contradictions.length > 0
         ? `**Triage contradictions (approving this plan accepts the effective values):**\n\n${bullets(triage.contradictions, (item) => `\`${item.label}\`: Goal said \`${item.claimed}\`, evidence: ${item.evidence} → effective \`${item.effective}\``)}`
         : "No triage contradictions: the plan fits the Goal's labels.",
-    )
-  }
-  if (validation.budget_adjustments.length > 0) {
-    sections.push(
-      "",
-      "## Budget adjustments",
-      "",
-      "The orchestrator clamps these contract budgets when sealing:",
-      "",
-      bullets(validation.budget_adjustments, (item) => `\`${item.contract_id}\` \`${item.field}\`: ${item.from} → ${item.to} (${item.reason})`),
     )
   }
   if (coverage) {

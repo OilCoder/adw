@@ -100,25 +100,10 @@ export function validateResearchReport(report, question = null, { now = new Date
   if (report?.status === "BLOCKED" && (report.unanswered_questions?.length ?? 0) === 0) {
     errors.push("BLOCKED report must explain unanswered questions")
   }
-  if (!Number.isInteger(report?.budget?.sources_used) || report.budget.sources_used < 0) {
-    errors.push("budget.sources_used must be a non-negative integer")
-  }
-  if (report?.budget?.sources_used !== (report?.sources?.length ?? 0)) {
-    errors.push("budget.sources_used must equal the number of sources")
-  }
-  if (report?.budget?.sources_used > report?.budget?.max_sources) {
-    errors.push("source count exceeds research budget")
-  }
   if (report?.verification !== undefined) validateVerification(report.verification, report, errors)
   if (question) {
     if (report?.question_id !== question.id) errors.push("question_id does not match Goal")
     if (report?.question !== question.question) errors.push("question text does not match Goal")
-    if (report?.budget?.max_sources !== question.budget.max_sources) {
-      errors.push("max_sources does not match Goal budget")
-    }
-    if (report?.budget?.max_minutes !== question.budget.max_minutes) {
-      errors.push("max_minutes does not match Goal budget")
-    }
     for (const source of report?.sources ?? []) {
       if (!question.allowed_source_types.includes(source.source_type)) {
         errors.push(`${source.id}: source type is not allowed by Goal`)

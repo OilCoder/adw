@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Deliberates an open Goal: runs the Researcher on pending questions within
-// the research budget, the advisors and reconciler on blocking questions with
+// Deliberates an open Goal: runs the Researcher on every required pending
+// question, the advisors and reconciler on blocking questions with
 // a closed option set, then asks the Goal Manager to fold reports and proposed
 // decisions into the Goal. The user still seals the Goal afterwards.
 import { mkdir, readFile, writeFile } from "node:fs/promises"
@@ -89,13 +89,12 @@ async function main() {
   const plan = deliberationPlan(goal, { reports: reports.map((r) => r.question_id), decisions: decisions.map((d) => d.question_id) })
   summary.plan = plan
   if (plan.status === "USER_DECISION_REQUIRED") return finish("USER_DECISION_REQUIRED", 1)
-  if (plan.status === "BUDGET_BLOCKED") return finish("BUDGET_BLOCKED", 1)
   if (plan.status === "NOTHING_TO_DELIBERATE") {
     summary.ready_for_approval = readyForApproval(goal)
     return finish("NOTHING_TO_DELIBERATE", summary.ready_for_approval ? 0 : 1)
   }
 
-  // 1. Research, one runner per question, in budget order.
+  // 1. Research, one runner per required pending question.
   for (const questionId of plan.research) {
     const run = await spawnRunner("run-researcher.mjs", { question: questionId, goal: goalFile.relative, "minimum-status": minimumStatus, "source-verification": sourceVerification, timeout, display }, directory)
     summary.research.push({ question_id: questionId, result: run.result, output: run.output ?? null, answers: run.answers ?? false, unverified_findings: run.unverified_findings ?? [], fabricated: run.verification?.fabricated ?? [], user_action: run.user_action ?? null })

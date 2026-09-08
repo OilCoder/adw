@@ -12,8 +12,7 @@ import { validateGoal } from "./goal.mjs"
 export function deliberationPlan(goal, { reports = [], decisions = [] } = {}) {
   const pending = goal.research_questions.filter((item) => item.status === "pending" && !reports.includes(item.id))
   const required = pending.filter((item) => item.required)
-  const budgetLeft = Math.max(0, goal.budgets.max_research_calls - reports.length)
-  const research = required.slice(0, budgetLeft).map((item) => item.id)
+  const research = required.map((item) => item.id)
   const blocking = goal.open_questions.filter((item) => item.blocking)
   const opinions = blocking.filter((item) => Array.isArray(item.options) && item.options.length >= 2 && !decisions.includes(item.id)).map((item) => item.id)
   const userDecisions = blocking.filter((item) => !Array.isArray(item.options) || item.options.length < 2).map((item) => item.id)
@@ -24,9 +23,8 @@ export function deliberationPlan(goal, { reports = [], decisions = [] } = {}) {
     decisions.some((id) => goal.open_questions.some((item) => item.id === id && item.blocking))
   let status = "READY"
   if (userDecisions.length > 0) status = "USER_DECISION_REQUIRED"
-  else if (required.length > budgetLeft) status = "BUDGET_BLOCKED"
   else if (research.length === 0 && opinions.length === 0 && !unfolded) status = "NOTHING_TO_DELIBERATE"
-  return { status, research, opinions, user_decisions: userDecisions, research_budget_left: budgetLeft, revise: status === "READY" }
+  return { status, research, opinions, user_decisions: userDecisions, revise: status === "READY" }
 }
 
 export function readyForApproval(goal) {

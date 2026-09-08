@@ -11,29 +11,28 @@ function goalWith(overrides) {
   return { ...structuredClone(fixture), ...overrides }
 }
 
-test("plan: pending required research runs first within the research budget", () => {
+test("plan: every required pending research question runs; optional ones never spend a call", () => {
   const plan = deliberationPlan(fixture)
   assert.equal(plan.status, "READY")
   assert.deepEqual(plan.research, ["RQ-1"])
   assert.deepEqual(plan.opinions, [])
-  assert.equal(plan.research_budget_left, 2)
   const optionalFirst = goalWith({
     research_questions: [
       { ...fixture.research_questions[0], id: "RQ-0", required: false },
       fixture.research_questions[0],
     ],
-    budgets: { ...fixture.budgets, max_research_calls: 1 },
   })
-  assert.deepEqual(deliberationPlan(optionalFirst).research, ["RQ-1"], "only required research runs, capped by budget")
+  assert.deepEqual(deliberationPlan(optionalFirst).research, ["RQ-1"], "only required research runs")
   const optionalOnly = goalWith({ research_questions: [{ ...fixture.research_questions[0], required: false }] })
   assert.equal(deliberationPlan(optionalOnly).status, "NOTHING_TO_DELIBERATE", "an optional question never spends a Researcher call")
 })
 
-test("plan: evidence already on disk is folded in without re-running, and budgets block required research", () => {
+test("plan: evidence already on disk is folded in without re-running, and nothing caps required research", () => {
   const folded = deliberationPlan(fixture, { reports: ["RQ-1"] })
   assert.equal(folded.status, "READY")
   assert.deepEqual(folded.research, [])
-  assert.equal(deliberationPlan(goalWith({ budgets: { ...fixture.budgets, max_research_calls: 0 } })).status, "BUDGET_BLOCKED")
+  const two = goalWith({ research_questions: [fixture.research_questions[0], { ...fixture.research_questions[0], id: "RQ-2" }] })
+  assert.deepEqual(deliberationPlan(two).research, ["RQ-1", "RQ-2"], "every required pending question is researched")
 })
 
 test("plan: blocking questions need a closed option set; otherwise the user decides", () => {

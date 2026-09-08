@@ -46,7 +46,6 @@ test("fixture goal validates and renders every section", async () => {
     "## Research Questions",
     "## Open Questions",
     "## Routing Signals",
-    "## Budgets",
   ]) {
     assert.ok(markdown.includes(heading), `missing ${heading}`)
   }
@@ -93,14 +92,8 @@ test("validator rejects structural problems", async () => {
       { ...goal, research_questions: [{ ...goal.research_questions[0], allowed_source_types: [] }] },
       "RQ-1: allowed_source_types cannot be empty",
     ],
-    [
-      { ...goal, research_questions: [{ ...goal.research_questions[0], budget: { max_sources: 0, max_minutes: 5 } }] },
-      "RQ-1: max_sources must be at least 1",
-    ],
     [{ ...goal, routing: { ...goal.routing, risk: "extreme" } }, "routing shape or risk is invalid"],
     [{ ...goal, routing: { ...goal.routing, existing_gate: "yes" } }, "routing.existing_gate must be boolean"],
-    [{ ...goal, budgets: { ...goal.budgets, max_planner_calls: -1 } }, "budgets.max_planner_calls must be a non-negative integer"],
-    [{ ...goal, budgets: { ...goal.budgets, max_research_questions: 0 } }, "research question count exceeds its budget"],
   ]
   for (const [candidate, expected] of cases) {
     const result = validateGoal(candidate)
@@ -146,31 +139,9 @@ test("renderer refuses an invalid goal", async () => {
   assert.throws(() => renderGoalMarkdown({ ...goal, title: "" }), /Cannot render invalid goal/)
 })
 
-test("a Goal with no planner budget is invalid because nothing could ever build it", async () => {
+test("a Goal carries no budgets: nothing caps research or planner calls, and GOAL.md has no Budgets section", async () => {
   const goal = JSON.parse(await readFile(path.join(here, "fixtures/goal-research/goal.json"), "utf8"))
-  goal.budgets.max_planner_calls = 0
-  const result = validateGoal(goal)
-  assert.equal(result.valid, false)
-  assert.ok(result.errors.some((error) => error.includes("max_planner_calls must be at least 1")))
-})
-
-test("budgets a model wrote are clamped to the system limits and the adjustments are rendered", async () => {
-  const { applyGoalLimits, renderGoalMarkdown } = await import("../.opencode/codegen/lib/goal.mjs")
-  const { readFile } = await import("node:fs/promises")
-  const limits = JSON.parse(await readFile(new URL("../.opencode/codegen/config/budgets.json", import.meta.url), "utf8"))
-  const goal = JSON.parse(await readFile(new URL("./fixtures/goal-research/goal.json", import.meta.url), "utf8"))
-  const greedy = { ...goal, budgets: { max_research_questions: 9, max_research_calls: 0, max_planner_calls: 7, max_derived_tasks: 3 } }
-  const { goal: clamped, adjustments } = applyGoalLimits(greedy, limits)
-  assert.deepEqual(clamped.budgets, { max_research_questions: 5, max_research_calls: 1, max_planner_calls: 3, max_derived_tasks: 3 })
-  assert.deepEqual(adjustments.map((item) => [item.field, item.from, item.to]), [
-    ["budgets.max_research_questions", 9, 5],
-    ["budgets.max_research_calls", 0, 1],
-    ["budgets.max_planner_calls", 7, 3],
-  ])
-  assert.match(adjustments[1].reason, /1 required pending research question/)
-  assert.deepEqual(applyGoalLimits(goal, limits).adjustments, [], "a Goal within limits is untouched")
-  const markdown = renderGoalMarkdown(clamped, { adjustments })
-  assert.ok(markdown.includes("## Budget adjustments"))
-  assert.ok(markdown.includes("`budgets.max_planner_calls`: 7 → 3 (above the system ceiling 3)"))
-  assert.ok(!renderGoalMarkdown(clamped).includes("## Budget adjustments"))
+  assert.equal(goal.budgets, undefined)
+  assert.deepEqual(validateGoal(goal), { valid: true, errors: [] })
+  assert.ok(!renderGoalMarkdown(goal).includes("## Budgets"))
 })

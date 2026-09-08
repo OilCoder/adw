@@ -42,7 +42,7 @@ message gives the contract path.
 5. Implement the smallest correct change. Avoid unrelated refactors and
    expanded documentation.
 6. Run the declared verification command for self-correction.
-7. If the contract cannot be completed within its limits, make no speculative
+7. If the contract cannot be completed within its scope and invariants, make no speculative
    changes and report `BLOCKED` with evidence and the missing decision.
 
 Your test result is self-check evidence, not final acceptance. The external

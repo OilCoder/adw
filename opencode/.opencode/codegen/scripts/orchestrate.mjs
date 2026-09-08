@@ -4,7 +4,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { builderFamily } from "../lib/certification.mjs"
-import { loadLimits, loadRegistry, loadRiskFloors, newRunId, parseArguments, requireGitHead, resolveMinimumStatus } from "../lib/cli.mjs"
+import { loadRegistry, loadRiskFloors, newRunId, parseArguments, requireGitHead, resolveMinimumStatus } from "../lib/cli.mjs"
 import { orchestrate } from "../lib/orchestrator.mjs"
 import { runProcess } from "../lib/process.mjs"
 
@@ -44,7 +44,6 @@ async function main() {
     goalPath: args.goal ?? ".codegen-goal/goal.json",
     planPath: args.plan ?? null,
     registry,
-    limits: await loadLimits(systemRoot),
     riskFloors: await loadRiskFloors(systemRoot),
     runId,
     concurrency: Number(args.concurrency ?? 2),

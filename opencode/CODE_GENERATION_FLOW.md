@@ -57,7 +57,7 @@ Los roles describen responsabilidades lógicas. **Un rol no equivale necesariame
 | Verifier | Ejecuta la verificación oficial de forma controlada | Siempre |
 | Gate Evaluator | Convierte la evidencia en PASS o FAIL | Siempre, normalmente lógica determinista |
 | Reviewer | Evalúa requisitos semánticos no cubiertos por el Gate | Solo cuando sea necesario |
-| Orchestrator | Controla estados, presupuestos, reintentos y escalamiento | Siempre |
+| Orchestrator | Controla estados, reintentos con evidencia, parada por falta de progreso y escalamiento | Siempre |
 | State Recorder | Actualiza contrato, resultados, bitácora y estado recuperable | Siempre, normalmente parte del orquestador |
 
 ### Roles que pueden compartir componente
@@ -88,7 +88,6 @@ Para llegar a ese estado deben existir:
 - una comprobación ejecutable por cada requisito automatizable del contrato;
 - un Gate capaz de producir PASS o FAIL;
 - una comprobación, requisito por requisito, de que cada comprobación puede ejecutarse y no acepta trivialmente cualquier resultado: la que cubre un cambio falla en el baseline, la que cubre un comportamiento conservado pasa;
-- presupuesto de intentos;
 - estado conocido del repositorio.
 
 `GATE_READY` no significa que el Gate ya pasó. Significa que **la forma de juzgar el resultado está lista antes de programar**.
@@ -113,9 +112,9 @@ flowchart TD
 
 1. El Orchestrator confirma que el contrato y el Gate están listos.
 2. El Model Selector elige un Builder calificado para esa clase de trabajo.
-3. El Runner crea la ejecución y entrega contrato, contexto y presupuesto.
+3. El Runner crea la ejecución y entrega contrato y contexto.
 4. El Builder lee los archivos autorizados y realiza la implementación.
-5. El Builder puede ejecutar tests para autocorregirse dentro de su presupuesto.
+5. El Builder puede ejecutar tests para autocorregirse.
 6. El Builder devuelve cambios, estado y evidencia; no decide la aceptación final.
 7. El Verifier ejecuta nuevamente los controles oficiales.
 8. El Gate Evaluator produce `PASS` o `FAIL`.
@@ -147,11 +146,10 @@ pesado cuando cumple todas estas condiciones:
 - permanece dentro del objetivo y alcance autorizados;
 - es pequeno, localizado y de bajo riesgo;
 - no cambia arquitectura, dependencias, APIs ni decisiones de producto;
-- tiene archivos permitidos concretos y un Gate existente;
-- cabe en el presupuesto de trabajo derivado del run.
+- tiene archivos permitidos concretos y un Gate existente.
 
-El contrato derivado registra el contrato padre, la evidencia que lo origino y
-su presupuesto. Si alguna condicion falla, el destino es `REPLAN_REQUIRED`,
+El contrato derivado registra el contrato padre y la evidencia que lo origino.
+Un hallazgo ya reparado no se repara dos veces. Si alguna condicion falla, el destino es `REPLAN_REQUIRED`,
 `USER_DECISION_REQUIRED` o registro sin ejecucion. El Orchestrator nunca debe
 usar esta via para ampliar silenciosamente el alcance ni para crear una cadena
 ilimitada de reparaciones.
@@ -272,7 +270,8 @@ El plan también debe dar cuenta del Goal. Cada requisito de contrato declara qu
 requisitos y criterios de aceptación del Goal cubre. El validador rechaza un plan
 que deje sin cubrir un requisito obligatorio del Goal o un criterio de aceptación
 automatizable; un plan rechazado vuelve al Planner con los errores como
-evidencia, dentro de su presupuesto. Los requisitos no obligatorios sin cubrir y
+evidencia mientras los errores cambien; si un plan reproduce los errores de un
+intento anterior, la corrida para por falta de progreso. Los requisitos no obligatorios sin cubrir y
 los criterios que solo un humano puede verificar se reportan, no bloquean. El
 plan validado se rinde en un documento legible que, en la ruta planificada, el
 usuario revisa y aprueba antes de que ningún Builder programe.
@@ -291,7 +290,7 @@ No es solamente un prompt descriptivo. Es el acuerdo verificable que establece:
 - qué archivos o comportamientos están protegidos;
 - qué requisitos debe cumplir el resultado;
 - cómo se verificará;
-- qué presupuesto y autoridad tiene el Builder;
+- qué autoridad tiene el Builder;
 - qué debe responder cuando termine o se bloquee.
 
 Ejemplo:
@@ -345,10 +344,6 @@ verification:
     - no cambiar firmas públicas
     - no modificar archivos fuera del alcance
 
-budgets:
-  max_builder_attempts: 2
-  max_contract_revisions: 1
-
 response:
   - estado final
   - archivos modificados
@@ -378,7 +373,7 @@ Su trabajo es:
 2. inspeccionar el contexto autorizado;
 3. implementar el cambio;
 4. ejecutar las comprobaciones permitidas;
-5. corregir errores dentro del presupuesto;
+5. corregir errores con la evidencia de las comprobaciones;
 6. entregar el resultado y la evidencia.
 
 El Builder puede tomar decisiones locales de implementación, como escoger nombres internos o reorganizar una función si eso no altera el contrato.
@@ -461,7 +456,7 @@ Sus responsabilidades son:
 - entregar el contrato al Builder correcto;
 - ejecutar o coordinar la verificación;
 - aplicar el Gate;
-- controlar intentos y presupuesto;
+- controlar intentos y parar cuando dejan de aportar evidencia nueva;
 - devolver el fallo al componente correcto;
 - registrar el estado final.
 
@@ -549,7 +544,7 @@ Características:
 - un contrato, o reencaminada a la ruta planificada si el plan demuestra que no cabe en uno;
 - un Builder;
 - verificación determinista;
-- máximo dos intentos, impuesto por el sistema;
+- reintento con evidencia mientras el resultado cambie; sin tope de intentos;
 - sin opiniones ni fases;
 - sin pausa de revisión, salvo que el plan contradiga el triaje del Goal;
 - revisión adicional solo si el contrato contiene criterios no automatizables.
@@ -614,9 +609,7 @@ Cada contrato debe definir:
 - archivos protegidos;
 - criterios de éxito;
 - comandos de verificación;
-- máximo de intentos;
-- máximo de revisiones del contrato;
-- presupuesto de tiempo o costo cuando aplique.
+- invariantes que no puede romper.
 
 ### 9.2 Fallo del Builder
 
@@ -633,22 +626,22 @@ flowchart TD
 
 El mismo Builder puede corregir una implementación cuando el contrato sigue siendo válido. Se regresa al Planner cuando el fallo revela que el contrato era incorrecto, incompleto o imposible.
 
-### 9.3 Presupuestos: quien propone no fija el techo
+### 9.3 Parada por falta de progreso: el sistema no fija presupuestos
 
-```yaml
-max_builder_attempts: 2        # techo del sistema en ruta directa; 3 en ruta planificada
-max_contract_revisions: 1      # techo del sistema
-max_unplanned_scope_expansion: 0
-```
+Ni el Goal ni el contrato llevan topes de llamadas, intentos o revisiones, y el
+sistema no impone techos propios. El coste se controla fuera, en OpenCode y en
+el proveedor del modelo.
 
-Los presupuestos los propone un modelo (el Goal Manager en el Goal, el Planner
-en el contrato) y los techos y suelos los fija el sistema en su configuración.
-El código recorta lo que excede el techo y sube lo que no llega al suelo (por
-ejemplo, tantas llamadas de investigación como preguntas obligatorias haya), y
-cada ajuste se muestra al usuario antes de aprobar. Nada gasta más de lo que el
-sistema permite.
+Lo que sí fija el sistema es cuándo un reintento deja de tener sentido. Un
+reintento solo se hace con evidencia nueva (§4: nunca la misma llamada para el
+mismo fallo). Cuando un intento reproduce el resultado de uno anterior (el
+Builder deja fallando las mismas comprobaciones o toca las mismas rutas fuera
+de alcance; el Planner devuelve los mismos errores de validación), el siguiente
+reintento sería idéntico, y el sistema para con la evidencia acumulada. En la
+práctica, la misma comprobación fallando dos veces seguidas detiene el
+contrato; un Builder que avanza de verdad no tiene tope.
 
-Después de agotar esos límites, el sistema no repite indefinidamente. Debe escalar capacidad, solicitar una decisión o detener el trabajo con evidencia.
+Después de esa parada, el sistema no repite. Debe escalar capacidad, solicitar una decisión o detener el trabajo con evidencia.
 
 ---
 

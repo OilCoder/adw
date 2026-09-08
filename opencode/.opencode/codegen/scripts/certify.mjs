@@ -43,7 +43,6 @@ const RESEARCH_QUESTION = {
   required: true,
   status: "pending",
   allowed_source_types: ["official", "independent"],
-  budget: { max_sources: 3, max_minutes: 10 },
 }
 
 const OPEN_QUESTION = {
@@ -206,7 +205,6 @@ const CERTIFICATIONS = {
         forbidden: ["tests/**", "lib/beta.py", "lib/gamma.py"],
         requirements: [{ id: "R1", statement: "alpha(value) returns value * 2 for integers and floats", kind: "change", verification: "automated" }],
         verification: { checks: [{ id: "C1", covers: ["R1"], command: "true" }], invariants: ["Only lib/alpha.py changes"] },
-        budgets: { max_builder_attempts: 1, max_contract_revisions: 0, max_unplanned_scope_expansion: 0 },
         response: ["status", "changed files"],
       })
       await writeFile(path.join(directory, ".codegen-contract/contract.json"), `${JSON.stringify(sealed, null, 2)}\n`)

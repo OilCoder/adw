@@ -385,38 +385,11 @@ export function triageAssessment(plan, { goal = null, route = null, riskFloors =
   }
 }
 
-// Contract budgets the Planner wrote are clamped to the system ceilings
-// before sealing. The plan file keeps the Planner's numbers; the sealed
-// contract carries the clamped ones, and every change is reported.
-export function applyPlanLimits(plan, { limits = null, route = "planned" } = {}) {
-  const adjusted = structuredClone(plan)
-  const adjustments = []
-  const contractLimits = limits?.contract
-  if (!contractLimits) return { plan: adjusted, adjustments }
-  const attemptsCeiling = contractLimits.max_builder_attempts?.[route === "direct" ? "direct" : "planned"]
-  const revisionsCeiling = contractLimits.max_contract_revisions
-  for (const phase of adjusted?.phases ?? []) {
-    for (const contract of phase?.contracts ?? []) {
-      const budgets = contract?.budgets
-      if (!budgets) continue
-      if (Number.isInteger(attemptsCeiling) && Number.isInteger(budgets.max_builder_attempts) && budgets.max_builder_attempts > attemptsCeiling) {
-        adjustments.push({ contract_id: contract.contract_id, field: "budgets.max_builder_attempts", from: budgets.max_builder_attempts, to: attemptsCeiling, reason: `above the system ceiling ${attemptsCeiling} for the ${route} route` })
-        budgets.max_builder_attempts = attemptsCeiling
-      }
-      if (Number.isInteger(revisionsCeiling) && Number.isInteger(budgets.max_contract_revisions) && budgets.max_contract_revisions > revisionsCeiling) {
-        adjustments.push({ contract_id: contract.contract_id, field: "budgets.max_contract_revisions", from: budgets.max_contract_revisions, to: revisionsCeiling, reason: `above the system ceiling ${revisionsCeiling}` })
-        budgets.max_contract_revisions = revisionsCeiling
-      }
-    }
-  }
-  return { plan: adjusted, adjustments }
-}
-
 // `goal`, when given, adds the coverage rules (every must requirement and
 // every automated acceptance criterion accounted for) and the triage
-// assessment against the Goal's labels. `route`, `riskFloors`, and `limits`
-// feed the triage and the budget clamp report; none of them rejects a plan.
-export function validatePlan(plan, { workClasses = null, goal = null, route = null, riskFloors = null, limits = null } = {}) {
+// assessment against the Goal's labels. `route` and `riskFloors` feed the
+// triage; neither rejects a plan.
+export function validatePlan(plan, { workClasses = null, goal = null, route = null, riskFloors = null } = {}) {
   const errors = []
   if (plan?.schema_version !== 1) errors.push("schema_version must be 1")
   for (const field of ["plan_id", "objective", "base_revision"]) {
@@ -434,7 +407,7 @@ export function validatePlan(plan, { workClasses = null, goal = null, route = nu
   }
   if (!Array.isArray(plan?.phases) || plan.phases.length === 0) {
     errors.push("phases must be a non-empty array")
-    return { valid: false, errors, execution_waves: [], coverage: null, triage: null, budget_adjustments: [] }
+    return { valid: false, errors, execution_waves: [], coverage: null, triage: null }
   }
 
   const phasesById = new Map()
@@ -496,15 +469,6 @@ export function validatePlan(plan, { workClasses = null, goal = null, route = nu
         }
       }
       validateRequirementsAndChecks(contract, contractId, errors)
-      if (!Number.isInteger(contract?.budgets?.max_builder_attempts) || contract.budgets.max_builder_attempts < 1) {
-        errors.push(`${contractId}: max_builder_attempts must be at least 1`)
-      }
-      if (!Number.isInteger(contract?.budgets?.max_contract_revisions) || contract.budgets.max_contract_revisions < 0) {
-        errors.push(`${contractId}: max_contract_revisions must be non-negative`)
-      }
-      if (contract?.budgets?.max_unplanned_scope_expansion !== 0) {
-        errors.push(`${contractId}: max_unplanned_scope_expansion must be 0`)
-      }
     }
   }
 
@@ -557,7 +521,6 @@ export function validatePlan(plan, { workClasses = null, goal = null, route = nu
   const coverage = goal ? planCoverage(plan, goal) : null
   if (coverage) errors.push(...coverageErrors(coverage))
   const triage = goal || route ? triageAssessment(plan, { goal, route, riskFloors }) : null
-  const budgetAdjustments = limits ? applyPlanLimits(plan, { limits, route: triage?.route_effective ?? route ?? "planned" }).adjustments : []
 
-  return { valid: errors.length === 0, errors, execution_waves: waves ?? [], coverage, triage, budget_adjustments: budgetAdjustments }
+  return { valid: errors.length === 0, errors, execution_waves: waves ?? [], coverage, triage }
 }

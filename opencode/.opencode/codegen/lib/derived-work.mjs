@@ -1,6 +1,8 @@
 // Derived work: a finding discovered during build, verification, or
 // integration. The Router classifies it before anything runs; it can never
-// silently widen scope or start an unbounded repair chain.
+// silently widen scope. Not wired into the orchestrator yet; when it is, the
+// repair chain stops like every other loop, by lack of progress (a finding
+// already repaired is never repaired again), not by a counter.
 const DIRECT_CONDITIONS = [
   ["within_goal_scope", "outside-goal-scope"],
   ["localized", "not-localized"],
@@ -8,7 +10,7 @@ const DIRECT_CONDITIONS = [
   ["existing_gate", "no-existing-gate"],
 ]
 
-export function routeDerivedWork(finding, { goal, derivedTasksUsed = 0 }) {
+export function routeDerivedWork(finding) {
   const reasons = []
   if (!finding?.parent_contract_id) reasons.push("missing-parent-contract")
   if (!Array.isArray(finding?.evidence) || finding.evidence.length === 0) reasons.push("missing-evidence")
@@ -37,13 +39,8 @@ export function routeDerivedWork(finding, { goal, derivedTasksUsed = 0 }) {
   }
   if (reasons.length > 0) return { disposition: "REPLAN_REQUIRED", reasons }
 
-  const budget = goal?.budgets?.max_derived_tasks ?? 0
-  if (derivedTasksUsed >= budget) {
-    return { disposition: "REPLAN_REQUIRED", reasons: [`derived-task-budget-exhausted:${budget}`] }
-  }
   return {
     disposition: "DIRECT_REPAIR",
     reasons: ["within-goal", "localized", "low-risk", "existing-gate"],
-    budget_remaining: budget - derivedTasksUsed - 1,
   }
 }

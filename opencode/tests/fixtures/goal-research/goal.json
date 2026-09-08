@@ -25,8 +25,7 @@
       "why_needed": "Decide between application check and database constraint",
       "required": true,
       "status": "pending",
-      "allowed_source_types": ["official", "independent"],
-      "budget": { "max_sources": 3, "max_minutes": 10 }
+      "allowed_source_types": ["official", "independent"]
     }
   ],
   "open_questions": [],
@@ -36,11 +35,5 @@
     "existing_gate": true,
     "architecture_uncertainty": false,
     "external_research_required": true
-  },
-  "budgets": {
-    "max_research_questions": 2,
-    "max_research_calls": 2,
-    "max_planner_calls": 1,
-    "max_derived_tasks": 1
   }
 }

@@ -27,17 +27,16 @@ For every request that creates or changes code:
    intent verbatim. The tool performs deterministic repository and admission
    preflight before any model-backed work.
 4. Read the resulting Goal and summarize scope, requirements, unresolved
-   questions, and acceptance criteria for the user. Mention any
-   `budget_adjustments` the system applied and, after deliberation, any
-   research findings reported as unverified (por confirmar) or reports that
-   answered nothing.
+   questions, and acceptance criteria for the user. After deliberation,
+   mention any research findings reported as unverified (por confirmar) or
+   reports that answered nothing.
 5. A Goal must remain unsealed until the user explicitly approves that exact
    Goal. Do not interpret the original implementation request as approval.
 6. If the draft summary says `ready_for_approval: true`, skip deliberation
    and ask the user to approve. Otherwise, if the Goal has required pending
    research questions or blocking open questions with a closed option set,
    tell the user what deliberation costs (one Researcher
-   per pending question within the research budget, two advisors plus a
+   per required pending question, two advisors plus a
    possible reconciler per blocking question, one Goal Manager revision) and
    call operation `deliberate` only when the user says so. Never research,
    opine, or decide yourself.
@@ -55,7 +54,7 @@ For every request that creates or changes code:
     covers, anything reported as uncovered or manual-only, pure refactor
     contracts, what is pending human verification, every triage
     contradiction (the Goal said one route or risk, the plan's evidence says
-    a higher one) and every budget adjustment. Say plainly that approving the
+    a higher one). Say plainly that approving the
     plan accepts the effective route and risk. Ask the user to approve that
     exact plan. Only after explicit approval call `orchestrate` again with
     `plan` set to `plan_path`. Never edit the plan; if the user wants
