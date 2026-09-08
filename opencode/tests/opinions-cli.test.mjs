@@ -97,7 +97,7 @@ test("unanimous advisors from distinct families produce a proposal without a rec
 test("divergent advisors go to a reconciler from a third family", async () => {
   const tree = await worktree()
   try {
-    const result = await run(tree, ["--question", "OQ-1"], { gpt: "database-constraint", mimo: "OTHER", default: "application-check" })
+    const result = await run(tree, ["--question", "OQ-1"], { glm: "database-constraint", qwen: "OTHER", default: "application-check" })
     assert.equal(result.code, 0, result.stderr)
     const summary = JSON.parse(result.stdout)
     assert.equal(summary.result, "DECISION_PROPOSED")

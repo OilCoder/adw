@@ -1,152 +1,150 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T17:46:06.466Z",
+  "generated_at": "2026-09-08T23:35:20.428Z",
   "methodology": "MODEL_SELECTION_SPEC.md",
   "notes": [
     "All configurations remain candidates for the exact OpenCode harness until they pass compatibility admission.",
     "Public evidence from another harness supports candidacy but does not qualify an OpenCode configuration.",
     "Configured does not mean currently available; the Runner must perform live provider preflight.",
-    "Automatic routes prefer capable OpenCode Go configurations, then admit Zen-only models when no Go configuration meets the requested capability, risk, or context.",
-    "The console's Use balance option continues the same Go request against Zen credits after Go usage limits are reached; this is not a model-selection fallback.",
-    "The runtime never switches models because of quota or provider failure. An exhausted Zen balance stops the run with ZEN_BALANCE_EXHAUSTED.",
-    "2026-09-03: GPT 5.6 Sol was removed from Zen routing because the authenticated OpenAI provider already supplies it; the historical smoke remains documented outside this active registry.",
-    "2026-09-03: DeepSeek V4 Flash on Go plus Claude Sonnet 5, Claude Haiku 4.5, Gemini 3.8 Flash, and Gemini 3.5 Flash Lite on Zen passed the sealed Builder smoke. Evidence tiers stay C or D; nothing is qualified.",
-    "2026-09-03: admission is recorded per role under admission.roles; the catalog status can never be qualified. Only the certification process of the harness repository (certify.mjs) writes a qualified role entry, and the release check requires a complete qualified route before install or commit.",
-    "2026-09-03: gpt-5.6-luna certified as goal-manager and planner and made primary for both; glm-5.3 stays qualified as the alternate but costs ~25x more per Goal (cache reads at 0.26/M and long explorations).",
-    "2026-09-03: the nine OpenRouter configurations were removed from the registry. OpenRouter stays outside automatic routes by design (CODE_GENERATION_FLOW \u00a74) and none of them could ever be selected; the provider remains available in opencode.json for manual use only.",
+    "2026-09-03: the nine OpenRouter configurations were removed from the registry. OpenRouter stays outside automatic routes by design (CODE_GENERATION_FLOW §4) and none of them could ever be selected; the provider remains available in opencode.json for manual use only.",
     "2026-09-08: certification by fixture was removed. Admission is membership in a route (decided from public benchmarks) plus, per project, a fit check the first time a configuration is used and the metalog of real calls. The order inside a role is computed from price, cheapest first, per provider tier; a configuration with two failures in a row attributable to the model sinks to the bottom until it succeeds again. Catalog statuses are active, watch, deprecated.",
-    "2026-09-08: the Planner and the Goal Manager may use the authenticated OpenAI provider as their first tier (user's subscription); the OpenAI configurations are added with the benchmark rebuild."
+    "2026-09-08: the Planner and the Goal Manager may use the authenticated OpenAI provider as their first tier (user's subscription); the OpenAI configurations are added with the benchmark rebuild.",
+    "2026-09-08: Zen (provider opencode) left the registry by user decision: automatic routes use OpenCode Go and, for the Planner and the Goal Manager, the user's OpenAI subscription. The console's Use balance setting is outside this system; disabling it makes an exhausted Go quota stop the run as GO_USAGE_LIMIT.",
+    "2026-09-08: admission is computed, never written by hand: lib/admission.mjs applies MODEL_SELECTION_SPEC §8 to config/benchmark-evidence.json (every score with its source; unconfirmed scores never count) and scripts/admit.mjs writes configurations and routes; tests/admission.test.mjs fails when the registry drifts from the rule. Preview, experimental, alpha, and contributor SKUs are registered as watch and never routed."
   ],
   "runner_policies": {
     "goal-manager": {
       "providers": [
         "openai",
-        "opencode-go",
-        "opencode"
+        "opencode-go"
       ]
     },
     "planner": {
       "providers": [
         "openai",
-        "opencode-go",
-        "opencode"
+        "opencode-go"
       ]
     },
     "gate-designer": {
       "providers": [
-        "opencode-go",
-        "opencode"
+        "opencode-go"
       ]
     },
     "builder": {
       "providers": [
-        "opencode-go",
-        "opencode"
+        "opencode-go"
       ]
     },
     "researcher": {
       "providers": [
-        "opencode-go",
-        "opencode"
+        "opencode-go"
       ]
     },
     "advisor": {
       "providers": [
-        "opencode-go",
-        "opencode"
+        "opencode-go"
       ]
     },
     "reconciler": {
       "providers": [
-        "opencode-go",
-        "opencode"
+        "opencode-go"
       ]
     }
   },
   "routes": {
     "localized-low-risk-code-change": [
-      "builder-go-minimax-m3",
-      "builder-go-mimo-v2.5-pro",
       "builder-go-gpt-5.6-luna",
-      "builder-go-minimax-m2.7",
-      "builder-go-qwen3.6-plus",
-      "builder-go-kimi-k2.7-code",
+      "planner-go-glm-5.3",
+      "builder-go-glm-5.3-flash",
+      "analyst-go-kimi-k3",
+      "analyst-go-qwen3.8-max",
+      "builder-go-qwen3.8-flash",
       "builder-go-deepseek-v4-pro",
       "builder-go-deepseek-v4-flash",
-      "builder-go-qwen3.8-flash",
-      "builder-go-glm-5.3-flash",
-      "builder-zen-claude-sonnet-5",
-      "builder-zen-claude-haiku-4-5",
-      "builder-zen-gemini-3.8-flash",
-      "builder-zen-gemini-3.5-flash-lite"
+      "builder-go-minimax-m3",
+      "builder-go-minimax-m2.7",
+      "builder-go-minimax-m2.5",
+      "builder-go-mimo-v2.5-pro",
+      "builder-go-kimi-k2.7-code",
+      "builder-go-kimi-k2.6",
+      "builder-go-kimi-k2.5",
+      "builder-go-glm-5.2",
+      "builder-go-glm-5.1",
+      "builder-go-glm-5",
+      "builder-go-grok-4.6",
+      "builder-go-grok-4.5"
     ],
     "repository-code-change": [
-      "builder-go-minimax-m3",
-      "builder-go-mimo-v2.5-pro",
-      "builder-go-deepseek-v4-pro",
       "builder-go-gpt-5.6-luna",
-      "builder-go-minimax-m2.7",
-      "builder-go-qwen3.6-plus",
-      "builder-go-kimi-k2.7-code",
+      "planner-go-glm-5.3",
+      "builder-go-glm-5.3-flash",
+      "analyst-go-kimi-k3",
+      "analyst-go-qwen3.8-max",
+      "builder-go-qwen3.8-flash",
+      "builder-go-deepseek-v4-pro",
       "builder-go-deepseek-v4-flash",
-      "builder-zen-claude-opus-5",
-      "builder-zen-claude-sonnet-5",
-      "builder-zen-gemini-3.8-flash"
+      "builder-go-minimax-m2.5",
+      "builder-go-mimo-v2.5-pro",
+      "builder-go-kimi-k2.7-code",
+      "builder-go-kimi-k2.6",
+      "builder-go-kimi-k2.5",
+      "builder-go-glm-5.2",
+      "builder-go-glm-5.1",
+      "builder-go-glm-5",
+      "builder-go-grok-4.6",
+      "builder-go-grok-4.5"
     ],
     "complex-engineering-plan": [
       "planner-openai-gpt-5.6-sol",
+      "planner-openai-gpt-5.6-terra",
       "planner-go-glm-5.3",
-      "builder-go-gpt-5.6-luna",
-      "builder-go-deepseek-v4-pro",
-      "builder-go-minimax-m3",
-      "analyst-go-qwen3.8-max",
-      "builder-go-qwen3.6-plus",
-      "builder-go-kimi-k2.7-code",
-      "builder-zen-claude-opus-5",
-      "builder-zen-claude-sonnet-5",
-      "builder-zen-gemini-3.8-flash",
-      "analyst-zen-gemini-3.1-pro"
-    ],
-    "research-synthesis": [
-      "builder-go-gpt-5.6-luna",
-      "builder-go-deepseek-v4-pro",
-      "builder-go-minimax-m3",
-      "builder-go-mimo-v2.5-pro",
+      "builder-go-glm-5.3-flash",
       "analyst-go-kimi-k3",
       "analyst-go-qwen3.8-max",
-      "builder-zen-claude-opus-5",
-      "builder-zen-claude-sonnet-5",
-      "builder-zen-claude-haiku-4-5",
-      "builder-zen-gemini-3.8-flash",
-      "builder-zen-gemini-3.5-flash-lite",
-      "analyst-zen-gemini-3.1-pro"
+      "builder-go-qwen3.8-flash",
+      "analyst-go-deepseek-v4-flash-vision-exp",
+      "builder-go-glm-5.2",
+      "analyst-go-qwen3.7-max",
+      "builder-go-grok-4.6",
+      "builder-go-grok-4.5"
+    ],
+    "research-synthesis": [
+      "planner-go-glm-5.3",
+      "builder-go-glm-5.3-flash",
+      "analyst-go-kimi-k3",
+      "analyst-go-qwen3.8-max",
+      "builder-go-qwen3.8-flash",
+      "analyst-go-deepseek-v4-flash-vision-exp",
+      "builder-go-glm-5.2",
+      "analyst-go-qwen3.7-max",
+      "builder-go-grok-4.6",
+      "builder-go-grok-4.5"
+    ],
+    "independent-analysis": [
+      "planner-go-glm-5.3",
+      "builder-go-glm-5.3-flash",
+      "analyst-go-kimi-k3",
+      "analyst-go-qwen3.8-max",
+      "builder-go-qwen3.8-flash",
+      "analyst-go-deepseek-v4-flash-vision-exp",
+      "builder-go-glm-5.2",
+      "analyst-go-qwen3.7-max",
+      "builder-go-grok-4.6",
+      "builder-go-grok-4.5"
     ],
     "orchestration": [
       "planner-openai-gpt-5.6-sol",
-      "builder-go-gpt-5.6-luna",
-      "builder-go-deepseek-v4-pro",
-      "builder-go-minimax-m3",
-      "builder-go-mimo-v2.5-pro",
+      "planner-openai-gpt-5.6-terra",
+      "planner-go-glm-5.3",
+      "builder-go-glm-5.3-flash",
       "analyst-go-kimi-k3",
       "analyst-go-qwen3.8-max",
-      "builder-zen-claude-opus-5",
-      "builder-zen-claude-sonnet-5",
-      "builder-zen-gemini-3.8-flash",
-      "analyst-zen-gemini-3.1-pro"
-    ],
-    "independent-analysis": [
-      "builder-go-gpt-5.6-luna",
-      "builder-go-deepseek-v4-pro",
-      "builder-go-minimax-m3",
-      "builder-go-mimo-v2.5-pro",
-      "analyst-go-kimi-k3",
-      "analyst-go-qwen3.8-max",
-      "builder-zen-claude-opus-5",
-      "builder-zen-claude-sonnet-5",
-      "builder-zen-claude-haiku-4-5",
-      "builder-zen-gemini-3.8-flash",
-      "builder-zen-gemini-3.5-flash-lite",
-      "analyst-zen-gemini-3.1-pro"
+      "builder-go-qwen3.8-flash",
+      "analyst-go-deepseek-v4-flash-vision-exp",
+      "builder-go-glm-5.2",
+      "analyst-go-qwen3.7-max",
+      "builder-go-grok-4.6",
+      "builder-go-grok-4.5"
     ]
   },
   "configurations": [
@@ -183,1215 +181,6 @@
       }
     },
     {
-      "configuration_id": "planner-go-glm-5.3",
-      "opencode_model": "opencode-go/glm-5.3",
-      "provider": "opencode-go",
-      "family": "glm",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "complex-engineering-plan"
-      ],
-      "capabilities": {
-        "code_editing": false,
-        "tool_calling": true,
-        "structured_output": true,
-        "context_tokens": 1000000
-      },
-      "constraints": {
-        "max_risk": "medium"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million_quota_value": 1.4,
-        "output_per_million_quota_value": 4.4,
-        "cached_input_per_million_quota_value": 0.26,
-        "price_type": "opencode-go-subscription-quota"
-      },
-      "admission": {
-        "public_evidence_tier": "C",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct OpenCode Go Planner smoke passed on 2026-09-02; broader admission remains pending.",
-        "last_smoke": {
-          "result": "PASS",
-          "input_tokens": 17087,
-          "output_tokens": 1920,
-          "cache_read_tokens": 76554,
-          "reported_quota_value": 0.06713704
-        }
-      }
-    },
-    {
-      "configuration_id": "planner-zen-qwen3.6-plus",
-      "opencode_model": "opencode/qwen3.6-plus",
-      "provider": "opencode",
-      "family": "qwen",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "complex-engineering-plan"
-      ],
-      "capabilities": {
-        "code_editing": false,
-        "tool_calling": true,
-        "structured_output": false,
-        "context_tokens": 262144
-      },
-      "constraints": {
-        "max_risk": "medium"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million": 0.5,
-        "output_per_million": 3,
-        "cached_input_per_million": 0.05,
-        "cached_write_per_million": 0.625,
-        "price_type": "opencode-zen-snapshot"
-      },
-      "admission": {
-        "public_evidence_tier": "C",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct OpenCode Zen Planner smoke produced a structurally valid plan on 2026-09-02. One nonessential directory-listing call was denied as designed; broader admission remains pending."
-      }
-    },
-    {
-      "configuration_id": "builder-go-minimax-m2.7",
-      "opencode_model": "opencode-go/minimax-m2.7",
-      "provider": "opencode-go",
-      "family": "minimax",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change",
-        "repository-code-change"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": false,
-        "context_tokens": 204800
-      },
-      "constraints": {
-        "max_risk": "medium"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million_quota_value": 0.3,
-        "output_per_million_quota_value": 1.2,
-        "cached_input_per_million_quota_value": 0.06,
-        "price_type": "opencode-go-subscription-quota"
-      },
-      "admission": {
-        "public_evidence_tier": "C",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct OpenCode Go basic smoke passed on 2026-09-02; broader admission remains pending.",
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 12,
-          "input_tokens": 360,
-          "output_tokens": 417,
-          "cache_read_tokens": 18893,
-          "cache_write_tokens": 3144,
-          "reported_quota_value": 0.00200358
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-go-qwen3.6-plus",
-      "opencode_model": "opencode-go/qwen3.6-plus",
-      "provider": "opencode-go",
-      "family": "qwen",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change",
-        "repository-code-change",
-        "complex-engineering-plan"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": false,
-        "context_tokens": 262144
-      },
-      "constraints": {
-        "max_risk": "medium"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million_quota_value": 0.5,
-        "output_per_million_quota_value": 3,
-        "cached_input_per_million_quota_value": 0.05,
-        "price_type": "opencode-go-subscription-quota"
-      },
-      "admission": {
-        "public_evidence_tier": "C",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct OpenCode Go basic smoke passed on 2026-09-02; broader admission remains pending.",
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 20,
-          "input_tokens": 29664,
-          "output_tokens": 520,
-          "cache_read_tokens": 0,
-          "reported_quota_value": 0.016863
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-go-kimi-k2.7-code",
-      "opencode_model": "opencode-go/kimi-k2.7-code",
-      "provider": "opencode-go",
-      "family": "kimi",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change",
-        "repository-code-change",
-        "complex-engineering-plan"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": true,
-        "context_tokens": 262144
-      },
-      "constraints": {
-        "max_risk": "medium"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million_quota_value": 0.95,
-        "output_per_million_quota_value": 4,
-        "cached_input_per_million_quota_value": 0.19,
-        "price_type": "opencode-go-subscription-quota"
-      },
-      "admission": {
-        "public_evidence_tier": "C",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct OpenCode Go basic smoke passed on 2026-09-02; broader admission remains pending.",
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 21,
-          "input_tokens": 2668,
-          "output_tokens": 308,
-          "cache_read_tokens": 16896,
-          "reported_quota_value": 0.00788884
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-zen-minimax-m2.7",
-      "opencode_model": "opencode/minimax-m2.7",
-      "provider": "opencode",
-      "family": "minimax",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change",
-        "repository-code-change"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": false,
-        "context_tokens": 204800
-      },
-      "constraints": {
-        "max_risk": "medium"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million": 0.3,
-        "output_per_million": 1.2,
-        "cached_input_per_million": 0.06,
-        "price_type": "opencode-zen-snapshot"
-      },
-      "admission": {
-        "public_evidence_tier": "C",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct OpenCode Zen basic smoke passed on 2026-09-02; broader admission remains pending.",
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 13,
-          "input_tokens": 10470,
-          "output_tokens": 523,
-          "cache_read_tokens": 32225,
-          "reported_cost": 0.0059505
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-zen-qwen3.6-plus",
-      "opencode_model": "opencode/qwen3.6-plus",
-      "provider": "opencode",
-      "family": "qwen",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change",
-        "repository-code-change",
-        "complex-engineering-plan"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": false,
-        "context_tokens": 262144
-      },
-      "constraints": {
-        "max_risk": "medium"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million": 0.5,
-        "output_per_million": 3,
-        "cached_input_per_million": 0.05,
-        "cached_write_per_million": 0.625,
-        "price_type": "opencode-zen-snapshot"
-      },
-      "admission": {
-        "public_evidence_tier": "C",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct OpenCode Zen basic smoke passed on 2026-09-02. Used in place of Qwen3.7 Plus because the refreshed OpenCode 1.18.25 catalog does not expose that model; broader admission remains pending.",
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 20,
-          "input_tokens": 30,
-          "output_tokens": 607,
-          "cache_read_tokens": 18592,
-          "cache_write_tokens": 5465,
-          "reported_cost": 0.006181225
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-zen-kimi-k2.7-code",
-      "opencode_model": "opencode/kimi-k2.7-code",
-      "provider": "opencode",
-      "family": "kimi",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change",
-        "repository-code-change",
-        "complex-engineering-plan"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": true,
-        "context_tokens": 262144
-      },
-      "constraints": {
-        "max_risk": "medium"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million": 0.95,
-        "output_per_million": 4,
-        "cached_input_per_million": 0.19,
-        "price_type": "opencode-zen-snapshot"
-      },
-      "admission": {
-        "public_evidence_tier": "C",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct OpenCode Zen basic smoke passed on 2026-09-02; broader admission remains pending.",
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 18,
-          "input_tokens": 8721,
-          "output_tokens": 313,
-          "cache_read_tokens": 10827,
-          "reported_cost": 0.01228208
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-go-minimax-m3",
-      "opencode_model": "opencode-go/minimax-m3",
-      "provider": "opencode-go",
-      "family": "minimax",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change",
-        "repository-code-change",
-        "complex-engineering-plan",
-        "research-synthesis",
-        "independent-analysis",
-        "orchestration"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": false,
-        "context_tokens": 1048576
-      },
-      "constraints": {
-        "max_risk": "medium"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million_quota_value": 0.3,
-        "output_per_million_quota_value": 1.2,
-        "cached_input_per_million_quota_value": 0.06,
-        "price_type": "opencode-go-subscription-quota"
-      },
-      "admission": {
-        "public_evidence_tier": "C",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct OpenCode Go basic smoke passed on 2026-09-03. Vendor-reported SWE-bench Verified 80.5 (Claude Code scaffold, 4 runs) and Terminal-Bench 2.1 66.0 (Terminus 2); broader admission pending.",
-        "public_evidence": {
-          "swe_bench_verified": 80.5,
-          "terminal_bench_2_1": 66,
-          "source": "https://www.minimax.io/blog/minimax-m3"
-        },
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 16,
-          "input_tokens": 5959,
-          "output_tokens": 573,
-          "cache_read_tokens": 26629,
-          "cache_write_tokens": 0,
-          "reported_quota_value": 0.004279440000000001
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-go-mimo-v2.5-pro",
-      "opencode_model": "opencode-go/mimo-v2.5-pro",
-      "provider": "opencode-go",
-      "family": "mimo",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change",
-        "repository-code-change",
-        "research-synthesis",
-        "independent-analysis",
-        "orchestration"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": false,
-        "context_tokens": 131072
-      },
-      "constraints": {
-        "max_risk": "medium"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million_quota_value": 0.435,
-        "output_per_million_quota_value": 0.87,
-        "cached_input_per_million_quota_value": 0.003625,
-        "price_type": "opencode-go-subscription-quota"
-      },
-      "admission": {
-        "public_evidence_tier": "C",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct OpenCode Go basic smoke passed on 2026-09-03. Go-only: no Zen equivalent, so no paid transport fallback. Context window not confirmed; 131072 is a conservative floor. Vendor-reported SWE-bench Verified 78.9, SWE-bench Pro 57.2, Terminal-Bench 2.0 68.4.",
-        "public_evidence": {
-          "swe_bench_verified": 78.9,
-          "swe_bench_pro": 57.2,
-          "terminal_bench_2_0": 68.4,
-          "source": "https://huggingface.co/XiaomiMiMo/MiMo-V2.5-Pro"
-        },
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 16,
-          "input_tokens": 5911,
-          "output_tokens": 475,
-          "cache_read_tokens": 20224,
-          "cache_write_tokens": 0,
-          "reported_quota_value": 0.0030578470000000003
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-go-gpt-5.6-luna",
-      "opencode_model": "opencode-go/gpt-5.6-luna",
-      "provider": "opencode-go",
-      "family": "gpt",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change",
-        "repository-code-change",
-        "complex-engineering-plan",
-        "research-synthesis",
-        "independent-analysis",
-        "orchestration"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": false,
-        "context_tokens": 272000
-      },
-      "constraints": {
-        "max_risk": "medium"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million_quota_value": 0.2,
-        "output_per_million_quota_value": 1.2,
-        "cached_input_per_million_quota_value": 0.02,
-        "price_type": "opencode-go-subscription-quota"
-      },
-      "admission": {
-        "public_evidence_tier": "C",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct OpenCode Go basic smoke passed on 2026-09-03. Vendor-reported Terminal-Bench 2.1 84.7 and SWE-bench Pro 62.7; positioned by OpenAI for background agent automation. Planner smoke pending.",
-        "public_evidence": {
-          "terminal_bench_2_1": 84.7,
-          "swe_bench_pro": 62.7,
-          "source": "https://openai.com/index/advancing-the-price-performance-frontier-with-gpt-5-6/"
-        },
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 11,
-          "input_tokens": 15,
-          "output_tokens": 328,
-          "cache_read_tokens": 15541,
-          "cache_write_tokens": 4482,
-          "reported_quota_value": 0.0018807200000000002
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-go-deepseek-v4-pro",
-      "opencode_model": "opencode-go/deepseek-v4-pro",
-      "provider": "opencode-go",
-      "family": "deepseek",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change",
-        "repository-code-change",
-        "complex-engineering-plan",
-        "research-synthesis",
-        "independent-analysis",
-        "orchestration"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": false,
-        "context_tokens": 1048576
-      },
-      "constraints": {
-        "max_risk": "medium"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million_quota_value": 0.66,
-        "output_per_million_quota_value": 1.98,
-        "cached_input_per_million_quota_value": 0.022,
-        "price_type": "opencode-go-subscription-quota"
-      },
-      "admission": {
-        "public_evidence_tier": "C",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct OpenCode Go basic smoke passed on 2026-09-03. Off-peak quota prices recorded; peak is double. Vendor-reported SWE-bench Verified 80.6 (Pro-Max) and Terminal-Bench 2.1 87.9 on its own harness versus 54.7 under Terminus 2: treat the independent figure as the real one.",
-        "public_evidence": {
-          "swe_bench_verified": 80.6,
-          "terminal_bench_2_1_vendor_harness": 87.9,
-          "terminal_bench_2_1_terminus_2": 54.68,
-          "source": "https://www.mindstudio.ai/blog/deepseek-v4-pro-0813-benchmark-review"
-        },
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 16,
-          "input_tokens": 5851,
-          "output_tokens": 646,
-          "cache_read_tokens": 27520,
-          "cache_write_tokens": 0,
-          "reported_quota_value": 0.0059679400000000014
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-go-qwen3.8-flash",
-      "opencode_model": "opencode-go/qwen3.8-flash",
-      "provider": "opencode-go",
-      "family": "qwen",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": false,
-        "context_tokens": 131072
-      },
-      "constraints": {
-        "max_risk": "low"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million_quota_value": 0.15,
-        "output_per_million_quota_value": 0.47,
-        "cached_input_per_million_quota_value": 0.016,
-        "price_type": "opencode-go-subscription-quota"
-      },
-      "admission": {
-        "public_evidence_tier": "D",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct OpenCode Go basic smoke passed on 2026-09-03. Go-only: no Zen equivalent. No public coding evidence collected yet; limited to localized low-risk work (gate design, trivial contracts). Context window not confirmed.",
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 22,
-          "input_tokens": 36,
-          "output_tokens": 896,
-          "cache_read_tokens": 26823,
-          "cache_write_tokens": 6313,
-          "reported_quota_value": 0.0021182880000000003
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-go-glm-5.3-flash",
-      "opencode_model": "opencode-go/glm-5.3-flash",
-      "provider": "opencode-go",
-      "family": "glm",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": false,
-        "context_tokens": 131072
-      },
-      "constraints": {
-        "max_risk": "low"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million_quota_value": 0.15,
-        "output_per_million_quota_value": 0.5,
-        "cached_input_per_million_quota_value": 0.03,
-        "price_type": "opencode-go-subscription-quota"
-      },
-      "admission": {
-        "public_evidence_tier": "D",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct OpenCode Go basic smoke passed on 2026-09-03 (38 s, slowest of the batch). Go-only: no Zen equivalent. No public coding evidence collected yet; limited to localized low-risk work. Context window not confirmed.",
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 38,
-          "input_tokens": 6943,
-          "output_tokens": 422,
-          "cache_read_tokens": 22848,
-          "cache_write_tokens": 0,
-          "reported_quota_value": 0.000996945
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-zen-minimax-m3",
-      "opencode_model": "opencode/minimax-m3",
-      "provider": "opencode",
-      "family": "minimax",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change",
-        "repository-code-change",
-        "complex-engineering-plan",
-        "research-synthesis",
-        "independent-analysis",
-        "orchestration"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": false,
-        "context_tokens": 1048576
-      },
-      "constraints": {
-        "max_risk": "medium"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million": 0.3,
-        "output_per_million": 1.2,
-        "cached_input_per_million": 0.06,
-        "price_type": "opencode-zen-pay-as-you-go"
-      },
-      "admission": {
-        "public_evidence_tier": "C",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct OpenCode Zen basic smoke passed on 2026-09-03. Retained as separate compatibility evidence; this duplicate is not a quota fallback.",
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 12,
-          "input_tokens": 11249,
-          "output_tokens": 484,
-          "cache_read_tokens": 21022,
-          "cache_write_tokens": 0,
-          "reported_cost": 0.00541122
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-zen-gpt-5.6-luna",
-      "opencode_model": "opencode/gpt-5.6-luna",
-      "provider": "opencode",
-      "family": "gpt",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change",
-        "repository-code-change",
-        "complex-engineering-plan",
-        "research-synthesis",
-        "independent-analysis",
-        "orchestration"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": false,
-        "context_tokens": 272000
-      },
-      "constraints": {
-        "max_risk": "medium"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million": 0.2,
-        "output_per_million": 1.2,
-        "cached_input_per_million": 0.02,
-        "price_type": "opencode-zen-pay-as-you-go"
-      },
-      "admission": {
-        "public_evidence_tier": "C",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct OpenCode Zen basic smoke passed on 2026-09-03. Retained as separate compatibility evidence; this duplicate is not a quota fallback.",
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 12,
-          "input_tokens": 15,
-          "output_tokens": 314,
-          "cache_read_tokens": 15512,
-          "cache_write_tokens": 4471,
-          "reported_cost": 0.00186179
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-zen-deepseek-v4-pro",
-      "opencode_model": "opencode/deepseek-v4-pro",
-      "provider": "opencode",
-      "family": "deepseek",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change",
-        "repository-code-change",
-        "complex-engineering-plan",
-        "research-synthesis",
-        "independent-analysis",
-        "orchestration"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": false,
-        "context_tokens": 1048576
-      },
-      "constraints": {
-        "max_risk": "medium"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million": 0.66,
-        "output_per_million": 1.98,
-        "cached_input_per_million": 0.022,
-        "price_type": "opencode-zen-pay-as-you-go"
-      },
-      "admission": {
-        "public_evidence_tier": "C",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct OpenCode Zen basic smoke passed on 2026-09-03 (0.025 USD, the most expensive smoke of the batch). Retained as separate compatibility evidence; this duplicate is not a quota fallback.",
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 16,
-          "input_tokens": 11505,
-          "output_tokens": 610,
-          "cache_read_tokens": 20931,
-          "cache_write_tokens": 0,
-          "reported_cost": 0.025422974999999997
-        }
-      }
-    },
-    {
-      "configuration_id": "analyst-go-kimi-k3",
-      "opencode_model": "opencode-go/kimi-k3",
-      "provider": "opencode-go",
-      "family": "kimi",
-      "local": false,
-      "enabled": true,
-      "status": "watch",
-      "work_classes": [
-        "research-synthesis",
-        "independent-analysis",
-        "orchestration"
-      ],
-      "capabilities": {
-        "code_editing": false,
-        "tool_calling": true,
-        "structured_output": false,
-        "context_tokens": 1048576
-      },
-      "constraints": {
-        "max_risk": "high"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million_quota_value": 3,
-        "output_per_million_quota_value": 15,
-        "cached_input_per_million_quota_value": 0.3,
-        "price_type": "opencode-go-subscription-quota"
-      },
-      "admission": {
-        "public_evidence_tier": "C",
-        "opencode_compatibility": "pending",
-        "note": "No OpenCode smoke yet. Vendor-reported Terminal-Bench 2.x 88.3 and FrontierSWE 81.2. Only ~110 Go requests per 5 h: reserve for reconciler and high-risk analysis once admitted.",
-        "public_evidence": {
-          "terminal_bench_2_x": 88.3,
-          "frontier_swe": 81.2,
-          "source": "https://www.morphllm.com/kimi-k3"
-        }
-      }
-    },
-    {
-      "configuration_id": "analyst-go-qwen3.8-max",
-      "opencode_model": "opencode-go/qwen3.8-max",
-      "provider": "opencode-go",
-      "family": "qwen",
-      "local": false,
-      "enabled": true,
-      "status": "watch",
-      "work_classes": [
-        "research-synthesis",
-        "independent-analysis",
-        "orchestration",
-        "complex-engineering-plan"
-      ],
-      "capabilities": {
-        "code_editing": false,
-        "tool_calling": true,
-        "structured_output": false,
-        "context_tokens": 1048576
-      },
-      "constraints": {
-        "max_risk": "high"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million_quota_value": 2,
-        "output_per_million_quota_value": 6,
-        "cached_input_per_million_quota_value": 0.25,
-        "price_type": "opencode-go-subscription-quota"
-      },
-      "admission": {
-        "public_evidence_tier": "C",
-        "opencode_compatibility": "pending",
-        "note": "No OpenCode smoke yet. Go-only. Vendor-reported SWE-bench Pro 67.7; SWE-bench Verified unpublished for the Max API. ~160 Go requests per 5 h.",
-        "public_evidence": {
-          "swe_bench_pro": 67.7,
-          "source": "https://www.datacamp.com/blog/qwen3-8-max"
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-go-deepseek-v4-flash",
-      "opencode_model": "opencode-go/deepseek-v4-flash",
-      "provider": "opencode-go",
-      "family": "deepseek",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change",
-        "repository-code-change"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": true,
-        "context_tokens": 1000000
-      },
-      "constraints": {
-        "max_risk": "low"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million_quota_value": 0.22,
-        "output_per_million_quota_value": 0.66,
-        "cached_input_per_million_quota_value": 0.007,
-        "price_type": "opencode-go-subscription-quota"
-      },
-      "admission": {
-        "public_evidence_tier": "D",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct OpenCode Go Builder smoke passed on 2026-09-03. Kept low-risk until broader coding evidence is collected; Use balance can continue this same model on Zen without a duplicate route.",
-        "public_evidence": {
-          "source": "https://opencode.ai/docs/go/",
-          "retrieved_at": "2026-09-03"
-        },
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 19,
-          "steps": 6,
-          "input_tokens": 6502,
-          "output_tokens": 875,
-          "reasoning_tokens": 0,
-          "cache_read_tokens": 27648,
-          "cache_write_tokens": 0,
-          "reported_quota_value": 0.002201476
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-zen-claude-sonnet-5",
-      "opencode_model": "opencode/claude-sonnet-5",
-      "provider": "opencode",
-      "family": "claude",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change",
-        "repository-code-change",
-        "complex-engineering-plan",
-        "research-synthesis",
-        "independent-analysis",
-        "orchestration"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": false,
-        "context_tokens": 1000000
-      },
-      "constraints": {
-        "max_risk": "medium"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million": 2,
-        "output_per_million": 10,
-        "cached_input_per_million": 0.2,
-        "cached_write_per_million": 2.5,
-        "price_type": "opencode-zen-snapshot"
-      },
-      "admission": {
-        "public_evidence_tier": "D",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct Zen Builder smoke passed on 2026-09-03. Mid-tier Claude candidate; broader role and medium-risk evaluation remain pending.",
-        "public_evidence": {
-          "source": "https://opencode.ai/docs/zen/",
-          "retrieved_at": "2026-09-03"
-        },
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 37,
-          "steps": 7,
-          "input_tokens": 14,
-          "output_tokens": 846,
-          "reasoning_tokens": 28,
-          "cache_read_tokens": 47378,
-          "cache_write_tokens": 9015,
-          "reported_cost": 0.040781099999999994
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-zen-claude-haiku-4-5",
-      "opencode_model": "opencode/claude-haiku-4-5",
-      "provider": "opencode",
-      "family": "claude",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change",
-        "research-synthesis",
-        "independent-analysis"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": false,
-        "context_tokens": 200000
-      },
-      "constraints": {
-        "max_risk": "low"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million": 1,
-        "output_per_million": 5,
-        "cached_input_per_million": 0.1,
-        "cached_write_per_million": 1.25,
-        "price_type": "opencode-zen-snapshot"
-      },
-      "admission": {
-        "public_evidence_tier": "D",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct Zen Builder smoke passed on 2026-09-03. Low-tier Claude candidate limited to low-risk work pending broader evaluation.",
-        "public_evidence": {
-          "source": "https://opencode.ai/docs/zen/",
-          "retrieved_at": "2026-09-03"
-        },
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 19,
-          "steps": 8,
-          "input_tokens": 39,
-          "output_tokens": 954,
-          "reasoning_tokens": 0,
-          "cache_read_tokens": 42049,
-          "cache_write_tokens": 7108,
-          "reported_cost": 0.0178989
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-zen-gemini-3.8-flash",
-      "opencode_model": "opencode/gemini-3.8-flash",
-      "provider": "opencode",
-      "family": "gemini",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change",
-        "repository-code-change",
-        "complex-engineering-plan",
-        "research-synthesis",
-        "independent-analysis",
-        "orchestration"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": true,
-        "context_tokens": 1048576
-      },
-      "constraints": {
-        "max_risk": "medium"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million": 1.5,
-        "output_per_million": 7.5,
-        "cached_input_per_million": 0.15,
-        "price_type": "opencode-zen-snapshot"
-      },
-      "admission": {
-        "public_evidence_tier": "D",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct Zen Builder smoke passed on 2026-09-03. Mid-tier Gemini candidate; role-specific structured-output evaluation remains pending.",
-        "public_evidence": {
-          "source": "https://opencode.ai/docs/zen/",
-          "retrieved_at": "2026-09-03"
-        },
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 45,
-          "steps": 8,
-          "input_tokens": 33794,
-          "output_tokens": 335,
-          "reasoning_tokens": 890,
-          "cache_read_tokens": 7561,
-          "cache_write_tokens": 0,
-          "reported_cost": 0.06101265
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-zen-gemini-3.5-flash-lite",
-      "opencode_model": "opencode/gemini-3.5-flash-lite",
-      "provider": "opencode",
-      "family": "gemini",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "localized-low-risk-code-change",
-        "research-synthesis",
-        "independent-analysis"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": true,
-        "context_tokens": 1048576
-      },
-      "constraints": {
-        "max_risk": "low"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million": 0.3,
-        "output_per_million": 2.5,
-        "cached_input_per_million": 0.03,
-        "price_type": "opencode-zen-snapshot"
-      },
-      "admission": {
-        "public_evidence_tier": "D",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Direct Zen Builder smoke passed on 2026-09-03. Low-tier Gemini candidate limited to low-risk work pending broader evaluation.",
-        "public_evidence": {
-          "source": "https://opencode.ai/docs/zen/",
-          "retrieved_at": "2026-09-03"
-        },
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 14,
-          "steps": 8,
-          "input_tokens": 15107,
-          "output_tokens": 342,
-          "reasoning_tokens": 1061,
-          "cache_read_tokens": 30514,
-          "cache_write_tokens": 0,
-          "reported_cost": 0.00895502
-        }
-      }
-    },
-    {
-      "configuration_id": "builder-zen-claude-opus-5",
-      "opencode_model": "opencode/claude-opus-5",
-      "provider": "opencode",
-      "family": "claude",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "repository-code-change",
-        "complex-engineering-plan",
-        "research-synthesis",
-        "independent-analysis",
-        "orchestration"
-      ],
-      "capabilities": {
-        "code_editing": true,
-        "tool_calling": true,
-        "structured_output": true,
-        "context_tokens": 1000000
-      },
-      "constraints": {
-        "max_risk": "high"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million": 5,
-        "output_per_million": 25,
-        "cached_input_per_million": 0.5,
-        "cached_write_per_million": 6.25,
-        "price_type": "opencode-zen-snapshot"
-      },
-      "admission": {
-        "public_evidence_tier": "C",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Zen-only relative to Go. Direct Zen Builder smoke passed on 2026-09-03; broader role admission remains pending, so this is candidate-only capacity escalation.",
-        "public_evidence": {
-          "source": "https://opencode.ai/docs/zen/",
-          "retrieved_at": "2026-09-03"
-        },
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 22,
-          "steps": 7,
-          "input_tokens": 14,
-          "output_tokens": 855,
-          "reasoning_tokens": 23,
-          "cache_read_tokens": 47439,
-          "cache_write_tokens": 8828,
-          "reported_cost": 0.10091449999999999
-        }
-      }
-    },
-    {
-      "configuration_id": "analyst-zen-gemini-3.1-pro",
-      "opencode_model": "opencode/gemini-3.1-pro",
-      "provider": "opencode",
-      "family": "gemini",
-      "local": false,
-      "enabled": true,
-      "status": "active",
-      "work_classes": [
-        "complex-engineering-plan",
-        "research-synthesis",
-        "independent-analysis",
-        "orchestration"
-      ],
-      "capabilities": {
-        "code_editing": false,
-        "tool_calling": true,
-        "structured_output": true,
-        "context_tokens": 1048576
-      },
-      "constraints": {
-        "max_risk": "high"
-      },
-      "economics": {
-        "currency": "USD",
-        "input_per_million": 2,
-        "output_per_million": 12,
-        "cached_input_per_million": 0.2,
-        "price_type": "opencode-zen-snapshot",
-        "note": "Input and output prices double above 200K tokens."
-      },
-      "admission": {
-        "public_evidence_tier": "C",
-        "opencode_compatibility": "basic-smoke-pass",
-        "note": "Zen-only relative to Go. Direct Zen Builder smoke passed on 2026-09-03; research, planning, and independent-analysis admission remain pending, so this is candidate-only analysis escalation.",
-        "public_evidence": {
-          "source": "https://opencode.ai/docs/zen/",
-          "retrieved_at": "2026-09-03"
-        },
-        "last_smoke": {
-          "result": "PASS",
-          "duration_seconds": 20,
-          "steps": 6,
-          "input_tokens": 28210,
-          "output_tokens": 320,
-          "reasoning_tokens": 467,
-          "cache_read_tokens": 0,
-          "cache_write_tokens": 0,
-          "reported_cost": 0.065864
-        }
-      }
-    },
-    {
       "configuration_id": "planner-openai-gpt-5.6-sol",
       "opencode_model": "openai/gpt-5.6-sol",
       "provider": "openai",
@@ -1418,20 +207,1133 @@
         "output_per_million": 20,
         "cached_input_per_million": 0.4,
         "price_type": "openai-subscription",
-        "note": "Billed to the user's OpenAI subscription (OAuth); list prices from models.dev on 2026-09-08 order it, they are not charged per call."
+        "note": "Billed to the user's OpenAI subscription (OAuth), not per call: costs nothing in the order and ties with the other subscription model; the tie breaks by configuration id."
       },
       "admission": {
-        "public_evidence_tier": "B",
-        "opencode_compatibility": "probe-pass",
-        "note": "2026-09-08: OpenAI's flagship of the GPT-5.6 line (developers.openai.com model page: 'Flagship model for complex professional work'). Non-interactive `opencode run` with the OAuth login answered in 4 s on 2026-09-08. First tier for planner and goal-manager by user decision (C2).",
-        "public_evidence": {
-          "terminal_bench_4_0": 37.27,
-          "terminal_bench_4_0_source": "https://raw.githubusercontent.com/harbor-framework/terminal-bench/main/leaderboard/submissions/ (Codex, max, 2026-09-03 board)",
-          "artificial_analysis_intelligence_v4_3": 47,
-          "artificial_analysis_source": "https://artificialanalysis.ai/articles/artificial-analysis-intelligence-index-v4-3",
-          "livebench_coding_2026_06_25": 83.94,
-          "livebench_source": "https://livebench.ai/table_2026_06_25.csv",
-          "swe_bench_verified": "por confirmar"
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "high",
+          "proofs": [
+            "livebench_coding=83.94"
+          ],
+          "tools": [
+            "terminal_bench_4=37.27",
+            "terminal_bench_3=34.59",
+            "livebench_agentic=56.21"
+          ]
+        },
+        "reasoning": {
+          "proofs": [
+            "aa_intelligence=47",
+            "livebench_agentic=56.21",
+            "arena_text=1483"
+          ]
+        }
+      }
+    },
+    {
+      "configuration_id": "planner-openai-gpt-5.6-terra",
+      "opencode_model": "openai/gpt-5.6-terra",
+      "provider": "openai",
+      "family": "gpt",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "complex-engineering-plan",
+        "orchestration"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 1050000
+      },
+      "constraints": {
+        "max_risk": "high"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million": 2,
+        "output_per_million": 12,
+        "cached_input_per_million": 0.2,
+        "price_type": "openai-subscription",
+        "note": "Billed to the user's OpenAI subscription (OAuth), not per call: costs nothing in the order and ties with the other subscription model; the tie breaks by configuration id."
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "high",
+          "proofs": [
+            "terminal_bench_2=78.43",
+            "livebench_coding=78.25"
+          ],
+          "tools": [
+            "terminal_bench_4=21.52",
+            "terminal_bench_3=20.81",
+            "terminal_bench_2=78.43",
+            "livebench_agentic=54.95"
+          ]
+        },
+        "reasoning": {
+          "proofs": [
+            "aa_intelligence=42"
+          ]
+        }
+      }
+    },
+    {
+      "configuration_id": "builder-go-gpt-5.6-luna",
+      "opencode_model": "opencode-go/gpt-5.6-luna",
+      "provider": "opencode-go",
+      "family": "gpt",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change",
+        "repository-code-change"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 1050000
+      },
+      "constraints": {
+        "max_risk": "high"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 0.2,
+        "output_per_million_quota_value": 1.2,
+        "cached_input_per_million_quota_value": 0.02,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "high",
+          "proofs": [
+            "terminal_bench_2=75.73",
+            "livebench_coding=82.91"
+          ],
+          "tools": [
+            "terminal_bench_4=17.27",
+            "terminal_bench_3=14.32",
+            "terminal_bench_2=75.73",
+            "livebench_agentic=48.43"
+          ]
+        },
+        "reasoning": null
+      }
+    },
+    {
+      "configuration_id": "planner-go-glm-5.3",
+      "opencode_model": "opencode-go/glm-5.3",
+      "provider": "opencode-go",
+      "family": "glm",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change",
+        "repository-code-change",
+        "complex-engineering-plan",
+        "research-synthesis",
+        "independent-analysis",
+        "orchestration"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": true,
+        "context_tokens": 1000000
+      },
+      "constraints": {
+        "max_risk": "high"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 1.4,
+        "output_per_million_quota_value": 4.4,
+        "cached_input_per_million_quota_value": 0.26,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "high",
+          "proofs": [
+            "livebench_coding=78.95",
+            "vendor_terminal_bench_2=88.2"
+          ],
+          "tools": [
+            "terminal_bench_4=41.82",
+            "terminal_bench_3=32.43",
+            "livebench_agentic=60.91",
+            "vendor_terminal_bench_2=88.2",
+            "vendor_toolathlon=73"
+          ]
+        },
+        "reasoning": {
+          "proofs": [
+            "aa_intelligence=44.86",
+            "livebench_agentic=60.91",
+            "arena_text=1482"
+          ]
+        }
+      }
+    },
+    {
+      "configuration_id": "builder-go-glm-5.3-flash",
+      "opencode_model": "opencode-go/glm-5.3-flash",
+      "provider": "opencode-go",
+      "family": "glm",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change",
+        "repository-code-change",
+        "complex-engineering-plan",
+        "research-synthesis",
+        "independent-analysis",
+        "orchestration"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 1000000
+      },
+      "constraints": {
+        "max_risk": "medium"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 0.075,
+        "output_per_million_quota_value": 0.25,
+        "cached_input_per_million_quota_value": 0.015,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "medium",
+          "proofs": [
+            "livebench_coding=78.95",
+            "vendor_terminal_bench_2=84.3"
+          ],
+          "tools": [
+            "livebench_agentic=56.77",
+            "vendor_terminal_bench_2=84.3"
+          ]
+        },
+        "reasoning": {
+          "proofs": [
+            "aa_intelligence=42",
+            "livebench_agentic=56.77",
+            "arena_text=1474"
+          ]
+        }
+      }
+    },
+    {
+      "configuration_id": "analyst-go-kimi-k3",
+      "opencode_model": "opencode-go/kimi-k3",
+      "provider": "opencode-go",
+      "family": "kimi",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change",
+        "repository-code-change",
+        "complex-engineering-plan",
+        "research-synthesis",
+        "independent-analysis",
+        "orchestration"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 1048576
+      },
+      "constraints": {
+        "max_risk": "medium"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 3,
+        "output_per_million_quota_value": 15,
+        "cached_input_per_million_quota_value": 0.3,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "medium",
+          "proofs": [
+            "livebench_coding=81.45",
+            "vendor_terminal_bench_2=88.3"
+          ],
+          "tools": [
+            "livebench_agentic=62.17",
+            "vendor_terminal_bench_2=88.3",
+            "vendor_toolathlon=76.5",
+            "vendor_mcp_atlas=84.2"
+          ]
+        },
+        "reasoning": {
+          "proofs": [
+            "aa_intelligence=43.78",
+            "livebench_agentic=62.17",
+            "arena_text=1489"
+          ]
+        }
+      }
+    },
+    {
+      "configuration_id": "analyst-go-qwen3.8-max",
+      "opencode_model": "opencode-go/qwen3.8-max",
+      "provider": "opencode-go",
+      "family": "qwen",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change",
+        "repository-code-change",
+        "complex-engineering-plan",
+        "research-synthesis",
+        "independent-analysis",
+        "orchestration"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 1000000
+      },
+      "constraints": {
+        "max_risk": "medium"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 2,
+        "output_per_million_quota_value": 6,
+        "cached_input_per_million_quota_value": 0.25,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "medium",
+          "proofs": [
+            "livebench_coding=72.87",
+            "vendor_terminal_bench_2=86.6"
+          ],
+          "tools": [
+            "livebench_agentic=64.65",
+            "vendor_terminal_bench_2=86.6",
+            "vendor_toolathlon=72.5"
+          ]
+        },
+        "reasoning": {
+          "proofs": [
+            "livebench_agentic=64.65",
+            "arena_text=1480"
+          ]
+        }
+      }
+    },
+    {
+      "configuration_id": "builder-go-qwen3.8-flash",
+      "opencode_model": "opencode-go/qwen3.8-flash",
+      "provider": "opencode-go",
+      "family": "qwen",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change",
+        "repository-code-change",
+        "complex-engineering-plan",
+        "research-synthesis",
+        "independent-analysis",
+        "orchestration"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 1000000
+      },
+      "constraints": {
+        "max_risk": "medium"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 0.15,
+        "output_per_million_quota_value": 0.47,
+        "cached_input_per_million_quota_value": 0.016,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "medium",
+          "proofs": [
+            "livebench_coding=72.55"
+          ],
+          "tools": [
+            "livebench_agentic=61.62"
+          ]
+        },
+        "reasoning": {
+          "proofs": [
+            "livebench_agentic=61.62"
+          ]
+        }
+      }
+    },
+    {
+      "configuration_id": "builder-go-deepseek-v4-pro",
+      "opencode_model": "opencode-go/deepseek-v4-pro",
+      "provider": "opencode-go",
+      "family": "deepseek",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change",
+        "repository-code-change"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 1000000
+      },
+      "constraints": {
+        "max_risk": "high"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 0.66,
+        "output_per_million_quota_value": 1.98,
+        "cached_input_per_million_quota_value": 0.022,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "high",
+          "proofs": [
+            "livebench_coding=77.16",
+            "swe_rebench=39.8",
+            "vendor_swe=80.6",
+            "vendor_terminal_bench_2=67.9"
+          ],
+          "tools": [
+            "livebench_agentic=54.95",
+            "swe_rebench=39.8",
+            "vendor_terminal_bench_2=67.9"
+          ]
+        },
+        "reasoning": null
+      }
+    },
+    {
+      "configuration_id": "builder-go-deepseek-v4-flash",
+      "opencode_model": "opencode-go/deepseek-v4-flash",
+      "provider": "opencode-go",
+      "family": "deepseek",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change",
+        "repository-code-change"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": true,
+        "context_tokens": 1000000
+      },
+      "constraints": {
+        "max_risk": "medium"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 0.22,
+        "output_per_million_quota_value": 0.66,
+        "cached_input_per_million_quota_value": 0.007,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "medium",
+          "proofs": [
+            "livebench_coding=74.98",
+            "vendor_swe=79",
+            "vendor_terminal_bench_2=56.9"
+          ],
+          "tools": [
+            "livebench_agentic=46.77",
+            "vendor_terminal_bench_2=56.9"
+          ]
+        },
+        "reasoning": null
+      }
+    },
+    {
+      "configuration_id": "analyst-go-deepseek-v4-flash-vision-exp",
+      "opencode_model": "opencode-go/deepseek-v4-flash-vision-exp",
+      "provider": "opencode-go",
+      "family": "deepseek",
+      "local": false,
+      "enabled": true,
+      "status": "watch",
+      "work_classes": [
+        "complex-engineering-plan",
+        "research-synthesis",
+        "independent-analysis",
+        "orchestration"
+      ],
+      "capabilities": {
+        "code_editing": false,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 1000000
+      },
+      "constraints": {
+        "max_risk": "medium"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 0.22,
+        "output_per_million_quota_value": 0.66,
+        "cached_input_per_million_quota_value": 0.007,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": null,
+        "reasoning": {
+          "proofs": [
+            "livebench_agentic=65.1"
+          ]
+        },
+        "watch": "preview, experimental, alpha, or contributor SKU: registered, never routed automatically"
+      }
+    },
+    {
+      "configuration_id": "builder-go-minimax-m3",
+      "opencode_model": "opencode-go/minimax-m3",
+      "provider": "opencode-go",
+      "family": "minimax",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 1000000
+      },
+      "constraints": {
+        "max_risk": "low"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 0.3,
+        "output_per_million_quota_value": 1.2,
+        "cached_input_per_million_quota_value": 0.06,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "low",
+          "proofs": [
+            "vendor_swe=80.5",
+            "vendor_terminal_bench_2=66"
+          ],
+          "tools": [
+            "vendor_terminal_bench_2=66",
+            "vendor_mcp_atlas=74.2"
+          ]
+        },
+        "reasoning": null
+      }
+    },
+    {
+      "configuration_id": "builder-go-minimax-m2.7",
+      "opencode_model": "opencode-go/minimax-m2.7",
+      "provider": "opencode-go",
+      "family": "minimax",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 204800
+      },
+      "constraints": {
+        "max_risk": "low"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 0.3,
+        "output_per_million_quota_value": 1.2,
+        "cached_input_per_million_quota_value": 0.06,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "low",
+          "proofs": [
+            "vendor_terminal_bench_2=57"
+          ],
+          "tools": [
+            "vendor_terminal_bench_2=57",
+            "vendor_toolathlon=46.3"
+          ]
+        },
+        "reasoning": null
+      }
+    },
+    {
+      "configuration_id": "builder-go-minimax-m2.5",
+      "opencode_model": "opencode-go/minimax-m2.5",
+      "provider": "opencode-go",
+      "family": "minimax",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change",
+        "repository-code-change"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 204800
+      },
+      "constraints": {
+        "max_risk": "medium"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 0.3,
+        "output_per_million_quota_value": 1.2,
+        "cached_input_per_million_quota_value": 0.03,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "medium",
+          "proofs": [
+            "swe_bench_verified=75.8"
+          ],
+          "tools": [
+            "swe_bench_verified=75.8"
+          ]
+        },
+        "reasoning": null
+      }
+    },
+    {
+      "configuration_id": "builder-go-mimo-v2.5-pro",
+      "opencode_model": "opencode-go/mimo-v2.5-pro",
+      "provider": "opencode-go",
+      "family": "mimo",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change",
+        "repository-code-change"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 1048576
+      },
+      "constraints": {
+        "max_risk": "medium"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 0.435,
+        "output_per_million_quota_value": 0.87,
+        "cached_input_per_million_quota_value": 0.003625,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "medium",
+          "proofs": [
+            "swe_rebench=44.8",
+            "vendor_swe=78.9"
+          ],
+          "tools": [
+            "swe_rebench=44.8"
+          ]
+        },
+        "reasoning": null
+      }
+    },
+    {
+      "configuration_id": "builder-go-kimi-k2.7-code",
+      "opencode_model": "opencode-go/kimi-k2.7-code",
+      "provider": "opencode-go",
+      "family": "kimi",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change",
+        "repository-code-change"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": true,
+        "context_tokens": 262144
+      },
+      "constraints": {
+        "max_risk": "medium"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 0.95,
+        "output_per_million_quota_value": 4,
+        "cached_input_per_million_quota_value": 0.19,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "medium",
+          "proofs": [
+            "livebench_coding=73.96"
+          ],
+          "tools": [
+            "livebench_agentic=45.66",
+            "vendor_mcp_atlas=76"
+          ]
+        },
+        "reasoning": null
+      }
+    },
+    {
+      "configuration_id": "builder-go-kimi-k2.6",
+      "opencode_model": "opencode-go/kimi-k2.6",
+      "provider": "opencode-go",
+      "family": "kimi",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change",
+        "repository-code-change"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 262144
+      },
+      "constraints": {
+        "max_risk": "high"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 0.95,
+        "output_per_million_quota_value": 4,
+        "cached_input_per_million_quota_value": 0.16,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "high",
+          "proofs": [
+            "livebench_coding=78.57",
+            "swe_rebench=46.5"
+          ],
+          "tools": [
+            "livebench_agentic=46.92",
+            "swe_rebench=46.5"
+          ]
+        },
+        "reasoning": null
+      }
+    },
+    {
+      "configuration_id": "builder-go-kimi-k2.5",
+      "opencode_model": "opencode-go/kimi-k2.5",
+      "provider": "opencode-go",
+      "family": "kimi",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change",
+        "repository-code-change"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 262144
+      },
+      "constraints": {
+        "max_risk": "medium"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 0.6,
+        "output_per_million_quota_value": 3,
+        "cached_input_per_million_quota_value": 0.1,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "medium",
+          "proofs": [
+            "swe_bench_verified=70.8"
+          ],
+          "tools": [
+            "swe_bench_verified=70.8"
+          ]
+        },
+        "reasoning": null
+      }
+    },
+    {
+      "configuration_id": "builder-go-glm-5.2",
+      "opencode_model": "opencode-go/glm-5.2",
+      "provider": "opencode-go",
+      "family": "glm",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change",
+        "repository-code-change",
+        "complex-engineering-plan",
+        "research-synthesis",
+        "independent-analysis",
+        "orchestration"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 1000000
+      },
+      "constraints": {
+        "max_risk": "high"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 1.4,
+        "output_per_million_quota_value": 4.4,
+        "cached_input_per_million_quota_value": 0.26,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "high",
+          "proofs": [
+            "livebench_coding=79.65"
+          ],
+          "tools": [
+            "terminal_bench_3=4.59",
+            "livebench_agentic=51.77"
+          ]
+        },
+        "reasoning": {
+          "proofs": [
+            "arena_text=1472"
+          ]
+        }
+      }
+    },
+    {
+      "configuration_id": "builder-go-glm-5.1",
+      "opencode_model": "opencode-go/glm-5.1",
+      "provider": "opencode-go",
+      "family": "glm",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change",
+        "repository-code-change"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 202752
+      },
+      "constraints": {
+        "max_risk": "medium"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 1.4,
+        "output_per_million_quota_value": 4.4,
+        "cached_input_per_million_quota_value": 0.26,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "medium",
+          "proofs": [
+            "terminal_bench_2=58.65"
+          ],
+          "tools": [
+            "terminal_bench_2=58.65"
+          ]
+        },
+        "reasoning": null
+      }
+    },
+    {
+      "configuration_id": "builder-go-glm-5",
+      "opencode_model": "opencode-go/glm-5",
+      "provider": "opencode-go",
+      "family": "glm",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change",
+        "repository-code-change"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 202752
+      },
+      "constraints": {
+        "max_risk": "medium"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 1,
+        "output_per_million_quota_value": 3.2,
+        "cached_input_per_million_quota_value": 0.2,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "medium",
+          "proofs": [
+            "swe_bench_verified=72.8"
+          ],
+          "tools": [
+            "swe_bench_verified=72.8"
+          ]
+        },
+        "reasoning": null
+      }
+    },
+    {
+      "configuration_id": "analyst-go-qwen3.7-max",
+      "opencode_model": "opencode-go/qwen3.7-max",
+      "provider": "opencode-go",
+      "family": "qwen",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "complex-engineering-plan",
+        "research-synthesis",
+        "independent-analysis",
+        "orchestration"
+      ],
+      "capabilities": {
+        "code_editing": false,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 1000000
+      },
+      "constraints": {
+        "max_risk": "medium"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 2.5,
+        "output_per_million_quota_value": 7.5,
+        "cached_input_per_million_quota_value": 0.5,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": null,
+        "reasoning": {
+          "proofs": [
+            "arena_text=1474"
+          ]
+        }
+      }
+    },
+    {
+      "configuration_id": "builder-go-grok-4.6",
+      "opencode_model": "opencode-go/grok-4.6",
+      "provider": "opencode-go",
+      "family": "grok",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change",
+        "repository-code-change",
+        "complex-engineering-plan",
+        "research-synthesis",
+        "independent-analysis",
+        "orchestration"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 500000
+      },
+      "constraints": {
+        "max_risk": "high"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 2,
+        "output_per_million_quota_value": 6,
+        "cached_input_per_million_quota_value": 0.5,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "high",
+          "proofs": [
+            "livebench_coding=76.78"
+          ],
+          "tools": [
+            "terminal_bench_4=20.3",
+            "terminal_bench_3=26.49",
+            "livebench_agentic=57.02"
+          ]
+        },
+        "reasoning": {
+          "proofs": [
+            "aa_intelligence=44.41",
+            "livebench_agentic=57.02"
+          ]
+        }
+      }
+    },
+    {
+      "configuration_id": "builder-go-grok-4.5",
+      "opencode_model": "opencode-go/grok-4.5",
+      "provider": "opencode-go",
+      "family": "grok",
+      "local": false,
+      "enabled": true,
+      "status": "active",
+      "work_classes": [
+        "localized-low-risk-code-change",
+        "repository-code-change",
+        "complex-engineering-plan",
+        "research-synthesis",
+        "independent-analysis",
+        "orchestration"
+      ],
+      "capabilities": {
+        "code_editing": true,
+        "tool_calling": true,
+        "structured_output": false,
+        "context_tokens": 500000
+      },
+      "constraints": {
+        "max_risk": "high"
+      },
+      "economics": {
+        "currency": "USD",
+        "input_per_million_quota_value": 2,
+        "output_per_million_quota_value": 6,
+        "cached_input_per_million_quota_value": 0.3,
+        "price_type": "opencode-go-subscription-quota"
+      },
+      "admission": {
+        "rule": "MODEL_SELECTION_SPEC §8, computed by lib/admission.mjs from config/benchmark-evidence.json",
+        "evidence_as_of": "2026-09-08",
+        "coding": {
+          "risk": "high",
+          "proofs": [
+            "terminal_bench_2=79.33"
+          ],
+          "tools": [
+            "terminal_bench_4=12.42",
+            "terminal_bench_3=15.68",
+            "terminal_bench_2=79.33",
+            "livebench_agentic=56.46"
+          ]
+        },
+        "reasoning": {
+          "proofs": [
+            "livebench_agentic=56.46",
+            "arena_text=1471"
+          ]
         }
       }
     }

@@ -132,7 +132,7 @@ flowchart TD
 | Integración | El commit de un contrato choca en la rama de integración | Reconstruir sobre el head integrado con las rutas en conflicto como evidencia; Planner si el Gate ya no cuadra |
 | Gate final | Contratos que pasan solos fallan juntos | Atribuir por reproducción, contrato de reparación compuesto; Planner si es inconcluso |
 | Herramienta/proveedor | Timeout, CLI roto o rate limit | Detener y escalar con evidencia |
-| Saldo Zen | Créditos insuficientes tras agotar Go | Detener, conservar estado y pedir recarga |
+| Cuota Go agotada | Límite de uso de la suscripción | Detener, conservar estado y esperar la cuota (o el saldo, si el usuario mantiene `Use balance` en la consola) |
 | Capacidad | El Builder reproduce un intento anterior (sin progreso) | Model Selector sube un peldaño: la siguiente configuración de la lista recibe la evidencia acumulada sobre el contrato sellado |
 
 El sistema nunca debe tratar todos los `FAIL` como un motivo para repetir exactamente la misma llamada.
@@ -228,14 +228,17 @@ cada ronda.
 ### Admisión, orden y metalog
 
 Una configuración está admitida para una clase de trabajo cuando figura en su
-ruta del registro. Esa lista se arma con benchmarks públicos de código y uso de
-herramientas, no con corridas propias; es un filtro ("estos modelos saben
-programar"), no un orden. El orden dentro de un rol lo calcula el código y
-nadie lo escribe a mano: primero por nivel de proveedor (la suscripción OpenAI
-del usuario para el Planner y el Goal Manager, después OpenCode Go, después
-Zen) y dentro de cada nivel del más barato al más caro, con el precio por
-millón de tokens de la tabla (entrada más salida; la caché desempata). El
-sistema empieza por el más barato capaz.
+ruta del registro. Esa lista la calcula una regla escrita
+(`MODEL_SELECTION_SPEC.md` §8.1) sobre benchmarks públicos de código, uso de
+herramientas y razonamiento, no sobre corridas propias; es un filtro ("estos
+modelos saben programar"), no un orden, y nadie la escribe a mano: quien
+cambia la evidencia vuelve a aplicar la regla. Solo entran modelos de OpenCode
+Go y, para el Planner y el Goal Manager, la suscripción OpenAI del usuario. El
+orden dentro de un rol lo calcula el código: primero por nivel de proveedor (la
+suscripción OpenAI, que no cobra por llamada, para el Planner y el Goal
+Manager; después OpenCode Go) y dentro de cada nivel del más barato al más
+caro, con el precio por millón de tokens de la tabla (entrada más salida; la
+caché desempata). El sistema empieza por el más barato capaz.
 
 Cada proyecto lleva un metalog: una línea por llamada a un modelo, con el rol,
 la configuración, su puesto en la lista, la lista completa, el resultado y su
@@ -250,19 +253,18 @@ registro) la configuración baja al final de la lista hasta que vuelve a
 acertar. Si nadie leyera el metalog, la lista se pudriría; por eso lo lee el
 selector, no una persona.
 
-El selector escoge primero una configuración Go que cumpla todos los requisitos.
-Si ninguna es suficiente, puede escoger directamente un modelo exclusivo de
-Zen. El pago después de los límites de Go lo resuelve `Use balance` dentro del
-mismo endpoint y nunca provoca una nueva selección:
+El selector escoge la configuración Go admitida más barata que cumpla los
+requisitos (riesgo, contexto, herramientas). Si ninguna alcanza, la corrida
+para sin modelo: Zen no forma parte de las rutas automáticas. Lo que ocurre al
+agotar la cuota Go lo decide la consola de OpenCode, fuera de este sistema:
 
 ```text
 OpenCode Go
   ├─ cuota Go disponible → consume la suscripción
-  ├─ límite Go + Use balance → continúa el mismo modelo contra saldo Zen
-  ├─ saldo Zen agotado → USER_ACTION_REQUIRED y pedir recarga
+  ├─ límite Go → GO_USAGE_LIMIT, conservar estado y esperar
+  │   (con `Use balance` activo en la consola, OpenCode continúa la misma
+  │    petición contra el saldo Zen sin que el sistema cambie de modelo)
   └─ error técnico o de ejecución → detener y clasificar
-
-Sin Go capaz → seleccionar Zen por capacidad antes de ejecutar
 ```
 
 El runtime no cambia de modelo por un fallo técnico: un timeout local, una

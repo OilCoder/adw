@@ -19,6 +19,7 @@
     "models:status": "node .opencode/codegen/scripts/release-check.mjs status",
     "test": "CODEGEN_DISPLAY=inline CODEGEN_FIT_CHECK=off CODEGEN_RUNS_DIR=${TMPDIR:-/tmp}/codegen-test-runs CODEGEN_METALOG=${TMPDIR:-/tmp}/codegen-test-runs/metalog.jsonl node --test",
     "clean": "node .opencode/codegen/scripts/clean.mjs",
-    "merge": "node .opencode/codegen/scripts/merge-run.mjs"
+    "merge": "node .opencode/codegen/scripts/merge-run.mjs",
+    "admit": "node .opencode/codegen/scripts/admit.mjs"
   }
 }

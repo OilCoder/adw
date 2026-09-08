@@ -1,0 +1,1287 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-08",
+  "catalog_size": {
+    "opencode-go": 35,
+    "openai": 2
+  },
+  "sources": {
+    "swe_bench_verified": {
+      "name": "SWE-bench Verified (official leaderboard)",
+      "url": "https://www.swebench.com/",
+      "independent": true,
+      "metric": "% resolved",
+      "kind": "coding"
+    },
+    "swe_rebench": {
+      "name": "SWE-rebench (Nebius)",
+      "url": "https://swe-rebench.com/",
+      "independent": true,
+      "metric": "resolved rate %, contamination-free window with >= 100 problems",
+      "kind": "coding"
+    },
+    "terminal_bench_2": {
+      "name": "Terminal-Bench 2.1 (tbench.ai)",
+      "url": "https://www.tbench.ai/leaderboard",
+      "independent": true,
+      "metric": "% tasks",
+      "kind": "coding"
+    },
+    "terminal_bench_3": {
+      "name": "Terminal-Bench 3.0 (tbench.ai)",
+      "url": "https://www.tbench.ai/leaderboard",
+      "independent": true,
+      "metric": "% tasks",
+      "kind": "tools"
+    },
+    "terminal_bench_4": {
+      "name": "Terminal-Bench 4.0 (tbench.ai)",
+      "url": "https://www.tbench.ai/leaderboard",
+      "independent": true,
+      "metric": "% tasks",
+      "kind": "tools"
+    },
+    "livebench_coding": {
+      "name": "LiveBench Coding 2026-06-25",
+      "url": "https://livebench.ai/table_2026_06_25.csv",
+      "independent": true,
+      "metric": "mean(code_generation, code_completion)",
+      "kind": "coding"
+    },
+    "livebench_agentic": {
+      "name": "LiveBench Agentic Coding 2026-06-25",
+      "url": "https://livebench.ai/table_2026_06_25.csv",
+      "independent": true,
+      "metric": "mean(javascript, typescript, python)",
+      "kind": "tools"
+    },
+    "aa_intelligence": {
+      "name": "Artificial Analysis Intelligence Index v4.3",
+      "url": "https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index",
+      "independent": true,
+      "metric": "index",
+      "kind": "reasoning"
+    },
+    "arena_text": {
+      "name": "LMArena text, style control (HF dataset 2026-09-06)",
+      "url": "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset",
+      "independent": true,
+      "metric": "Elo",
+      "kind": "reasoning"
+    },
+    "vendor_swe": {
+      "name": "SWE-bench Verified / DeepSWE / SWE-V reported by the vendor",
+      "url": "vendor model cards (docs/BENCHMARKS-2026-09-08.md)",
+      "independent": false,
+      "metric": "% resolved",
+      "kind": "coding"
+    },
+    "vendor_terminal_bench_2": {
+      "name": "Terminal-Bench 2.x reported by the vendor",
+      "url": "vendor model cards (docs/BENCHMARKS-2026-09-08.md)",
+      "independent": false,
+      "metric": "% tasks",
+      "kind": "coding"
+    },
+    "vendor_toolathlon": {
+      "name": "Toolathlon reported by the vendor",
+      "url": "vendor model cards (docs/BENCHMARKS-2026-09-08.md)",
+      "independent": false,
+      "metric": "score",
+      "kind": "tools"
+    },
+    "vendor_mcp_atlas": {
+      "name": "MCP-Atlas reported by the vendor",
+      "url": "vendor model cards (docs/BENCHMARKS-2026-09-08.md)",
+      "independent": false,
+      "metric": "score",
+      "kind": "tools"
+    }
+  },
+  "models": {
+    "openai/gpt-5.6-sol": {
+      "provider": "openai",
+      "family": "gpt",
+      "catalog": {
+        "context_tokens": 1050000,
+        "input": 4,
+        "output": 20,
+        "cache_read": 0.4,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "terminal_bench_4",
+          "value": 37.27
+        },
+        {
+          "source": "terminal_bench_3",
+          "value": 34.59
+        },
+        {
+          "source": "aa_intelligence",
+          "value": 47
+        },
+        {
+          "source": "livebench_coding",
+          "value": 83.94
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 56.21
+        },
+        {
+          "source": "arena_text",
+          "value": 1483
+        },
+        {
+          "source": "swe_rebench",
+          "value": 62.3,
+          "unconfirmed": true,
+          "note": "contamination-flagged: released after the window"
+        }
+      ],
+      "note": "Billed to the user's OpenAI subscription (OAuth), not per call: costs nothing in the order and ties with the other subscription model; the tie breaks by configuration id."
+    },
+    "openai/gpt-5.6-terra": {
+      "provider": "openai",
+      "family": "gpt",
+      "catalog": {
+        "context_tokens": 1050000,
+        "input": 2,
+        "output": 12,
+        "cache_read": 0.2,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "terminal_bench_4",
+          "value": 21.52
+        },
+        {
+          "source": "terminal_bench_3",
+          "value": 20.81
+        },
+        {
+          "source": "terminal_bench_2",
+          "value": 78.43
+        },
+        {
+          "source": "aa_intelligence",
+          "value": 42
+        },
+        {
+          "source": "livebench_coding",
+          "value": 78.25
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 54.95
+        },
+        {
+          "source": "arena_text",
+          "value": 1466
+        }
+      ],
+      "note": "Billed to the user's OpenAI subscription (OAuth), not per call: costs nothing in the order and ties with the other subscription model; the tie breaks by configuration id."
+    },
+    "opencode-go/gpt-5.6-luna": {
+      "provider": "opencode-go",
+      "family": "gpt",
+      "catalog": {
+        "context_tokens": 1050000,
+        "input": 0.2,
+        "output": 1.2,
+        "cache_read": 0.02,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "terminal_bench_4",
+          "value": 17.27
+        },
+        {
+          "source": "terminal_bench_3",
+          "value": 14.32
+        },
+        {
+          "source": "terminal_bench_2",
+          "value": 75.73
+        },
+        {
+          "source": "aa_intelligence",
+          "value": 37.5
+        },
+        {
+          "source": "livebench_coding",
+          "value": 82.91
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 48.43
+        },
+        {
+          "source": "arena_text",
+          "value": 1453
+        },
+        {
+          "source": "swe_rebench",
+          "value": 43.6,
+          "unconfirmed": true,
+          "note": "contamination-flagged"
+        }
+      ]
+    },
+    "opencode-go/glm-5.3": {
+      "provider": "opencode-go",
+      "family": "glm",
+      "catalog": {
+        "context_tokens": 1000000,
+        "input": 1.4,
+        "output": 4.4,
+        "cache_read": 0.26,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "terminal_bench_4",
+          "value": 41.82
+        },
+        {
+          "source": "terminal_bench_3",
+          "value": 32.43
+        },
+        {
+          "source": "aa_intelligence",
+          "value": 44.86
+        },
+        {
+          "source": "livebench_coding",
+          "value": 78.95
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 60.91
+        },
+        {
+          "source": "arena_text",
+          "value": 1482
+        },
+        {
+          "source": "vendor_terminal_bench_2",
+          "value": 88.2
+        },
+        {
+          "source": "vendor_swe",
+          "value": 66.9
+        },
+        {
+          "source": "vendor_toolathlon",
+          "value": 73.0
+        }
+      ]
+    },
+    "opencode-go/glm-5.3-flash": {
+      "provider": "opencode-go",
+      "family": "glm",
+      "catalog": {
+        "context_tokens": 1000000,
+        "input": 0.075,
+        "output": 0.25,
+        "cache_read": 0.015,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "aa_intelligence",
+          "value": 42
+        },
+        {
+          "source": "livebench_coding",
+          "value": 78.95
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 56.77
+        },
+        {
+          "source": "arena_text",
+          "value": 1474
+        },
+        {
+          "source": "vendor_terminal_bench_2",
+          "value": 84.3
+        },
+        {
+          "source": "vendor_swe",
+          "value": 63.4
+        }
+      ]
+    },
+    "opencode-go/kimi-k3": {
+      "provider": "opencode-go",
+      "family": "kimi",
+      "catalog": {
+        "context_tokens": 1048576,
+        "input": 3,
+        "output": 15,
+        "cache_read": 0.3,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "terminal_bench_3",
+          "value": 3.52,
+          "unconfirmed": true,
+          "note": "hidden entry, not on the 2026-09-03 board"
+        },
+        {
+          "source": "aa_intelligence",
+          "value": 43.78
+        },
+        {
+          "source": "livebench_coding",
+          "value": 81.45
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 62.17
+        },
+        {
+          "source": "arena_text",
+          "value": 1489
+        },
+        {
+          "source": "vendor_terminal_bench_2",
+          "value": 88.3
+        },
+        {
+          "source": "vendor_swe",
+          "value": 67.5
+        },
+        {
+          "source": "vendor_toolathlon",
+          "value": 76.5
+        },
+        {
+          "source": "vendor_mcp_atlas",
+          "value": 84.2
+        }
+      ]
+    },
+    "opencode-go/qwen3.8-max": {
+      "provider": "opencode-go",
+      "family": "qwen",
+      "catalog": {
+        "context_tokens": 1000000,
+        "input": 2,
+        "output": 6,
+        "cache_read": 0.25,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "aa_intelligence",
+          "value": 40,
+          "unconfirmed": true,
+          "note": "mapped from 'Qwen3.8 2.4T A95B'"
+        },
+        {
+          "source": "livebench_coding",
+          "value": 72.87
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 64.65
+        },
+        {
+          "source": "arena_text",
+          "value": 1480
+        },
+        {
+          "source": "vendor_terminal_bench_2",
+          "value": 86.6
+        },
+        {
+          "source": "vendor_toolathlon",
+          "value": 72.5
+        }
+      ]
+    },
+    "opencode-go/qwen3.8-flash": {
+      "provider": "opencode-go",
+      "family": "qwen",
+      "catalog": {
+        "context_tokens": 1000000,
+        "input": 0.15,
+        "output": 0.47,
+        "cache_read": 0.016,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "livebench_coding",
+          "value": 72.55,
+          "note": "LiveBench row 'Qwen3.8 Flash-Next'"
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 61.62,
+          "note": "LiveBench row 'Qwen3.8 Flash-Next'"
+        }
+      ]
+    },
+    "opencode-go/deepseek-v4-pro": {
+      "provider": "opencode-go",
+      "family": "deepseek",
+      "catalog": {
+        "context_tokens": 1000000,
+        "input": 0.66,
+        "output": 1.98,
+        "cache_read": 0.022,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "aa_intelligence",
+          "value": 36.28
+        },
+        {
+          "source": "livebench_coding",
+          "value": 77.16
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 54.95
+        },
+        {
+          "source": "arena_text",
+          "value": 1460
+        },
+        {
+          "source": "swe_rebench",
+          "value": 39.8,
+          "sample": 132,
+          "window": "2026-05-01..2026-06-15"
+        },
+        {
+          "source": "vendor_swe",
+          "value": 80.6
+        },
+        {
+          "source": "vendor_terminal_bench_2",
+          "value": 67.9
+        }
+      ]
+    },
+    "opencode-go/deepseek-v4-flash": {
+      "provider": "opencode-go",
+      "family": "deepseek",
+      "catalog": {
+        "context_tokens": 1000000,
+        "input": 0.22,
+        "output": 0.66,
+        "cache_read": 0.007,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "livebench_coding",
+          "value": 74.98
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 46.77
+        },
+        {
+          "source": "arena_text",
+          "value": 1436
+        },
+        {
+          "source": "swe_rebench",
+          "value": 40.0,
+          "sample": 23,
+          "window": "2026-05-01..2026-05-15"
+        },
+        {
+          "source": "vendor_swe",
+          "value": 79.0
+        },
+        {
+          "source": "vendor_terminal_bench_2",
+          "value": 56.9
+        }
+      ]
+    },
+    "opencode-go/deepseek-v4-flash-vision-exp": {
+      "provider": "opencode-go",
+      "family": "deepseek",
+      "catalog": {
+        "context_tokens": 1000000,
+        "input": 0.22,
+        "output": 0.66,
+        "cache_read": 0.007,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": true,
+      "scores": [
+        {
+          "source": "livebench_coding",
+          "value": 68.2
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 65.1
+        }
+      ]
+    },
+    "opencode-go/minimax-m3": {
+      "provider": "opencode-go",
+      "family": "minimax",
+      "catalog": {
+        "context_tokens": 1000000,
+        "input": 0.3,
+        "output": 1.2,
+        "cache_read": 0.06,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "aa_intelligence",
+          "value": 29.61
+        },
+        {
+          "source": "livebench_coding",
+          "value": 68.2
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 40.66
+        },
+        {
+          "source": "arena_text",
+          "value": 1443
+        },
+        {
+          "source": "swe_rebench",
+          "value": 44.4,
+          "sample": 42,
+          "window": "2026-06-01..2026-06-15"
+        },
+        {
+          "source": "vendor_swe",
+          "value": 80.5
+        },
+        {
+          "source": "vendor_terminal_bench_2",
+          "value": 66.0
+        },
+        {
+          "source": "vendor_mcp_atlas",
+          "value": 74.2
+        }
+      ]
+    },
+    "opencode-go/minimax-m2.7": {
+      "provider": "opencode-go",
+      "family": "minimax",
+      "catalog": {
+        "context_tokens": 204800,
+        "input": 0.3,
+        "output": 1.2,
+        "cache_read": 0.06,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "arena_text",
+          "value": 1415
+        },
+        {
+          "source": "swe_rebench",
+          "value": 49.6,
+          "unconfirmed": true,
+          "note": "contamination-flagged"
+        },
+        {
+          "source": "vendor_terminal_bench_2",
+          "value": 57.0
+        },
+        {
+          "source": "vendor_toolathlon",
+          "value": 46.3
+        }
+      ]
+    },
+    "opencode-go/minimax-m2.5": {
+      "provider": "opencode-go",
+      "family": "minimax",
+      "catalog": {
+        "context_tokens": 204800,
+        "input": 0.3,
+        "output": 1.2,
+        "cache_read": 0.03,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "swe_bench_verified",
+          "value": 75.8
+        },
+        {
+          "source": "arena_text",
+          "value": 1391
+        },
+        {
+          "source": "swe_rebench",
+          "value": 54.5,
+          "sample": 28,
+          "window": "2026-02-15..2026-03-01"
+        }
+      ]
+    },
+    "opencode-go/mimo-v2.5-pro": {
+      "provider": "opencode-go",
+      "family": "mimo",
+      "catalog": {
+        "context_tokens": 1048576,
+        "input": 0.435,
+        "output": 0.87,
+        "cache_read": 0.003625,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "aa_intelligence",
+          "value": 26,
+          "unconfirmed": true,
+          "note": "not among the 28 scored models on 2026-09-08"
+        },
+        {
+          "source": "arena_text",
+          "value": 1468
+        },
+        {
+          "source": "swe_rebench",
+          "value": 44.8,
+          "sample": 175,
+          "window": "2026-04-01..2026-06-15"
+        },
+        {
+          "source": "vendor_swe",
+          "value": 78.9
+        }
+      ]
+    },
+    "opencode-go/mimo-v2.5": {
+      "provider": "opencode-go",
+      "family": "mimo",
+      "catalog": {
+        "context_tokens": 1000000,
+        "input": 0.14,
+        "output": 0.28,
+        "cache_read": null,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "arena_text",
+          "value": 1434
+        }
+      ]
+    },
+    "opencode-go/mimo-v2-pro": {
+      "provider": "opencode-go",
+      "family": "mimo",
+      "catalog": {
+        "context_tokens": 1048576,
+        "input": 1,
+        "output": 3,
+        "cache_read": null,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "arena_text",
+          "value": 1448
+        }
+      ]
+    },
+    "opencode-go/mimo-v2-omni": {
+      "provider": "opencode-go",
+      "family": "mimo",
+      "catalog": {
+        "context_tokens": 262144,
+        "input": 0.4,
+        "output": 2,
+        "cache_read": null,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "arena_text",
+          "value": 1430
+        }
+      ]
+    },
+    "opencode-go/kimi-k2.7-code": {
+      "provider": "opencode-go",
+      "family": "kimi",
+      "catalog": {
+        "context_tokens": 262144,
+        "input": 0.95,
+        "output": 4,
+        "cache_read": 0.19,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "livebench_coding",
+          "value": 73.96
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 45.66
+        },
+        {
+          "source": "vendor_mcp_atlas",
+          "value": 76.0
+        }
+      ]
+    },
+    "opencode-go/kimi-k2.6": {
+      "provider": "opencode-go",
+      "family": "kimi",
+      "catalog": {
+        "context_tokens": 262144,
+        "input": 0.95,
+        "output": 4,
+        "cache_read": 0.16,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "livebench_coding",
+          "value": 78.57
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 46.92
+        },
+        {
+          "source": "arena_text",
+          "value": 1461
+        },
+        {
+          "source": "swe_rebench",
+          "value": 46.5,
+          "sample": 112,
+          "window": "2026-03-01..2026-05-15"
+        }
+      ]
+    },
+    "opencode-go/kimi-k2.5": {
+      "provider": "opencode-go",
+      "family": "kimi",
+      "catalog": {
+        "context_tokens": 262144,
+        "input": 0.6,
+        "output": 3,
+        "cache_read": 0.1,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "swe_bench_verified",
+          "value": 70.8
+        },
+        {
+          "source": "arena_text",
+          "value": 1451
+        },
+        {
+          "source": "swe_rebench",
+          "value": 58.5,
+          "sample": 58,
+          "window": "2026-02-01..2026-03-01"
+        }
+      ]
+    },
+    "opencode-go/glm-5.2": {
+      "provider": "opencode-go",
+      "family": "glm",
+      "catalog": {
+        "context_tokens": 1000000,
+        "input": 1.4,
+        "output": 4.4,
+        "cache_read": 0.26,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "terminal_bench_3",
+          "value": 4.59
+        },
+        {
+          "source": "livebench_coding",
+          "value": 79.65
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 51.77
+        },
+        {
+          "source": "arena_text",
+          "value": 1472
+        },
+        {
+          "source": "swe_rebench",
+          "value": 57.6,
+          "sample": 42,
+          "window": "2026-06-01..2026-06-15"
+        }
+      ]
+    },
+    "opencode-go/glm-5.1": {
+      "provider": "opencode-go",
+      "family": "glm",
+      "catalog": {
+        "context_tokens": 202752,
+        "input": 1.4,
+        "output": 4.4,
+        "cache_read": 0.26,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "terminal_bench_2",
+          "value": 58.65
+        },
+        {
+          "source": "arena_text",
+          "value": 1466
+        },
+        {
+          "source": "swe_rebench",
+          "value": 46.7,
+          "sample": 41,
+          "window": "2026-04-15..2026-05-15"
+        }
+      ]
+    },
+    "opencode-go/glm-5": {
+      "provider": "opencode-go",
+      "family": "glm",
+      "catalog": {
+        "context_tokens": 202752,
+        "input": 1,
+        "output": 3.2,
+        "cache_read": 0.2,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "swe_bench_verified",
+          "value": 72.8
+        },
+        {
+          "source": "arena_text",
+          "value": 1458
+        },
+        {
+          "source": "swe_rebench",
+          "value": 63.0,
+          "sample": 28,
+          "window": "2026-02-15..2026-03-01"
+        }
+      ]
+    },
+    "opencode-go/qwen3.7-max": {
+      "provider": "opencode-go",
+      "family": "qwen",
+      "catalog": {
+        "context_tokens": 1000000,
+        "input": 2.5,
+        "output": 7.5,
+        "cache_read": 0.5,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "livebench_coding",
+          "value": 74.22
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 43.59
+        },
+        {
+          "source": "arena_text",
+          "value": 1474
+        }
+      ]
+    },
+    "opencode-go/qwen3.7-plus": {
+      "provider": "opencode-go",
+      "family": "qwen",
+      "catalog": {
+        "context_tokens": 1000000,
+        "input": 0.4,
+        "output": 1.6,
+        "cache_read": null,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "arena_text",
+          "value": 1455
+        }
+      ]
+    },
+    "opencode-go/qwen3.6-plus": {
+      "provider": "opencode-go",
+      "family": "qwen",
+      "catalog": {
+        "context_tokens": 1000000,
+        "input": 0.5,
+        "output": 3,
+        "cache_read": null,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "livebench_coding",
+          "value": 78.18
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 41.36
+        },
+        {
+          "source": "arena_text",
+          "value": 1444
+        }
+      ]
+    },
+    "opencode-go/qwen3.5-plus": {
+      "provider": "opencode-go",
+      "family": "qwen",
+      "catalog": {
+        "context_tokens": 262144,
+        "input": 0.2,
+        "output": 1.2,
+        "cache_read": null,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": []
+    },
+    "opencode-go/grok-4.6": {
+      "provider": "opencode-go",
+      "family": "grok",
+      "catalog": {
+        "context_tokens": 500000,
+        "input": 2,
+        "output": 6,
+        "cache_read": 0.5,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "terminal_bench_4",
+          "value": 20.3
+        },
+        {
+          "source": "terminal_bench_3",
+          "value": 26.49
+        },
+        {
+          "source": "aa_intelligence",
+          "value": 44.41
+        },
+        {
+          "source": "livebench_coding",
+          "value": 76.78
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 57.02
+        }
+      ]
+    },
+    "opencode-go/grok-4.5": {
+      "provider": "opencode-go",
+      "family": "grok",
+      "catalog": {
+        "context_tokens": 500000,
+        "input": 2,
+        "output": 6,
+        "cache_read": 0.3,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "terminal_bench_4",
+          "value": 12.42
+        },
+        {
+          "source": "terminal_bench_3",
+          "value": 15.68
+        },
+        {
+          "source": "terminal_bench_2",
+          "value": 79.33
+        },
+        {
+          "source": "livebench_coding",
+          "value": 68.59
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 56.46
+        },
+        {
+          "source": "arena_text",
+          "value": 1471
+        },
+        {
+          "source": "swe_rebench",
+          "value": 63.8,
+          "unconfirmed": true,
+          "note": "contamination-flagged: released after the window"
+        }
+      ]
+    },
+    "opencode-go/muse-spark-1.3-contributor": {
+      "provider": "opencode-go",
+      "family": "muse",
+      "catalog": {
+        "context_tokens": 1048576,
+        "input": 0.1,
+        "output": 0.2,
+        "cache_read": null,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": true,
+      "scores": [
+        {
+          "source": "terminal_bench_2",
+          "value": 76.18,
+          "unconfirmed": true,
+          "note": "score of Muse Spark 1.1"
+        },
+        {
+          "source": "aa_intelligence",
+          "value": 48.17,
+          "unconfirmed": true,
+          "note": "score of the xHigh SKU"
+        },
+        {
+          "source": "livebench_coding",
+          "value": 81.06,
+          "unconfirmed": true,
+          "note": "xHigh SKU"
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 64.09,
+          "unconfirmed": true,
+          "note": "xHigh SKU"
+        }
+      ]
+    },
+    "opencode-go/muse-spark-1.2-contributor": {
+      "provider": "opencode-go",
+      "family": "muse",
+      "catalog": {
+        "context_tokens": 1048576,
+        "input": 0.1,
+        "output": 0.2,
+        "cache_read": null,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": true,
+      "scores": [
+        {
+          "source": "livebench_coding",
+          "value": 77.54,
+          "unconfirmed": true,
+          "note": "xHigh SKU"
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 57.58,
+          "unconfirmed": true,
+          "note": "xHigh SKU"
+        },
+        {
+          "source": "arena_text",
+          "value": 1499,
+          "unconfirmed": true,
+          "note": "xHigh SKU"
+        }
+      ]
+    },
+    "opencode-go/hy4-preview": {
+      "provider": "opencode-go",
+      "family": "hunyuan",
+      "catalog": {
+        "context_tokens": 1024000,
+        "input": 0.834,
+        "output": 2.501,
+        "cache_read": null,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": true,
+      "scores": []
+    },
+    "opencode-go/hy3": {
+      "provider": "opencode-go",
+      "family": "hunyuan",
+      "catalog": {
+        "context_tokens": 256000,
+        "input": 0.14,
+        "output": 0.58,
+        "cache_read": null,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "arena_text",
+          "value": 1455
+        }
+      ]
+    },
+    "opencode-go/longcat-2.0": {
+      "provider": "opencode-go",
+      "family": "longcat",
+      "catalog": {
+        "context_tokens": 1000000,
+        "input": 0.3,
+        "output": 1.2,
+        "cache_read": null,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": false,
+      "scores": [
+        {
+          "source": "arena_text",
+          "value": 1436,
+          "unconfirmed": true,
+          "note": "Arena row longcat-flash-chat-2602-exp; mapping not established"
+        }
+      ]
+    },
+    "opencode-go/ox-alpha-free": {
+      "provider": "opencode-go",
+      "family": "ox",
+      "catalog": {
+        "context_tokens": 1000000,
+        "input": 0,
+        "output": 0,
+        "cache_read": null,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": true,
+      "scores": [
+        {
+          "source": "livebench_coding",
+          "value": 75.75,
+          "unconfirmed": true,
+          "note": "ox-alpha-max; identity unconfirmed"
+        },
+        {
+          "source": "livebench_agentic",
+          "value": 52.63,
+          "unconfirmed": true,
+          "note": "ox-alpha-max"
+        }
+      ]
+    },
+    "opencode-go/omen-alpha": {
+      "provider": "opencode-go",
+      "family": "omen",
+      "catalog": {
+        "context_tokens": 500000,
+        "input": 0.2,
+        "output": 0.66,
+        "cache_read": null,
+        "as_of": "2026-09-08",
+        "source": "https://models.dev/api.json"
+      },
+      "unstable": true,
+      "scores": []
+    }
+  },
+  "notes": [
+    "Independent scores transcribed from docs/BENCHMARKS-2026-09-08.md (second verification pass 2026-09-08) and from the SWE-rebench board read on 2026-09-08.",
+    "A score with unconfirmed: true never counts.",
+    "SWE-rebench scores carry the window they were read in; only windows that start on or after the model's release date are transcribed, and only those with sample >= 100 count for admission.",
+    "catalog prices and context come from models.dev on 2026-09-08 (Go quota values, OpenAI list prices)."
+  ]
+}

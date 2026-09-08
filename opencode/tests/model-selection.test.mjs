@@ -30,17 +30,16 @@ test("registry is internally consistent", () => {
 test("the order inside a role is price, cheapest first, per provider tier; nobody writes it by hand", () => {
   const result = selectModel(registry, { role: "builder", workClass: "localized-low-risk-code-change", risk: "low", requiresCodeEditing: true })
   assert.equal(result.status, "SELECTED")
-  assert.equal(result.selection.configuration_id, "builder-go-qwen3.8-flash")
+  assert.equal(result.selection.configuration_id, "builder-go-glm-5.3-flash")
   assert.equal(result.selection.rank, 1)
   assert.equal(result.selection.provider, "opencode-go")
   assert.equal(result.selection.availability, "not-checked")
   const costs = result.ladder.map((item) => [item.provider, item.cost_per_million])
-  const go = costs.filter(([provider]) => provider === "opencode-go").map(([, cost]) => cost)
-  const zen = costs.filter(([provider]) => provider === "opencode").map(([, cost]) => cost)
+  assert.ok(costs.every(([provider]) => provider === "opencode-go"), "builders run on Go only")
+  const go = costs.map(([, cost]) => cost)
   assert.deepEqual(go, [...go].sort((a, b) => a - b), "Go rungs are cheapest first")
-  assert.deepEqual(zen, [...zen].sort((a, b) => a - b), "Zen rungs are cheapest first")
-  assert.equal(costs.findIndex(([provider]) => provider === "opencode"), go.length, "every Go rung comes before the first Zen rung")
   assert.deepEqual(configurationCost(byId("builder-go-qwen3.8-flash")), { total: 0.62, input: 0.15, output: 0.47, cached: 0.016 })
+  assert.deepEqual(configurationCost(byId("planner-openai-gpt-5.6-sol")), { total: 0, input: 0, output: 0, cached: 0 }, "the subscription is not charged per call")
 })
 
 test("the Planner and the Goal Manager start on the OpenAI tier; every other role never sees it", () => {
@@ -134,32 +133,27 @@ test("watch status, risk, and context filters remove insufficient configurations
     role: "builder",
     workClass: "localized-low-risk-code-change",
     risk: "medium",
-    requiredContext: 150000,
+    requiredContext: 300000,
     requiresCodeEditing: true,
   })
   assert.equal(result.status, "SELECTED")
-  assert.ok(result.rejected.some((item) => item.configuration_id === "builder-go-qwen3.8-flash" && item.reasons.includes("risk-ceiling:low")))
-  assert.ok(result.rejected.some((item) => item.configuration_id === "builder-go-mimo-v2.5-pro" && item.reasons.includes("context:131072")))
+  assert.ok(result.rejected.some((item) => item.configuration_id === "builder-go-minimax-m3" && item.reasons.includes("risk-ceiling:low")))
+  assert.ok(result.rejected.some((item) => item.configuration_id === "builder-go-kimi-k2.7-code" && item.reasons.includes("context:262144")))
   const analysis = selectModel(registry, { role: "advisor", workClass: "independent-analysis", risk: "medium" })
-  assert.ok(analysis.rejected.some((item) => item.configuration_id === "analyst-go-kimi-k3" && item.reasons.includes("status:watch")))
+  assert.ok(analysis.rejected.some((item) => item.configuration_id === "analyst-go-deepseek-v4-flash-vision-exp" && item.reasons.includes("status:watch")), "experimental SKUs are registered but never routed")
 })
 
-test("automatic routes contain Go and Zen but exclude OpenRouter", () => {
-  const zen = registry.configurations.find(
-    ({ configuration_id }) => configuration_id === "builder-zen-minimax-m3",
-  )
-  assert.equal(zen.provider, "opencode")
-  assert.match(zen.opencode_model, /^opencode\//)
+test("automatic routes contain OpenCode Go and the OpenAI subscription only: no Zen, no OpenRouter", () => {
+  assert.equal(registry.configurations.filter((item) => item.provider === "opencode").length, 0)
   assert.equal(registry.configurations.filter((item) => item.provider === "openrouter").length, 0)
-  const routedProviders = Object.values(registry.routes).flat().map((id) =>
+  const routedProviders = new Set(Object.values(registry.routes).flat().map((id) =>
     registry.configurations.find((item) => item.configuration_id === id).provider,
-  )
-  assert.ok(routedProviders.includes("opencode-go"))
-  assert.ok(routedProviders.includes("opencode"))
-  assert.ok(!routedProviders.includes("openrouter"))
+  ))
+  assert.deepEqual([...routedProviders].sort(), ["openai", "opencode-go"])
+  assert.ok(registry.configurations.some((item) => item.opencode_model === "openai/gpt-5.6-sol"))
 })
 
-test("high-risk work escalates to a Zen-only model when Go models are insufficient", () => {
+test("high-risk work stays on Go: the cheapest configuration admitted at high risk", () => {
   const result = selectModel(registry, {
     role: "builder",
     workClass: "repository-code-change",
@@ -167,13 +161,8 @@ test("high-risk work escalates to a Zen-only model when Go models are insufficie
     requiresCodeEditing: true,
   })
   assert.equal(result.status, "SELECTED")
-  assert.equal(result.selection.configuration_id, "builder-zen-claude-opus-5")
-  assert.equal(result.selection.provider, "opencode")
-})
-
-test("Zen routing omits GPT Sol when authenticated OpenAI already supplies it", () => {
-  assert.ok(!registry.configurations.some((item) => item.opencode_model === "opencode/gpt-5.6-sol"))
-  assert.ok(registry.configurations.some((item) => item.opencode_model === "openai/gpt-5.6-sol"))
+  assert.equal(result.selection.configuration_id, "builder-go-gpt-5.6-luna")
+  assert.equal(result.selection.provider, "opencode-go")
 })
 
 test("family exclusion preserves independent analysis", () => {
@@ -181,11 +170,11 @@ test("family exclusion preserves independent analysis", () => {
     role: "advisor",
     workClass: "independent-analysis",
     risk: "medium",
-    excludeFamily: "mimo",
+    excludeFamily: "glm",
   })
   assert.equal(result.status, "SELECTED")
-  assert.equal(result.selection.configuration_id, "builder-go-gpt-5.6-luna")
-  assert.notEqual(result.selection.family, "mimo")
+  assert.equal(result.selection.configuration_id, "builder-go-qwen3.8-flash")
+  assert.notEqual(result.selection.family, "glm")
   assert.deepEqual(orderConfigurations(registry, "advisor", [byId("builder-go-gpt-5.6-luna"), byId("builder-go-mimo-v2.5-pro")]).map((c) => c.configuration_id), ["builder-go-mimo-v2.5-pro", "builder-go-gpt-5.6-luna"])
 })
 

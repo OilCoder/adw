@@ -106,8 +106,8 @@ test("selectConfiguration checks fit once per configuration and project, records
     const request = { workClass: "localized-low-risk-code-change", risk: "low", requiresTools: true, requiresCodeEditing: true }
     const first = await selectConfiguration({ systemRoot: root, registry, role: "builder", request, timeoutSeconds: 30 })
     assert.equal(first.status, "READY")
-    assert.equal(first.primary.configuration_id, "builder-go-qwen3.8-flash")
-    assert.deepEqual(first.fits.map((item) => [item.configuration_id, item.outcome]), [["builder-go-qwen3.8-flash", "pass"]])
+    assert.equal(first.primary.configuration_id, "builder-go-glm-5.3-flash")
+    assert.deepEqual(first.fits.map((item) => [item.configuration_id, item.outcome]), [["builder-go-glm-5.3-flash", "pass"]])
     const second = await selectConfiguration({ systemRoot: root, registry, role: "builder", request, timeoutSeconds: 30 })
     assert.deepEqual(second.fits, [], "a passed fit is not repeated")
     assert.equal((await log()).length, 1)
@@ -116,13 +116,13 @@ test("selectConfiguration checks fit once per configuration and project, records
     const secondRung = registry.configurations.find((item) => item.configuration_id === first.ladder[1])
     process.env.FAKE_FIT = "none"
     process.env.FAKE_FIT_MODEL = secondRung.opencode_model
-    const third = await selectConfiguration({ systemRoot: root, registry, role: "builder", request: { ...request, excludeConfigurations: ["builder-go-qwen3.8-flash"] }, timeoutSeconds: 30 })
+    const third = await selectConfiguration({ systemRoot: root, registry, role: "builder", request: { ...request, excludeConfigurations: ["builder-go-glm-5.3-flash"] }, timeoutSeconds: 30 })
     assert.equal(third.status, "READY")
     assert.equal(third.primary.configuration_id, first.ladder[2], "one failed fit later, the third rung is first")
     assert.deepEqual(third.fits.map((item) => [item.configuration_id, item.outcome]), [[first.ladder[1], "fail"], [first.ladder[2], "pass"]])
     const summary = summarizeMetalog(await readMetalog(root))
     assert.equal(summary.configurations[first.ladder[1]].fit, "fail")
-    assert.equal(summary.configurations["builder-go-qwen3.8-flash"].fit, "pass")
+    assert.equal(summary.configurations["builder-go-glm-5.3-flash"].fit, "pass")
 
     // A provider limit leaves the verdict unknown: skipped now, tried again next time.
     const fourthRung = registry.configurations.find((item) => item.configuration_id === first.ladder[3])

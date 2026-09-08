@@ -140,7 +140,7 @@ test("deliberate: research, unanimous opinions, and a verified revision leave th
 test("deliberate: divergent advisors go to the reconciler before the revision", async () => {
   const tree = await project({ openQuestions: [blockingWithOptions] })
   try {
-    const result = await run("deliberate.mjs", [], tree, { FAKE_POSITIONS: JSON.stringify({ default: "database-constraint", mimo: "application-check" }) })
+    const result = await run("deliberate.mjs", [], tree, { FAKE_POSITIONS: JSON.stringify({ default: "database-constraint", qwen: "application-check" }) })
     const summary = JSON.parse(result.stdout)
     assert.equal(summary.result, "DECIDED", result.stderr)
     const called = await agents(tree)

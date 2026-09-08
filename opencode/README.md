@@ -79,18 +79,16 @@ no HEAD or any controlled step fails, the supervisor reports the blocker and
 stops with zero product edits. The role agents are addressable only through
 `opencode run --agent <role>`, which is what the runners do.
 
-Automatic model selection prefers an admitted OpenCode Go configuration that
-meets the task's capability, risk, and context requirements. A Zen-only model
-may be selected directly when no admitted Go configuration is sufficient. With
-the console's `Use balance` option enabled, OpenCode continues the same Go
-request against the Zen balance after a Go usage limit; this never triggers a
-model change. When Zen credits run out, the runner returns
-`ZEN_BALANCE_EXHAUSTED`, preserves the run, and requests a recharge.
-Authentication, model configuration, rate-limit, availability, partial edits,
-scope failures, and Gate failures stop without trying another model. OpenRouter
-remains a recorded manual alternative.
-A model/provider pair is one configuration: passing a smoke through Zen does
-not qualify the same family through Go or OpenRouter.
+Automatic model selection uses OpenCode Go configurations admitted by the
+benchmark rule (`MODEL_SELECTION_SPEC.md` §8.1), plus the user's OpenAI
+subscription for the Planner and the Goal Manager. Zen is not routed (user
+decision 2026-09-08). What happens after a Go usage limit is the console's
+setting: with `Use balance` on, OpenCode continues the same request against
+the Zen balance without a model change; with it off, the run stops as
+`GO_USAGE_LIMIT` and resumes when the quota returns. Authentication, model
+configuration, rate-limit, availability, partial edits, scope failures, and
+Gate failures stop without trying another model. OpenRouter remains a
+recorded manual alternative.
 
 Select a model interactively with `/models`, or per non-interactive execution:
 
@@ -263,7 +261,7 @@ accepts the effective route and risk. Then, for each execution wave:
    only when the list is exhausted. There is no attempt cap: cost is controlled
    in OpenCode and at the provider;
    `CONTRACT_BLOCKED` stops as `REPLAN_REQUIRED`, provider failures stop as
-   `ESCALATE`, while an exhausted Zen balance stops as `USER_ACTION_REQUIRED`
+   `ESCALATE`, while an exhausted Go quota or Zen balance stops as `USER_ACTION_REQUIRED`
    with recharge instructions;
 4. commits only `allowed_to_modify` paths per contract and cherry-picks each
    result onto the integration branch `codegen/<run>`; the next wave starts from
@@ -342,13 +340,17 @@ acceptance criteria, which are prose and are not executed.
 
 Admission is membership in a work-class route of
 `.opencode/codegen/config/model-pools.json`, decided from public coding and
-tool-use benchmarks (the evidence is recorded per configuration under
-`admission.public_evidence` with its sources). The list is a filter, never an
-order. The order inside a role is computed: provider tiers from
-`runner_policies.<role>.providers` (the user's OpenAI subscription for the
-Planner and the Goal Manager, then OpenCode Go, then Zen), and inside a tier
-the price per million tokens, cheapest first (input plus output; cached input
-breaks ties). Nobody writes `configuration_ids`; the registry rejects them.
+tool-use benchmarks, computed: `config/benchmark-evidence.json` holds every
+score with its source (independent boards and vendor cards, unconfirmed
+scores never count), `lib/admission.mjs` applies the rule of
+`MODEL_SELECTION_SPEC.md` §8.1, `npm run admit -- apply` writes configurations
+and routes, and `tests/admission.test.mjs` fails when the registry drifts from
+the rule. The list is a filter, never an order. The order inside a role is
+computed: provider tiers from `runner_policies.<role>.providers` (the user's
+OpenAI subscription for the Planner and the Goal Manager, which costs nothing
+per call and ties by id, then OpenCode Go), and inside a tier the price per
+million tokens, cheapest first (input plus output; cached input breaks ties).
+Nobody writes `configuration_ids`; the registry rejects them.
 
 Every project keeps a metalog, `.opencode/codegen/metalog.jsonl` (ignored):
 one line per model call, fit check, and no-progress stop, with the role, the
@@ -386,10 +388,10 @@ the installer before any file is copied, and by hand before a commit. A new
 model enters a route by hand, with its public evidence; the catalog sync only
 reports it.
 
-Enable Go's console option `Use balance`: after a Go usage limit, the same Go
-request continues against Zen credits. Set a Zen monthly spending limit. If the
-balance is exhausted, the system stops with `ZEN_BALANCE_EXHAUSTED`; after a
-recharge, resume from the preserved run instead of retrying another provider.
+The console option `Use balance` is the user's: on, a Go usage limit continues
+the same request against Zen credits (set a Zen spending limit there); off,
+the run stops with `GO_USAGE_LIMIT`. Either way the system never retries
+another provider; resume from the preserved run.
 
 History: the certification by fixture (`certify.mjs`, `qualified` per role) and
 the basic-smoke pool of 2026-09-02/03 were removed on 2026-09-08 (audit group

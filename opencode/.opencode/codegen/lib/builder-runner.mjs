@@ -2,7 +2,7 @@ import { selectModel } from "./model-selection.mjs"
 import { summarizeEvents } from "./run-metrics.mjs"
 
 const ZEN_RECHARGE_ACTION = "OpenCode Zen balance is exhausted. Recharge the Zen balance, then resume the run."
-const GO_BALANCE_ACTION = "OpenCode Go reached a usage limit. Verify that Use balance is enabled in the OpenCode console."
+const GO_BALANCE_ACTION = "OpenCode Go reached its usage limit. Wait for the quota to reset, or check the balance in the OpenCode console if you keep Use balance enabled."
 
 // The execution plan of a runner: the primary is the cheapest admitted
 // configuration of the role not excluded by escalation, `rank` its place in

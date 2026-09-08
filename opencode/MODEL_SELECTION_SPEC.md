@@ -258,7 +258,44 @@ DESPUÉS DE APROBAR
 - proveedor
 ```
 
-Los umbrales numéricos se fijarán después de estudiar la distribución de cada fuente. No se definirán por intuición ni por precio.
+### 8.1 Regla vigente (2026-09-08)
+
+La regla es código: `lib/admission.mjs` la aplica a `config/benchmark-evidence.json`
+(cada cifra con su fuente) y `scripts/admit.mjs apply` escribe el registro; un
+test falla si el registro se aparta de lo que la regla produce. Nadie escribe la
+lista a mano. El usuario decidió no hacer pruebas propias: todo parte de los
+benchmarks.
+
+Fuentes independientes (las corre un tercero): SWE-bench Verified oficial,
+SWE-rebench (Nebius), Terminal-Bench 2.1 / 3.0 / 4.0, LiveBench (Coding y
+Agentic), Artificial Analysis Intelligence Index, LMArena texto. Fuentes del
+fabricante: SWE-V / DeepSWE, Terminal-Bench 2.x, Toolathlon y MCP-Atlas
+tomados de las fichas. Una cifra "por confirmar" nunca cuenta.
+
+Escribir código (Builder, Gate Designer), dos pruebas a la vez:
+
+1. Prueba de código, al menos una al corte: SWE-bench Verified ≥ 70;
+   SWE-rebench ≥ 38 (solo ventanas posteriores a la salida del modelo y con
+   al menos 100 problemas; nunca comparar ventanas distintas); Terminal-Bench
+   2.x ≥ 55; LiveBench Coding ≥ 72; del fabricante, SWE-V / DeepSWE ≥ 70 o
+   Terminal-Bench 2.x ≥ 55.
+2. Prueba de herramientas, cualquier benchmark agéntico: Terminal-Bench en
+   cualquier versión, Toolathlon, MCP-Atlas, LiveBench Agentic ≥ 45, o la
+   propia prueba de código cuando es agéntica (SWE-bench Verified, SWE-rebench).
+
+Razonar (Planner, Goal Manager, Researcher, advisors, reconciler), una basta:
+AA Intelligence ≥ 40, Arena texto ≥ 1470, o LiveBench Agentic ≥ 55.
+
+Riesgo: solo evidencia del fabricante → bajo; una prueba independiente → medio;
+pruebas independientes en dos tableros distintos → alto. Un modelo solo de
+razonamiento queda en medio.
+
+Además: los modelos de la suscripción OpenAI solo planifican y orquestan; los
+SKU preview, experimental, alpha o contributor se registran como `watch` y no
+se enrutan; un modelo sin cifra utilizable queda como candidato. Los cortes
+salen de la distribución de cada fuente en `docs/BENCHMARKS-2026-09-08.md`
+(el de SWE-rebench, del hueco entre 40.2 y 31.2 en la ventana de 111
+problemas); se revisan cuando cambie la distribución, nunca por precio.
 
 ---
 

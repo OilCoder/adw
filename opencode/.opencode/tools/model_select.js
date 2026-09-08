@@ -7,7 +7,7 @@ import { ROLES, selectModel } from "../codegen/lib/model-selection.mjs"
 
 export default tool({
   description:
-    "Show the ordered list of configurations admitted for one role and work class: cheapest first inside each provider tier (OpenAI for the Planner and Goal Manager, then OpenCode Go, then Zen), with this project's metalog applied (failed fits excluded, repeated failures demoted). This does not check live provider availability.",
+    "Show the ordered list of configurations admitted for one role and work class: cheapest first inside each provider tier (the OpenAI subscription for the Planner and Goal Manager, then OpenCode Go; Zen is not routed), with this project's metalog applied (failed fits excluded, repeated failures demoted). This does not check live provider availability.",
   args: {
     role: tool.schema.string().describe(`Role requesting the model: ${ROLES.join(", ")}`),
     workClass: tool.schema.string().describe("Work class declared in config/model-pools.json"),

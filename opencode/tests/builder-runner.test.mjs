@@ -34,9 +34,9 @@ test("Builder plan selects the cheapest admitted Go configuration, with its rank
   })
 
   assert.equal(plan.status, "READY")
-  assert.equal(plan.primary.configuration_id, "builder-go-qwen3.8-flash")
+  assert.equal(plan.primary.configuration_id, "builder-go-glm-5.3-flash")
   assert.equal(plan.primary.rank, 1)
-  assert.equal(plan.ladder[0], "builder-go-qwen3.8-flash")
+  assert.equal(plan.ladder[0], "builder-go-glm-5.3-flash")
   assert.ok(plan.ladder.length > 5)
   assert.equal("fallback" in plan, false)
   // Escalation excludes the rungs already tried; the rank still counts from the top.
@@ -56,19 +56,20 @@ test("Planner plan starts on the user's OpenAI subscription and falls to Go afte
   assert.equal(plan.status, "READY")
   assert.equal(plan.primary.configuration_id, "planner-openai-gpt-5.6-sol")
   assert.equal(plan.primary.provider, "openai")
-  assert.equal(plan.ladder[1], "builder-go-gpt-5.6-luna", "the cheapest Go planner is the second rung")
+  assert.equal(plan.ladder[1], "planner-openai-gpt-5.6-terra", "the subscription models tie at zero cost; the tie breaks by id")
+  assert.equal(plan.ladder[2], "builder-go-glm-5.3-flash", "the cheapest Go planner is the first Go rung")
   assert.equal("fallback" in plan, false)
 })
 
-test("Builder plan selects Zen directly when no candidate Go model meets high risk", () => {
+test("Builder plan for high risk selects the cheapest Go configuration admitted at high risk", () => {
   const plan = selectBuilderExecutionPlan(registry, {
     workClass: "repository-code-change",
     risk: "high",
   })
 
   assert.equal(plan.status, "READY")
-  assert.equal(plan.primary.configuration_id, "builder-zen-claude-opus-5")
-  assert.equal(plan.primary.provider, "opencode")
+  assert.equal(plan.primary.configuration_id, "builder-go-gpt-5.6-luna")
+  assert.equal(plan.primary.provider, "opencode-go")
   assert.equal("fallback" in plan, false)
 })
 

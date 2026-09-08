@@ -19,10 +19,12 @@ Treat roles, agents, models, and model calls as separate concepts.
 
 - Call `model_select` with the requesting role to see the ordered list for a
   work class. Admission is membership in the work-class route of the registry
-  (decided from public benchmarks); the order is computed, cheapest first
-  inside each provider tier (the user's OpenAI subscription for the Planner
-  and the Goal Manager, then OpenCode Go, then Zen), with this project's
-  metalog applied. Nobody writes the order by hand.
+  (computed by the admission rule of MODEL_SELECTION_SPEC §8.1 from public
+  benchmarks; Go and the user's OpenAI subscription only); the order is
+  computed, cheapest first inside each provider tier (the OpenAI
+  subscription, not charged per call, for the Planner and the Goal Manager,
+  then OpenCode Go), with this project's metalog applied. Nobody writes the
+  list or the order by hand.
 - Select by role, work class, risk, context, and capabilities.
 - Never invent a model ID or select a model merely because it appears in the
   provider catalog.
@@ -35,20 +37,21 @@ Treat roles, agents, models, and model calls as separate concepts.
   list until it succeeds again; quota, authentication, provider, and blocked
   contracts never count.
 - Dispatch sealed Builder contracts through
-  `.opencode/codegen/scripts/run-builder.mjs`. Selection prefers Go and admits
-  a Zen-only configuration directly when no Go configuration meets the risk,
-  context, and capability requirements.
-- Keep `Use balance` enabled in the OpenCode console. After a Go usage limit,
-  OpenCode continues the same request against the Zen balance without changing
-  the selected provider or model.
+  `.opencode/codegen/scripts/run-builder.mjs`. Builders run on OpenCode Go
+  only; when no Go configuration meets the risk, context, and capability
+  requirements the run stops as NO_BUILDER_ADMITTED.
+- What happens after a Go usage limit is the console's setting, outside this
+  system: with `Use balance` on, OpenCode continues the same request against
+  the Zen balance without changing the model; with it off, the run stops as
+  GO_USAGE_LIMIT and resumes when the quota returns.
 - Technical failures never switch models: authentication, configuration,
   rate-limit, availability, and partial-edit failures stop for classification.
   A configuration that makes no progress (it reproduces an earlier attempt) is
   escalated by the orchestrator: the worktree returns to the sealed contract
   and the next rung gets the accumulated evidence. OpenRouter is not part of
   automatic routes.
-- `ZEN_BALANCE_EXHAUSTED` is terminal. Preserve the run and ask the user to
-  recharge Zen before resuming; do not retry another model.
+- `GO_USAGE_LIMIT` and `ZEN_BALANCE_EXHAUSTED` are terminal. Preserve the run
+  and tell the user; do not retry another model.
 
 The authoritative runtime pool is
 `.opencode/codegen/config/model-pools.json`. `MODEL_SELECTION_SPEC.md` documents

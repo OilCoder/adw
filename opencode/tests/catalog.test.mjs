@@ -37,11 +37,11 @@ test("price and context changes are reported and applied; a dropped model is rep
   const catalog = catalogFrom(registry)
   delete catalog["opencode-go"].models["minimax-m3"]
   catalog["opencode-go"].models["qwen3.8-flash"].cost.output = 0.99
-  catalog["opencode-go"].models["qwen3.8-flash"].limit.context = 1000000
+  catalog["opencode-go"].models["qwen3.8-flash"].limit.context = 500000
   const diff = diffCatalog(registry, catalog)
   assert.deepEqual(diff.dropped.map((item) => item.configuration_id), ["builder-go-minimax-m3"])
   assert.deepEqual(diff.changed.map((item) => item.configuration_id), ["builder-go-qwen3.8-flash"], JSON.stringify(diff.changed))
-  assert.deepEqual(diff.changed[0].differences, [{ field: "output", from: 0.47, to: 0.99 }, { field: "context_tokens", from: 131072, to: 1000000 }])
+  assert.deepEqual(diff.changed[0].differences, [{ field: "output", from: 0.47, to: 0.99 }, { field: "context_tokens", from: 1000000, to: 500000 }])
 
   const copy = structuredClone(registry)
   const routesBefore = JSON.stringify(copy.routes)
@@ -49,7 +49,7 @@ test("price and context changes are reported and applied; a dropped model is rep
   assert.deepEqual(applied.map((item) => item.configuration_id), ["builder-go-qwen3.8-flash"])
   const flash = copy.configurations.find((item) => item.configuration_id === "builder-go-qwen3.8-flash")
   assert.equal(flash.economics.output_per_million_quota_value, 0.99)
-  assert.equal(flash.capabilities.context_tokens, 1000000)
+  assert.equal(flash.capabilities.context_tokens, 500000)
   assert.equal(copy.configurations.find((item) => item.configuration_id === "builder-go-minimax-m3").economics.output_per_million_quota_value, 1.2)
   assert.equal(JSON.stringify(copy.routes), routesBefore)
   assert.deepEqual(diffCatalog(copy, catalog).changed, [])

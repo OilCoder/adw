@@ -24,9 +24,9 @@ test("shipped registry resolves every production request", () => {
   assert.equal(release.ok, true)
   assert.deepEqual(Object.keys(release.roles), ROLES)
   assert.deepEqual(Object.keys(RELEASE_ROUTE).sort(), [...ROLES].sort())
-  assert.equal(release.builder_family, "qwen", "the cheapest admitted builder is first in line")
+  assert.equal(release.builder_family, "glm", "the cheapest admitted builder is first in line")
   for (const check of release.roles["gate-designer"]) {
-    assert.equal(check.exclude_family, "qwen")
+    assert.equal(check.exclude_family, "glm")
     assert.ok(check.ladder.length > 0)
   }
   const advisors = release.roles.advisor[0]
@@ -54,7 +54,7 @@ test("the metalog of a project changes who is first in line, never who is admitt
   assert.equal(demoted.at(-1), ladder[0])
   assert.notEqual(builderFamily(registry, { metalog }), builderFamily(registry))
   assert.equal(checkRelease(registry, { metalog }).ok, true)
-  assert.deepEqual(independentFamilies(admittedForRole(registry, "advisor", RELEASE_ROUTE.advisor[0]).eligible).map((c) => c.family).slice(0, 3), ["mimo", "gpt", "minimax"])
+  assert.deepEqual(independentFamilies(admittedForRole(registry, "advisor", RELEASE_ROUTE.advisor[0]).eligible).map((c) => c.family).slice(0, 3), ["glm", "qwen", "grok"])
 })
 
 test("maintenance flags are refused in an installed project", async () => {

@@ -9,7 +9,6 @@
   ],
   "enabled_providers": [
     "ollama",
-    "opencode",
     "opencode-go",
     "openrouter",
     "openai"
@@ -27,43 +26,30 @@
         }
       }
     },
-    "opencode": {
-      "whitelist": [
-        "minimax-m2.7",
-        "qwen3.6-plus",
-        "kimi-k2.7-code",
-        "minimax-m3",
-        "mimo-v2.5-pro",
-        "gpt-5.6-luna",
-        "deepseek-v4-pro",
-        "deepseek-v4-flash",
-        "qwen3.8-flash",
-        "glm-5.3-flash",
-        "qwen3.8-max",
-        "kimi-k3",
-        "claude-opus-5",
-        "claude-sonnet-5",
-        "claude-haiku-4-5",
-        "gemini-3.1-pro",
-        "gemini-3.8-flash",
-        "gemini-3.5-flash-lite"
-      ]
-    },
     "opencode-go": {
       "whitelist": [
-        "minimax-m2.7",
-        "qwen3.6-plus",
-        "kimi-k2.7-code",
+        "deepseek-v4-flash",
+        "deepseek-v4-flash-vision-exp",
+        "deepseek-v4-pro",
+        "glm-5",
+        "glm-5.1",
+        "glm-5.2",
         "glm-5.3",
         "glm-5.3-flash",
-        "minimax-m3",
-        "mimo-v2.5-pro",
         "gpt-5.6-luna",
-        "deepseek-v4-pro",
-        "deepseek-v4-flash",
+        "grok-4.5",
+        "grok-4.6",
+        "kimi-k2.5",
+        "kimi-k2.6",
+        "kimi-k2.7-code",
+        "kimi-k3",
+        "mimo-v2.5-pro",
+        "minimax-m2.5",
+        "minimax-m2.7",
+        "minimax-m3",
+        "qwen3.7-max",
         "qwen3.8-flash",
-        "qwen3.8-max",
-        "kimi-k3"
+        "qwen3.8-max"
       ]
     },
     "openrouter": {
@@ -81,7 +67,8 @@
     },
     "openai": {
       "whitelist": [
-        "gpt-5.6-sol"
+        "gpt-5.6-sol",
+        "gpt-5.6-terra"
       ]
     }
   },

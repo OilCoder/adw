@@ -32,10 +32,12 @@ function requireEnum(value, values, label) {
 }
 
 // One scalar per configuration: input plus output price per million tokens.
-// Go stores subscription quota values and Zen stores prices; both are USD
-// figures of the same magnitude, so they order together.
+// Go stores subscription quota values in USD. The user's OpenAI subscription
+// is not charged per call, so its configurations cost nothing here and tie;
+// the tie breaks by configuration id (planner-openai-gpt-5.6-sol first).
 export function configurationCost(configuration) {
   const economics = configuration.economics ?? {}
+  if (economics.price_type === "openai-subscription") return { total: 0, input: 0, output: 0, cached: 0 }
   const input = economics.input_per_million ?? economics.input_per_million_quota_value ?? 0
   const output = economics.output_per_million ?? economics.output_per_million_quota_value ?? 0
   const cached = economics.cached_input_per_million ?? economics.cached_input_per_million_quota_value ?? 0

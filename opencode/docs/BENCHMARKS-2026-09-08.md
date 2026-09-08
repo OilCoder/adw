@@ -4,42 +4,58 @@ Fuentes independientes (agente 2): SWE-bench Verified (leaderboards.json oficial
 
 | modelo Go | in$/out$ /M | ctx | SWE-bench Verified (indep.) | Terminal-Bench (indep.) | AA Intelligence v4.3 | LiveBench Coding / Agentic | Arena text-SC / WebDev | vendor (SWE-V, TB, tool-use) |
 |---|---|---|---|---|---|---|---|---|
-| gpt-5.6-sol (openai, planner) | 4/20 (suscripción) | 1.05M | — | TB4.0 37.27 (Codex, max, #10); AA-run TB4 39.9 | 47 | 83.94 / 56.21 | 1483 (#17) / 1617 (#13) | — |
-| gpt-5.6-terra (openai) | 2/12 | 1.05M | — | TB4.0 21.52 (#12); TB2.1 78.43 (#11) | 42 | 78.25 / 54.95 | 1466 / 1520 | — |
-| gpt-5.6-luna | 0.2/1.2 | 1.05M | — | TB4.0 17.27 (#15); TB2.1 75.73 (#14) | 37.5 | 82.91 / 48.43 | 1453 / 1519 | — |
-| glm-5.3 | 1.4/4.4 | 1M | — | TB4.0 41.82 (Claude Code, max, #9) | 44.86 | 78.95 / 60.91 | 1482 (#20) / 1609 (#14) | TB2.1 88.2, DeepSWE 66.9, Toolathlon-V 73.0 |
+| gpt-5.6-sol (openai, planner) | 4/20 (suscripción) | 1.05M | — | TB4.0 37.27 (Codex, max, #10); TB3.0 34.59 (Codex, #2); AA-run TB4 39.9 | 47 | 83.94 / 56.21 | 1483 (#17) / 1617 (#13) | — |
+| gpt-5.6-terra (openai) | 2/12 | 1.05M | — | TB4.0 21.52 (#12); TB3.0 20.81 (Codex, #7); TB2.1 78.43 (#11) | 42 | 78.25 / 54.95 | 1466 / 1520 | — |
+| gpt-5.6-luna | 0.2/1.2 | 1.05M | — | TB4.0 17.27 (#15); TB3.0 14.32 (Codex, #11); TB2.1 75.73 (#14) | 37.5 | 82.91 / 48.43 | 1453 / 1519 | — |
+| glm-5.3 | 1.4/4.4 | 1M | — | TB4.0 41.82 (Claude Code, max, #9); TB3.0 32.43 (Claude Code, #4) | 44.86 | 78.95 / 60.91 | 1482 (#20) / 1609 (#14) | TB2.1 88.2, DeepSWE 66.9, Toolathlon-V 73.0 |
 | glm-5.3-flash | 0.075/0.25 | 1M | — | — | 42 | 78.95 / 56.77 | 1474 / 1605 | TB2.1 84.3, DeepSWE 63.4 |
-| kimi-k3 | 3/15 | 1M | — | TB3.0 3.52 (Kimi CLI, oculto) | 43.78 | 81.45 / 62.17 | 1489 (#12) / 1674 (#5) | TB2.1 88.3, DeepSWE 67.5, Toolathlon-V 76.5, MCP-Atlas 84.2 |
+| kimi-k3 | 3/15 | 1M | — | TB3.0 3.52 (Kimi CLI, oculto; por confirmar: la entrada no aparece en el tablero del 2026-09-03) | 43.78 | 81.45 / 62.17 | 1489 (#12) / 1674 (#5) | TB2.1 88.3, DeepSWE 67.5, Toolathlon-V 76.5, MCP-Atlas 84.2 |
 | qwen3.8-max | 2/6 | 1M | — | — | 40 (como "Qwen3.8 2.4T A95B", mapeo por confirmar) | 72.87 / 64.65 | 1480 (#22) / 1686 (#4, 0902) | TB2.1 86.6, Toolathlon-V 72.5 |
 | qwen3.8-flash | 0.15/0.47 | 1M | — | — | — | 72.55 / 61.62 (Flash-Next) | — / 1626 (#9) | LCB v6 91.9, SWE-Pro 62.5 (Flash-Next) |
 | deepseek-v4-pro | 0.66/1.98 | 1M | — | — | 36.28 (0813 max) | 77.16 / 54.95 (0813) | 1460 / 1582 | SWE-V 80.6, TB2.0 67.9, LCB 93.5 (Max) |
 | deepseek-v4-flash | 0.22/0.66 | 1M | — | — | — | 74.98 / 46.77 (0731) | 1436 / 1580 | SWE-V 79.0, TB2.0 56.9, LCB 91.6 (Max) |
 | deepseek-v4-flash-vision-exp | 0.22/0.66 | 1M | — | — | — | 68.20 / 65.10 | — | — |
-| minimax-m3 | 0.3/1.2 | 1M | — | — | — | 68.20 / 40.66 | 1443 / 1487 | SWE-V 80.5, TB2.1 66.0, MCP Atlas 74.2 |
+| minimax-m3 | 0.3/1.2 | 1M | — | — | 29.61 | 68.20 / 40.66 | 1443 / 1487 | SWE-V 80.5, TB2.1 66.0, MCP Atlas 74.2 |
 | minimax-m2.7 | 0.3/1.2 | 205K | — | — | — | — | 1415 / 1398 | TB2.0 57.0, Toolathon 46.3 |
 | minimax-m2.5 | 0.3/1.2 | 205K | 75.8 (mini-SWE-agent, 2026-02) | — | — | — | 1391 / 1384 | — |
-| mimo-v2.5-pro | 0.435/0.87 | 1M | — | — | 26 | — | 1468 / 1475 | SWE-V 78.9 |
+| mimo-v2.5-pro | 0.435/0.87 | 1M | — | — | 26 (por confirmar: no está entre los 28 modelos puntuados en v4.3 el 2026-09-08) | — | 1468 / 1475 | SWE-V 78.9 |
 | mimo-v2.5 | 0.14/0.28 | 1M | — | — | — | — | 1434 / 1438 | — |
 | mimo-v2-pro | 1/3 | 1M | — | — | — | — | 1448 / 1433 | — |
 | mimo-v2-omni | 0.4/2 | 262K | — | — | — | — | 1430 / — | — |
 | kimi-k2.7-code | 0.95/4 | 262K | — | — | — | 73.96 / 45.66 | — / 1472 | MCP Atlas 76.0, MCP Mark-V 81.1 |
 | kimi-k2.6 | 0.95/4 | 262K | — | — | — | 78.57 / 46.92 | 1461 / 1509 | — |
 | kimi-k2.5 | 0.6/3 | 262K | 70.8 (2026-02) | — | — | — | 1451 / 1436 | — |
-| glm-5.2 | 1.4/4.4 | 1M | — | TB3.0 5.14 (#8) | — | 79.65 / 51.77 | 1472 / 1587 | — |
+| glm-5.2 | 1.4/4.4 | 1M | — | TB3.0 4.59 (Claude Code, #12; antes 5.14) | — | 79.65 / 51.77 | 1472 / 1587 | — |
 | glm-5.1 | 1.4/4.4 | 203K | — | TB2.1 58.65 (#22) | — | — | 1466 / 1508 | — |
 | glm-5 | 1/3.2 | 203K | 72.8 (2026-02) | — | — | — | 1458 / 1436 | — |
 | qwen3.7-max | 2.5/7.5 | 1M | — | — | — | 74.22 / 43.59 | 1474 / 1517 | — |
 | qwen3.7-plus | 0.4/1.6 | 1M | — | — | — | — | 1455 / — | — |
 | qwen3.6-plus | 0.5/3 | 1M | — | — | — | 78.18 / 41.36 | 1444 / 1460 | — |
 | qwen3.5-plus | 0.2/1.2 | 262K | — | — | — | — | — | — |
-| grok-4.6 | 2/6 | 500K | — | TB4.0 20.30 (Grok Build, #13) | 44.41 | 76.78 / 57.02 | — / 1625 (#10) | — |
-| grok-4.5 | 2/6 | 500K | — | TB4.0 12.42; TB2.1 79.33 (Cursor CLI, #9) | — | 68.59 / 56.46 | 1471 / 1556 | — |
+| grok-4.6 | 2/6 | 500K | — | TB4.0 20.30 (Grok Build, #13); TB3.0 26.49 (Grok Build, #5) | 44.41 | 76.78 / 57.02 | — / 1625 (#10) | — |
+| grok-4.5 | 2/6 | 500K | — | TB4.0 12.42; TB3.0 15.68 (Cursor CLI, #9); TB2.1 79.33 (Cursor CLI, #9) | — | 68.59 / 56.46 | 1471 / 1556 | — |
 | muse-spark-1.3-contributor (Meta) | 0.1/0.2 | 1M | — | TB2.1 76.18 (Muse Spark 1.1) | 48.17 (1.3 max) | 81.06 / 64.09 (1.3 xhigh) | — / 1622 (#11) | — |
 | muse-spark-1.2-contributor (Meta) | 0.1/0.2 | 1M | — | — | — | 77.54 / 57.58 (1.2 xhigh) | 1499 (#5) / 1534 | — |
 | hy4-preview (Tencent) | 0.834/2.5 | 1M | — | — | — | — | — / 1621 (#12); Agent Arena #10 | — |
 | hy3 (Tencent) | 0.14/0.58 | 256K | — | — | — | — | 1455 / 1512 | — |
-| longcat-2.0 (Meituan) | 0.3/1.2 | 1M | — | — | — | — | — | — |
+| longcat-2.0 (Meituan) | 0.3/1.2 | 1M | — | — | — | — | — (Arena tiene longcat-flash-chat-2602-exp 1436, #89; por confirmar que sea este modelo) | — |
 | ox-alpha-free | 0/0 | 1M | — | — | — | 75.75 / 52.63 (ox-alpha-max) | — | (reportado como GLM-5.3-Flash, por confirmar) |
 | omen-alpha | 0.2/0.66 | 500K | — | — | — | — | — | — (stealth, por confirmar) |
 
-Notas: los boards "contributor" de Muse Spark puntúan el SKU xHigh, no el contributor; TB 2.0/2.1/3.0/4.0 no son comparables entre sí; ningún modelo de 2026 aparece en SWE-bench Verified oficial (los vendors publican SWE-bench Pro / DeepSWE en su lugar); AA Coding Index no encontrado; Aider Polyglot sin actualizar desde 2025-11.
+Notas: los boards "contributor" de Muse Spark puntúan el SKU xHigh, no el contributor; TB 2.0/2.1/3.0/4.0 no son comparables entre sí; en SWE-bench Verified oficial la última entrada es del 2026-02-26 (minimax-m2.5, glm-5 y kimi-k2.5 son de 2026-02-17; nada posterior; los vendors publican SWE-bench Pro / DeepSWE en su lugar); AA Coding Index no encontrado; Aider Polyglot sin actualizar desde 2025-11. LiveBench también lista deepseek-v4-pro (69.99 / 42.63) y deepseek-v4-flash (69.23 / 37.63) sin fecha; la tabla usa las variantes 0813 y 0731.
+
+Reverificación 2026-09-08 (segunda pasada, datos primarios de cada fuente): SWE-bench Verified, TB 4.0, TB 2.1, AA v4.3, LiveBench 2026-06-25 y LMArena (HF 2026-09-06) sin cambios; TB 3.0 actualizado al 2026-09-03 (filas hasta 2026-08-19): glm-5.2 baja de 5.14 a 4.59 y aparecen gpt-5.6-sol, glm-5.3, grok-4.6, gpt-5.6-terra, grok-4.5 y gpt-5.6-luna; AA v4.3 puntúa minimax-m3 en 29.61. Tres cifras no reconfirmables quedan marcadas "por confirmar" (kimi-k3 TB3.0, mimo-v2.5-pro AA, longcat-2.0 Arena).
+
+## SWE-rebench (Nebius), leído el 2026-09-08
+
+Fuente añadida tras revisar cinco tableros de la comunidad (BFCL, Aider Polyglot, SWE-bench Pro público, LiveCodeBench y este): es el único corrido por el propio tablero que cubre modelos de Go (14 de 35). Arnés mínimo ReAct igual para todos, cinco corridas por modelo, contexto 128K; marca (no excluye) las evaluaciones con problemas anteriores a la salida del modelo. Último problema del 2026-06-15. https://swe-rebench.com/
+
+Cifras limpias (ventana posterior a la salida del modelo), tasa resuelta %, con el tamaño de la ventana. Solo las de ≥ 100 problemas cuentan para la admisión; en ventanas de 21 a 58 problemas un problema mueve entre 2 y 4 puntos.
+
+- kimi-k2.6 46.5 (112 problemas, 2026-03-01..05-15) · mimo-v2.5-pro 44.8 (175, 04-01..06-15) · deepseek-v4-pro 39.8 (132, 05-01..06-15)
+- Indicativas, muestra pequeña: glm-5 63.0 (28) · kimi-k2.5 58.5 (58) · glm-5.2 57.6 (42) · minimax-m2.5 54.5 (28) · glm-5.1 46.7 (41) · minimax-m3 44.4 (42) · deepseek-v4-flash 40.0 (23)
+- Solo con marca de contaminación (no valen para admitir): grok-4.5 63.8 · gpt-5.6-sol 62.3 · minimax-m2.7 49.6 · gpt-5.6-luna 43.6
+- Ausentes: los otros 21 modelos de Go y gpt-5.6-terra. Los SKU abiertos de Qwen (Qwen3.5-397B, Qwen3.6-35B…) no se mapean a qwen3.x-plus.
+
+Corte de admisión: 38, en el hueco entre 40.2 y 31.2 de la ventana de 111 problemas (error de muestreo ≈ ±4.7). Los otros cuatro tableros: BFCL vivo pero con cero modelos de Go; Aider Polyglot parado desde 2025-10; SWE-bench Pro público con cero modelos de Go y condiciones mixtas; LiveCodeBench sin problemas desde 2025-04 y solo de concurso.
+
