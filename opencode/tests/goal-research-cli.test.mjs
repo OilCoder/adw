@@ -7,6 +7,8 @@ import test from "node:test"
 import { promisify } from "node:util"
 import { fileURLToPath } from "node:url"
 
+import { goalDigest } from "../.opencode/codegen/lib/goal.mjs"
+
 const execFile = promisify(execFileCallback)
 const here = path.dirname(fileURLToPath(import.meta.url))
 const systemRoot = path.resolve(here, "..")
@@ -198,6 +200,11 @@ test("run-goal rejects a model-sealed Goal unless the user approved sealing", as
     const approvedSummary = JSON.parse(approved.stdout)
     assert.equal(approvedSummary.result, "SEALED")
     assert.equal(approvedSummary.routing.route, "planned")
+    assert.equal(approvedSummary.goal_digest, goalDigest(JSON.parse(await readFile(sealedFixture, "utf8"))))
+    // --allow-sealed is the user's explicit go: the runner stamps the approval so the seal still carries who and when.
+    const stamped = JSON.parse(await readFile(path.join(tree.directory, ".codegen-goal/goal.json"), "utf8"))
+    assert.equal(stamped.approval.via, "run-goal --allow-sealed")
+    assert.equal(stamped.approval.goal_digest, approvedSummary.goal_digest)
   } finally {
     await rm(tree.directory, { recursive: true, force: true })
   }
@@ -234,21 +241,36 @@ test("run-goal --approve seals the drafted Goal deterministically without a mode
     goal.decisions = [{ id: "DEC-1", question: "q", decision: "d", rationale: "r", research_report_ids: ["RR-1"] }]
     await writeFile(goalPath, JSON.stringify(goal))
 
-    const result = await run("run-goal.mjs", ["--approve", ".codegen-goal/goal.json"], tree)
+    // Approval needs the digest of the summary the user read; a stale digest is refused.
+    const noDigest = await run("run-goal.mjs", ["--approve", ".codegen-goal/goal.json"], tree)
+    assert.equal(noDigest.code, 2)
+    assert.match(noDigest.stderr, /approve requires --digest/)
+    const stale = await run("run-goal.mjs", ["--approve", ".codegen-goal/goal.json", "--digest", "0".repeat(64)], tree)
+    assert.equal(stale.code, 2)
+    assert.match(stale.stderr, /Goal changed since it was summarized/)
+    assert.equal(JSON.parse(await readFile(goalPath, "utf8")).status, "DECIDED")
+
+    const result = await run("run-goal.mjs", ["--approve", ".codegen-goal/goal.json", "--digest", goalDigest(goal)], tree)
     assert.equal(result.code, 0, result.stderr)
     const summary = JSON.parse(result.stdout)
     assert.equal(summary.result, "SEALED")
     assert.equal(summary.previous_status, "DECIDED")
     assert.equal(summary.routing.status, "ROUTED")
-    assert.equal(JSON.parse(await readFile(goalPath, "utf8")).status, "SEALED")
-    assert.ok((await readFile(path.join(tree.directory, ".codegen-goal/GOAL.md"), "utf8")).startsWith("# "))
+    assert.equal(summary.approval.approved_by, "user")
+    assert.equal(summary.approval.goal_digest, goalDigest(goal))
+    const sealedGoal = JSON.parse(await readFile(goalPath, "utf8"))
+    assert.equal(sealedGoal.status, "SEALED")
+    assert.deepEqual(sealedGoal.approval, summary.approval)
+    const goalMarkdown = await readFile(path.join(tree.directory, ".codegen-goal/GOAL.md"), "utf8")
+    assert.ok(goalMarkdown.startsWith("# "))
+    assert.ok(goalMarkdown.includes(`**Approved:** by user at ${summary.approval.approved_at}`))
     await assert.rejects(readFile(path.join(tree.directory, "fake.log")))
 
     // A Goal that still needs research cannot be approved into a sealed state.
     goal.status = "DRAFT"
     goal.research_questions = goal.research_questions.map((item) => ({ ...item, status: "pending" }))
     await writeFile(goalPath, JSON.stringify(goal))
-    const refused = await run("run-goal.mjs", ["--approve", ".codegen-goal/goal.json"], tree)
+    const refused = await run("run-goal.mjs", ["--approve", ".codegen-goal/goal.json", "--digest", goalDigest(goal)], tree)
     assert.equal(refused.code, 2)
     assert.match(refused.stderr, /required pending research/)
   } finally {

@@ -90,6 +90,7 @@ test("cherry-pick conflict is reported and aborted, leaving the branch clean", a
     const conflict = await cherryPick(integration, rightCommit)
     assert.equal(conflict.ok, false)
     assert.match(conflict.conflict, /conflict/i)
+    assert.deepEqual(conflict.paths, ["a.txt"], "the unmerged paths survive the abort")
     assert.equal((await git(integration, ["status", "--porcelain"])).stdout.trim(), "")
   } finally {
     await rm(repo, { recursive: true, force: true })

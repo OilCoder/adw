@@ -97,7 +97,7 @@ function executionWaves(phases, phasesById) {
 // requirement needs a check, and a check may only cover requirements that can
 // be checked. The expected baseline of a check is never declared: it follows
 // from the kinds of the requirements it covers (see contract.mjs).
-function validateRequirementsAndChecks(contract, contractId, errors) {
+export function validateRequirementsAndChecks(contract, contractId, errors) {
   if (!Array.isArray(contract?.requirements)) {
     errors.push(`${contractId}: requirements must be an array`)
     return
@@ -255,11 +255,12 @@ export function planCoverage(plan, goal) {
 // Coverage errors block the plan: a must requirement nobody claims, an
 // automated criterion without an automated claim, a claim on an id the Goal
 // does not define. Everything else is reported through planCoverage.
-function coverageErrors(coverage) {
+function coverageErrors(coverage, { partial = false } = {}) {
   const errors = []
   for (const claim of coverage.unknown_goal_ids) {
     errors.push(`${claim.contract_id}: requirement ${claim.requirement_id} covers unknown Goal id ${claim.goal_id}`)
   }
+  if (partial) return errors
   for (const requirement of coverage.requirements) {
     if (requirement.priority === "must" && requirement.status === "uncovered") {
       errors.push(`Goal requirement ${requirement.id} (must) is not covered by any contract requirement: "${requirement.statement}"`)
@@ -389,7 +390,10 @@ export function triageAssessment(plan, { goal = null, route = null, riskFloors =
 // every automated acceptance criterion accounted for) and the triage
 // assessment against the Goal's labels. `route` and `riskFloors` feed the
 // triage; neither rejects a plan.
-export function validatePlan(plan, { workClasses = null, goal = null, route = null, riskFloors = null } = {}) {
+// `partialCoverage` is for repair plans: they extend a plan the user already
+// approved, so `covers` must still name real Goal ids but need not account
+// for the whole Goal again.
+export function validatePlan(plan, { workClasses = null, goal = null, route = null, riskFloors = null, partialCoverage = false } = {}) {
   const errors = []
   if (plan?.schema_version !== 1) errors.push("schema_version must be 1")
   for (const field of ["plan_id", "objective", "base_revision"]) {
@@ -519,7 +523,7 @@ export function validatePlan(plan, { workClasses = null, goal = null, route = nu
   }
 
   const coverage = goal ? planCoverage(plan, goal) : null
-  if (coverage) errors.push(...coverageErrors(coverage))
+  if (coverage) errors.push(...coverageErrors(coverage, { partial: partialCoverage }))
   const triage = goal || route ? triageAssessment(plan, { goal, route, riskFloors }) : null
 
   return { valid: errors.length === 0, errors, execution_waves: waves ?? [], coverage, triage }

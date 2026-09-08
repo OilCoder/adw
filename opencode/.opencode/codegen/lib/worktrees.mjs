@@ -141,11 +141,30 @@ export async function restorePaths(directory, paths) {
   await git(directory, ["clean", "-fdq", "--", ...paths], { allowFailure: true })
 }
 
+// A conflict is diagnosed before it is aborted: the unmerged paths are the
+// evidence the repair needs, and `--abort` destroys them.
 export async function cherryPick(directory, commit) {
   const result = await git(directory, ["cherry-pick", "--allow-empty", commit], { allowFailure: true })
   if (result.exitCode !== 0) {
+    const unmerged = await git(directory, ["diff", "--name-only", "--diff-filter=U"], { allowFailure: true })
+    const paths = unmerged.stdout.split("\n").map((line) => line.trim()).filter(Boolean).sort()
     await git(directory, ["cherry-pick", "--abort"], { allowFailure: true })
-    return { ok: false, conflict: result.stderr.trim() || result.stdout.trim() }
+    return { ok: false, conflict: result.stderr.trim() || result.stdout.trim(), paths }
   }
   return { ok: true, head: await revision(directory) }
+}
+
+// Moves a detached worktree to another revision; the diagnosis replays
+// gates along the integration branch this way.
+export async function checkoutDetached(directory, rev) {
+  await git(directory, ["checkout", "-q", "--detach", rev])
+  await git(directory, ["clean", "-fdq"])
+}
+
+// The patch of one commit, for evidence files. Bounded so a large result
+// never bloats the evidence a Builder has to read.
+export async function commitPatch(directory, commit, { maxLength = 20000 } = {}) {
+  const result = await git(directory, ["show", "--format=%H %s", commit], { allowFailure: true })
+  const text = result.stdout
+  return text.length > maxLength ? `${text.slice(0, maxLength)}\n… (truncated)` : text
 }

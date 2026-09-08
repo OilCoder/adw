@@ -2,7 +2,7 @@
 // independent opinions on blocking questions with a closed option set, then let
 // the Goal Manager fold the evidence into the Goal. Everything here is
 // deterministic; deliberate.mjs spawns the model-backed runners.
-import { validateGoal } from "./goal.mjs"
+import { approvalRecord, validateGoal } from "./goal.mjs"
 
 // What one pass has to do. `reports` and `decisions` are the question ids that
 // already have artifacts on disk (a runner never repeats a question). Only
@@ -27,8 +27,10 @@ export function deliberationPlan(goal, { reports = [], decisions = [] } = {}) {
   return { status, research, opinions, user_decisions: userDecisions, revise: status === "READY" }
 }
 
+// Would sealing this Goal now be valid? Simulates the seal the way approval
+// makes it: status plus an approval record for this exact content.
 export function readyForApproval(goal) {
-  return validateGoal({ ...goal, status: "SEALED" }).valid
+  return validateGoal({ ...goal, status: "SEALED", approval: approvalRecord(goal) }).valid
 }
 
 // Checks the Goal Manager's revision against the evidence it was given rather

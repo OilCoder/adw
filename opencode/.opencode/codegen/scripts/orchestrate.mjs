@@ -46,6 +46,7 @@ async function main() {
     directory,
     goalPath: args.goal ?? ".codegen-goal/goal.json",
     planPath: args.plan ?? null,
+    resumeRunId: args.resume ?? null,
     registry,
     riskFloors: await loadRiskFloors(systemRoot),
     runId,
@@ -57,10 +58,10 @@ async function main() {
       `[${record.at}] ${record.event}${record.contract_id ? ` ${record.contract_id}` : ""}${record.event === "RUN_STOPPED" && record.reason ? `: ${record.reason}` : ""}\n`,
     ),
     runners: {
-      planner: ({ directory: cwd, objective, goal, output, route, evidence, excludeConfigurations }) =>
+      planner: ({ directory: cwd, objective, goal, output, route, evidence, excludeConfigurations, repair }) =>
         spawnRunner(
           "run-planner.mjs",
-          { objective, goal, output, route, evidence, "exclude-configurations": list(excludeConfigurations), "fit-check": fitCheck, timeout, display },
+          { objective, goal, output, route, evidence, repair: repair ? "true" : null, "exclude-configurations": list(excludeConfigurations), "fit-check": fitCheck, timeout, display },
           cwd,
         ),
       gateDesigner: ({ directory: cwd, contract, workClass, risk }) =>
@@ -79,7 +80,8 @@ async function main() {
   })
   process.stdout.write(`${JSON.stringify(state, null, 2)}\n`)
   // A run paused for plan review is not a failure: the user continues it
-  // with --plan once the plan is approved.
+  // with --plan (initial plan) or --resume <run> (repair plan) once the plan
+  // is approved.
   process.exitCode = ["COMPLETED", "PLAN_REVIEW_REQUIRED"].includes(state.status) ? 0 : 1
 }
 

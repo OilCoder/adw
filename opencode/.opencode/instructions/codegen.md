@@ -84,7 +84,15 @@ the evidence and admission methodology.
   reports and proposed decisions into the Goal. The revision is verified
   against the evidence; the Goal stays unsealed until the user approves it.
 - A Goal is `SEALED` only after explicit user approval, through
-  `run-goal.mjs --approve`, which seals deterministically without a model call.
+  `run-goal.mjs --approve --digest <goal_digest>`, which seals
+  deterministically without a model call. The digest is what the user read
+  (every draft, revise, and deliberate summary reports it); a Goal whose file
+  changed since is refused. The seal records `approval` (user, time, digest,
+  path); the validator requires it on a `SEALED` Goal and rejects it elsewhere.
+- The Router only routes a `SEALED` Goal (direct or planned). An open Goal is
+  reported as `GOAL_NOT_SEALED` with what keeps it open, and the orchestrator
+  stops as `APPROVAL_REQUIRED` naming it; deliberation is never a route of
+  the orchestrator.
 
 ## Orchestration
 
@@ -122,6 +130,23 @@ the evidence and admission methodology.
   untouched baseline: fails when it covers a `change` requirement, passes when
   it covers only `preserve` ones. The Gate Designer may only write under
   `.codegen-contract/checks/`; the contract and `gate.sh` are sealed.
+- Integration failures are repaired, not reported. A cherry-pick conflict
+  keeps its unmerged paths, the rest of the wave integrates, and the contract
+  is rebuilt on the integrated head with the conflict as evidence. A failed
+  final Gate is attributed deterministically (the failing checks are replayed
+  along the integration branch; no model) and repaired by a contract composed
+  from the culprit and the failing contract (union of their approved paths,
+  their accepted risk, failing checks as `change`, the rest `preserve`),
+  admitted by the derived-work Router, gated on the integration head, built,
+  integrated, and judged by a new final Gate round. The Planner intervenes
+  when the facts are inconclusive or the composed repair cannot run: it
+  inspects the integrated tree and writes a repair plan based on the
+  integration head; on the planned route (or on any contradiction) the run
+  pauses as `PLAN_REVIEW_REQUIRED` with a `resume` run id and continues with
+  `orchestrate` `run` set to it. Every repair loop stops by lack of progress:
+  a final Gate round that reproduces an earlier one, or a finding already
+  repaired once. Worktrees, branch, and evidence are always kept. The Goal is
+  never edited during a run; what the user approves is the repair plan.
 - After the final Gate, `state.json` carries `goal_coverage`: per Goal
   requirement and criterion, which contracts claimed it and how their checks
   fared. Manual and operational items stay pending human verification.

@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "plan_id": "repair-beta",
+  "objective": "Fix beta so alpha's interaction check passes on the integrated tree.",
+  "base_revision": "REPLACED",
+  "phases": [
+    {
+      "phase_id": "fix",
+      "objective": "Repair beta",
+      "depends_on": [],
+      "contracts": [
+        {
+          "contract_id": "beta-fix",
+          "objective": "Make beta add three for every input",
+          "work_class": "localized-low-risk-code-change",
+          "risk": "low",
+          "read": [
+            "lib/beta.py",
+            "tests/test_alpha_interaction.py"
+          ],
+          "allowed_to_modify": [
+            "lib/beta.py"
+          ],
+          "forbidden": [
+            "tests/**",
+            "lib/alpha.py",
+            "lib/gamma.py"
+          ],
+          "requirements": [
+            {
+              "id": "R1",
+              "statement": "beta(alpha(1)) == 5",
+              "kind": "change",
+              "verification": "automated",
+              "covers": [
+                "REQ-1"
+              ]
+            }
+          ],
+          "verification": {
+            "checks": [
+              {
+                "id": "C1",
+                "covers": [
+                  "R1"
+                ],
+                "command": "python3 -m unittest tests/test_alpha_interaction.py"
+              }
+            ],
+            "invariants": [
+              "Only lib/beta.py changes"
+            ]
+          },
+          "response": [
+            "status",
+            "changed files"
+          ]
+        }
+      ]
+    }
+  ]
+}

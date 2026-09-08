@@ -1,0 +1,190 @@
+{
+  "schema_version": 1,
+  "plan_id": "compose-pipeline-interaction",
+  "objective": "Implement alpha, beta, and gamma so that the unit tests pass.",
+  "base_revision": "REPLACED",
+  "final_verification": {
+    "commands": [
+      "python3 -m unittest discover -s tests"
+    ]
+  },
+  "phases": [
+    {
+      "phase_id": "core",
+      "objective": "Independent leaf functions",
+      "depends_on": [],
+      "contracts": [
+        {
+          "contract_id": "alpha",
+          "objective": "Implement alpha",
+          "work_class": "localized-low-risk-code-change",
+          "risk": "low",
+          "read": [
+            "lib/alpha.py",
+            "tests/test_alpha.py",
+            "tests/test_alpha_interaction.py"
+          ],
+          "allowed_to_modify": [
+            "lib/alpha.py"
+          ],
+          "forbidden": [
+            "tests/**",
+            "lib/beta.py",
+            "lib/gamma.py"
+          ],
+          "requirements": [
+            {
+              "id": "R1",
+              "statement": "alpha doubles its input",
+              "kind": "change",
+              "verification": "automated",
+              "covers": [
+                "REQ-1",
+                "ACC-1"
+              ]
+            },
+            {
+              "id": "R2",
+              "statement": "alpha stays compatible with beta: beta(alpha(1)) == 5",
+              "kind": "preserve",
+              "verification": "automated",
+              "covers": [
+                "REQ-1"
+              ]
+            }
+          ],
+          "verification": {
+            "checks": [
+              {
+                "id": "C1",
+                "covers": [
+                  "R1"
+                ],
+                "command": "python3 -m unittest tests/test_alpha.py"
+              },
+              {
+                "id": "C2",
+                "covers": [
+                  "R2"
+                ],
+                "command": "python3 -m unittest tests/test_alpha_interaction.py"
+              }
+            ],
+            "invariants": [
+              "Only lib/alpha.py changes"
+            ]
+          },
+          "response": [
+            "status",
+            "changed files"
+          ]
+        },
+        {
+          "contract_id": "beta",
+          "objective": "Implement beta",
+          "work_class": "localized-low-risk-code-change",
+          "risk": "low",
+          "read": [
+            "lib/beta.py",
+            "tests/test_beta.py"
+          ],
+          "allowed_to_modify": [
+            "lib/beta.py"
+          ],
+          "forbidden": [
+            "tests/**",
+            "lib/alpha.py",
+            "lib/gamma.py"
+          ],
+          "requirements": [
+            {
+              "id": "R1",
+              "statement": "beta adds three to its input",
+              "kind": "change",
+              "verification": "automated",
+              "covers": [
+                "REQ-1",
+                "ACC-1"
+              ]
+            }
+          ],
+          "verification": {
+            "checks": [
+              {
+                "id": "C1",
+                "covers": [
+                  "R1"
+                ],
+                "command": "python3 -m unittest tests/test_beta.py"
+              }
+            ],
+            "invariants": [
+              "Only lib/beta.py changes"
+            ]
+          },
+          "response": [
+            "status",
+            "changed files"
+          ]
+        }
+      ]
+    },
+    {
+      "phase_id": "compose",
+      "objective": "Composition depends on both leaves",
+      "depends_on": [
+        "core"
+      ],
+      "contracts": [
+        {
+          "contract_id": "gamma",
+          "objective": "Implement gamma",
+          "work_class": "localized-low-risk-code-change",
+          "risk": "low",
+          "read": [
+            "lib/gamma.py",
+            "tests/test_gamma.py"
+          ],
+          "allowed_to_modify": [
+            "lib/gamma.py"
+          ],
+          "forbidden": [
+            "tests/**",
+            "lib/alpha.py",
+            "lib/beta.py"
+          ],
+          "requirements": [
+            {
+              "id": "R1",
+              "statement": "gamma returns beta(alpha(value))",
+              "kind": "change",
+              "verification": "automated",
+              "covers": [
+                "REQ-1",
+                "ACC-1"
+              ]
+            }
+          ],
+          "verification": {
+            "checks": [
+              {
+                "id": "C1",
+                "covers": [
+                  "R1"
+                ],
+                "command": "python3 -m unittest tests/test_gamma.py"
+              }
+            ],
+            "invariants": [
+              "Only lib/gamma.py changes"
+            ]
+          },
+          "response": [
+            "status",
+            "changed files"
+          ]
+        }
+      ]
+    }
+  ]
+}

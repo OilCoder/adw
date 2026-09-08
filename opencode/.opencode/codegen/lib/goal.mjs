@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto"
+
 const STATUSES = new Set(["DRAFT", "RESEARCHING", "DECIDED", "SEALED"])
 const SHAPES = new Set(["localized", "multi-component", "system"])
 const RISKS = new Set(["low", "medium", "high"])
@@ -24,6 +26,47 @@ function uniqueIds(items, label, errors, globalIds) {
     if (globalIds.has(item.id)) errors.push(`duplicate artifact id: ${item.id}`)
     globalIds.add(item.id)
   }
+}
+
+// The digest of what the user read: the Goal's content, without its status
+// and without the approval record itself. A draft and the sealed Goal made
+// from it share a digest; a Goal edited after it was summarized does not.
+function canonical(value) {
+  if (Array.isArray(value)) return value.map(canonical)
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]))
+  }
+  return value
+}
+
+export function goalDigest(goal) {
+  const { status, approval, ...content } = goal ?? {}
+  return createHash("sha256").update(JSON.stringify(canonical(content))).digest("hex")
+}
+
+const DIGEST = /^[0-9a-f]{64}$/
+
+// The approval record is the only evidence that a human sealed the Goal: who
+// (always the user), when, through which path, and the digest they approved.
+export function approvalRecord(goal, { via = "run-goal --approve", now = new Date() } = {}) {
+  return { approved_by: "user", approved_at: now.toISOString(), goal_digest: goalDigest(goal), via }
+}
+
+function validateApproval(goal, errors) {
+  const approval = goal?.approval
+  if (goal?.status !== "SEALED") {
+    if (approval !== undefined) errors.push("approval is only recorded on a SEALED goal")
+    return
+  }
+  if (!approval || typeof approval !== "object") {
+    errors.push("SEALED goal must carry an approval record (approved_by, approved_at, goal_digest, via)")
+    return
+  }
+  if (approval.approved_by !== "user") errors.push("approval.approved_by must be user: only the user seals a Goal")
+  if (!text(approval.approved_at) || Number.isNaN(Date.parse(approval.approved_at))) errors.push("approval.approved_at must be an ISO date")
+  if (!text(approval.via)) errors.push("approval.via must name the path the approval came through")
+  if (!DIGEST.test(approval.goal_digest ?? "")) errors.push("approval.goal_digest must be a sha256 hex digest")
+  else if (approval.goal_digest !== goalDigest(goal)) errors.push("approval.goal_digest does not match the Goal content: the Goal changed after it was approved")
 }
 
 export function validateGoal(goal) {
@@ -145,15 +188,26 @@ export function validateGoal(goal) {
     }
   }
   if (inScope.some((item) => !text(item))) errors.push("in_scope contains empty text")
+  validateApproval(goal, errors)
 
   return { valid: errors.length === 0, errors }
 }
 
-export function sealApprovedGoal(goal) {
+// Seals the Goal the user approved. `digest` is what the user was shown
+// (the goal_digest of the last draft, revise, or deliberate summary): a Goal
+// whose content on disk no longer matches is refused, so nobody approves a
+// file they did not read. The approval record travels with the sealed Goal.
+export function sealApprovedGoal(goal, { digest = null, via = "run-goal --approve", now = new Date() } = {}) {
   const current = validateGoal(goal)
   if (!current.valid) throw new Error(`Cannot approve invalid Goal: ${current.errors.join("; ")}`)
+  if (goal.status === "SEALED") throw new Error(`Goal is already SEALED (approved at ${goal.approval?.approved_at ?? "unknown"})`)
+  const actual = goalDigest(goal)
+  if (digest !== null && digest !== actual) {
+    throw new Error(`Goal changed since it was summarized: approved digest ${digest}, on disk ${actual}. Read the Goal again and approve what is there.`)
+  }
   const sealed = structuredClone(goal)
   sealed.status = "SEALED"
+  sealed.approval = approvalRecord(goal, { via, now })
   const validation = validateGoal(sealed)
   if (!validation.valid) throw new Error(`Goal is not ready for approval: ${validation.errors.join("; ")}`)
   return sealed
@@ -169,7 +223,7 @@ export function renderGoalMarkdown(goal) {
   return `# ${goal.title}
 
 **Goal ID:** \`${goal.goal_id}\`<br>
-**Status:** \`${goal.status}\`
+**Status:** \`${goal.status}\`${goal.approval ? `<br>\n**Approved:** by ${goal.approval.approved_by} at ${goal.approval.approved_at} via \`${goal.approval.via}\`; digest \`${goal.approval.goal_digest}\`` : ""}
 
 ## Summary
 

@@ -4,7 +4,7 @@ import path from "node:path"
 import test from "node:test"
 import { fileURLToPath } from "node:url"
 
-import { renderGoalMarkdown, validateGoal } from "../.opencode/codegen/lib/goal.mjs"
+import { approvalRecord, goalDigest, renderGoalMarkdown, sealApprovedGoal, validateGoal } from "../.opencode/codegen/lib/goal.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -12,10 +12,16 @@ async function fixtureGoal() {
   return JSON.parse(await readFile(path.join(here, "fixtures/goal-research/goal.json"), "utf8"))
 }
 
-function sealed(goal) {
+// Seals a Goal the way approval does: status plus the approval record whose
+// digest matches the content. Edits after sealing break the digest on purpose.
+function approve(goal) {
+  return { ...goal, status: "SEALED", approval: approvalRecord(goal) }
+}
+
+function decided(goal) {
   return {
     ...goal,
-    status: "SEALED",
+    status: "DECIDED",
     research_questions: goal.research_questions.map((item) => ({ ...item, status: "completed" })),
     decisions: [
       {
@@ -27,6 +33,10 @@ function sealed(goal) {
       },
     ],
   }
+}
+
+function sealed(goal) {
+  return approve(decided(goal))
 }
 
 test("fixture goal validates and renders every section", async () => {
@@ -60,6 +70,7 @@ test("sealed goal renders decisions and never prints undefined", async () => {
   assert.deepEqual(validateGoal(goal), { valid: true, errors: [] })
   const markdown = renderGoalMarkdown(goal)
   assert.ok(markdown.includes("`DEC-1` Database constraint mapped to a domain error - Avoids the race condition"))
+  assert.ok(markdown.includes(`**Approved:** by user at ${goal.approval.approved_at} via \`run-goal --approve\`; digest \`${goal.approval.goal_digest}\``))
   assert.ok(!markdown.includes("undefined"))
 })
 
@@ -104,34 +115,60 @@ test("validator rejects structural problems", async () => {
 
 test("SEALED rules: no blocking questions, no pending required research, decisions for deliberative signals", async () => {
   const goal = await fixtureGoal()
-  const pending = { ...goal, status: "SEALED" }
+  const pending = approve(goal)
   assert.ok(validateGoal(pending).errors.includes("SEALED goal cannot contain required pending research"))
 
-  const blocking = {
-    ...sealed(goal),
+  const blocking = approve({
+    ...decided(goal),
     open_questions: [{ id: "OQ-1", question: "Which error code?", blocking: true }],
-  }
+  })
   assert.ok(validateGoal(blocking).errors.includes("SEALED goal cannot contain blocking open questions"))
 
-  const undecided = { ...sealed(goal), decisions: [] }
+  const undecided = approve({ ...decided(goal), decisions: [] })
   assert.ok(
     validateGoal(undecided).errors.includes(
       "SEALED goal with deliberative signals must record at least one decision",
     ),
   )
 
-  const plain = {
-    ...sealed(goal),
+  const plain = approve({
+    ...decided(goal),
     decisions: [],
     routing: { ...goal.routing, external_research_required: false },
-  }
+  })
   assert.deepEqual(validateGoal(plain), { valid: true, errors: [] })
 
-  const waived = {
-    ...sealed(goal),
+  const waived = approve({
+    ...decided(goal),
     research_questions: goal.research_questions.map((item) => ({ ...item, status: "waived" })),
-  }
+  })
   assert.deepEqual(validateGoal(waived), { valid: true, errors: [] })
+})
+
+test("the seal is evidence: a SEALED goal needs an approval record whose digest matches its content", async () => {
+  const goal = await fixtureGoal()
+  const bare = { ...decided(goal), status: "SEALED" }
+  assert.ok(validateGoal(bare).errors.some((error) => /must carry an approval record/.test(error)))
+  const edited = { ...sealed(goal), objective: "something else" }
+  assert.ok(validateGoal(edited).errors.some((error) => /goal_digest does not match/.test(error)))
+  const early = { ...decided(goal), approval: approvalRecord(decided(goal)) }
+  assert.ok(validateGoal(early).errors.includes("approval is only recorded on a SEALED goal"))
+  const machine = { ...sealed(goal), approval: { ...sealed(goal).approval, approved_by: "model" } }
+  assert.ok(validateGoal(machine).errors.some((error) => /approved_by must be user/.test(error)))
+  // The digest ignores status and the approval record itself, so the draft the user read and the sealed Goal agree.
+  assert.equal(goalDigest(decided(goal)), goalDigest(sealed(goal)))
+  assert.notEqual(goalDigest(decided(goal)), goalDigest({ ...decided(goal), objective: "x" }))
+})
+
+test("sealApprovedGoal records the approval and refuses a Goal that changed since it was summarized", async () => {
+  const goal = decided(await fixtureGoal())
+  const now = new Date("2026-09-08T12:00:00.000Z")
+  const result = sealApprovedGoal(goal, { digest: goalDigest(goal), via: "tool codegen_workflow approve", now })
+  assert.equal(result.status, "SEALED")
+  assert.deepEqual(result.approval, { approved_by: "user", approved_at: "2026-09-08T12:00:00.000Z", goal_digest: goalDigest(goal), via: "tool codegen_workflow approve" })
+  assert.deepEqual(validateGoal(result), { valid: true, errors: [] })
+  assert.throws(() => sealApprovedGoal({ ...goal, objective: "edited after the summary" }, { digest: goalDigest(goal) }), /Goal changed since it was summarized/)
+  assert.throws(() => sealApprovedGoal(result, { digest: goalDigest(goal) }), /already SEALED/)
 })
 
 test("renderer refuses an invalid goal", async () => {

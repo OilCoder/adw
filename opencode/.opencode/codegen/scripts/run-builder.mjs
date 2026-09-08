@@ -96,7 +96,12 @@ async function main() {
     },
   })
   const evidencePath = args.evidence ? path.resolve(directory, args.evidence) : null
-  if (evidencePath) await readFile(evidencePath, "utf8")
+  const evidence = evidencePath ? JSON.parse(await readFile(evidencePath, "utf8")) : null
+  // Evidence of a repair (an integration conflict, a failed final Gate) is
+  // not a retry of this Builder: it explains why the sealed contract runs
+  // again on the integrated tree.
+  const repairKind = evidence?.kind ?? null
+  const repairEvidence = evidence?.repair_evidence ?? null
   if (plan.status !== "READY") {
     process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`)
     process.exitCode = 2
@@ -109,9 +114,14 @@ async function main() {
   const baseline = await snapshot(directory)
   const prompt = [
     `Execute the sealed contract at ${path.relative(directory, contractPath)}.`,
-    ...(evidencePath
+    ...(evidencePath && repairKind
       ? [
-          `This is a retry. Read the evidence from the previous failed attempt at ${path.relative(directory, evidencePath)} before changing anything, and fix the reported failure without widening the contract.`,
+          `This contract repairs an integration failure (${repairKind}). Read the evidence at ${path.relative(directory, evidencePath)} before changing anything: it explains what was built before, what failed on the integrated tree, and why. Fix exactly that without widening the contract.`,
+        ]
+      : []),
+    ...(evidencePath && !repairKind
+      ? [
+          `This is a retry. Read the evidence from the previous failed attempt at ${path.relative(directory, evidencePath)} before changing anything, and fix the reported failure without widening the contract.${repairEvidence ? ` The repair this contract performs is explained at ${repairEvidence}; read it too.` : ""}`,
         ]
       : []),
     "Implement it now and finish with the requested concise status.",

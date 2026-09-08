@@ -124,10 +124,12 @@ test("deliberate: research, unanimous opinions, and a verified revision leave th
     assert.ok(goal.decisions.some((d) => (d.opinion_ids ?? []).length === 2))
 
     // The user now seals it, deterministically, and the Router accepts it.
-    const approved = await run("run-goal.mjs", ["--approve", ".codegen-goal/goal.json"], tree)
+    assert.match(summary.goal_digest, /^[0-9a-f]{64}$/)
+    const approved = await run("run-goal.mjs", ["--approve", ".codegen-goal/goal.json", "--digest", summary.goal_digest], tree)
     assert.equal(approved.code, 0, approved.stderr)
     const sealed = JSON.parse(approved.stdout)
     assert.equal(sealed.result, "SEALED")
+    assert.equal(sealed.approval.goal_digest, summary.goal_digest)
     assert.equal(sealed.routing.status, "ROUTED")
     assert.ok(sealed.routing.reasons.includes("deliberation-recorded"))
   } finally {

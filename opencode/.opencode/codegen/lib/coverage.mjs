@@ -55,8 +55,8 @@ function renderContract(contract) {
 // PLAN.md is rendered deterministically after validation, never by the
 // Planner. With a Goal it carries the coverage section and the triage against
 // the Goal's labels the user reviews before the Builders run.
-export function renderPlanMarkdown(plan, goal = null, { route = null, riskFloors = null } = {}) {
-  const validation = validatePlan(plan, { goal, route, riskFloors })
+export function renderPlanMarkdown(plan, goal = null, { route = null, riskFloors = null, partialCoverage = false } = {}) {
+  const validation = validatePlan(plan, { goal, route, riskFloors, partialCoverage })
   if (!validation.valid) throw new Error(`Cannot render invalid plan: ${validation.errors.join("; ")}`)
   const coverage = validation.coverage
   const triage = validation.triage

@@ -7,6 +7,8 @@ import test from "node:test"
 import { promisify } from "node:util"
 import { fileURLToPath } from "node:url"
 
+import { approvalRecord } from "../.opencode/codegen/lib/goal.mjs"
+
 const execFile = promisify(execFileCallback)
 const here = path.dirname(fileURLToPath(import.meta.url))
 const systemRoot = path.resolve(here, "..")
@@ -38,10 +40,13 @@ function rungOf(filter) {
   return seen.includes(model) ? seen.indexOf(model) + 1 : seen.length + 1
 }
 function failingRung(value, rung) { return value === "*" || rung <= Number(value || 0) }
-function done() { console.log(JSON.stringify({type:"step_finish",part:{cost:0.001,tokens:{input:5,output:5,reasoning:0,cache:{read:0,write:0}}}})) }
+function done(text) { if (text) console.log(JSON.stringify({type:"text",part:{text}})); console.log(JSON.stringify({type:"step_finish",part:{cost:0.001,tokens:{input:5,output:5,reasoning:0,cache:{read:0,write:0}}}})) }
 if (agent === "planner") {
   const output = prompt.match(/Write the complete plan to (\\S+)\\./)[1]
-  const plan = JSON.parse(fs.readFileSync(process.env.FAKE_PLAN_TEMPLATE, "utf8"))
+  // A repair plan (the prompt says so) comes from FAKE_REPAIR_PLAN_TEMPLATE and
+  // is based on the HEAD of the cwd, the integration worktree.
+  const repairing = /This is a repair plan/.test(prompt)
+  const plan = JSON.parse(fs.readFileSync(repairing ? process.env.FAKE_REPAIR_PLAN_TEMPLATE : process.env.FAKE_PLAN_TEMPLATE, "utf8"))
   plan.base_revision = execFileSync("git", ["rev-parse", "HEAD"]).toString().trim()
   // FAKE_PLAN_INVALID_FIRST: the first plan uses a wildcard the validator
   // rejects; FAKE_PLAN_UNCOVERED_FIRST: the first plan forgets to cover the
@@ -57,11 +62,18 @@ if (agent === "planner") {
   if (process.env.FAKE_PLAN_TRIVIAL_CHECK) plan.phases[0].contracts[0].verification.checks[0].command = "true"
   fs.mkdirSync(path.dirname(output), { recursive: true })
   fs.writeFileSync(output, JSON.stringify(plan, null, 2))
-  log({ agent, prompt, retry })
+  log({ agent, prompt, retry, repairing, cwd: process.cwd() })
   done()
 } else if (agent === "builder") {
   const contract = JSON.parse(fs.readFileSync(".codegen-contract/contract.json", "utf8"))
   const retry = /This is a retry/.test(prompt)
+  // A composed repair contract carries a repair block; its solution is the parent
+  // contract's correct one. FAKE_REPAIR_MODE: what every repair or rebuild
+  // Builder does (pass, subtle, blocked). FAKE_TOUCH_INTEGRATION names a
+  // contract whose Builder also commits a change of its file on the
+  // integration branch, so its own commit conflicts at integration.
+  const repairing = Boolean(contract.repair) || /repairs an integration failure/.test(prompt)
+  const target = contract.repair ? contract.repair.parent_contract_id : contract.contract_id
   const evidence = (prompt.match(/attempt at (\\S+) before/) || [])[1] || null
   const evidenceExists = evidence ? fs.existsSync(evidence) : null
   const start = Date.now()
@@ -76,14 +88,19 @@ if (agent === "planner") {
   const [sequenceId, sequenceModes] = (process.env.FAKE_FAIL_SEQUENCE || ":").split(":")
   const sequence = sequenceId === contract.contract_id ? sequenceModes.split(",") : []
   const wrong = failingRung(process.env.FAKE_FAIL_RUNGS, rung) || (process.env.FAKE_FAIL_FIRST === contract.contract_id && !retry)
-  const mode = sequence[attempt - 1] || (wrong ? "gate" : "pass")
+  const mode = sequence[attempt - 1] || (repairing ? (process.env.FAKE_REPAIR_MODE || "pass") : wrong ? "gate" : "pass")
   if (mode === "scope") fs.writeFileSync("lib/extra.py", "# outside the contract\\n")
-  const solution = path.join(process.env.FAKE_SOLUTIONS, contract.contract_id + (mode === "gate" ? "-wrong" : "") + ".py")
-  fs.copyFileSync(solution, contract.allowed_to_modify[0])
+  const suffix = { gate: "-wrong", subtle: "-subtle" }[mode] || ""
+  if (mode !== "blocked") fs.copyFileSync(path.join(process.env.FAKE_SOLUTIONS, target + suffix + ".py"), contract.allowed_to_modify[0])
   // A failing rung changes the file every time (a Builder that keeps editing) while the same check keeps failing.
   if (wrong && mode === "gate") fs.appendFileSync(contract.allowed_to_modify[0], "# attempt " + attempt + "\\n")
-  log({ agent, contract_id: contract.contract_id, cwd: process.cwd(), start, end: Date.now(), retry, attempt, rung, mode, evidence, evidence_exists: evidenceExists, checks: contract.verification.checks.map((c) => c.command) })
-  done()
+  if (process.env.FAKE_TOUCH_INTEGRATION === contract.contract_id && !repairing) {
+    const integration = path.resolve(process.cwd(), "../../integration")
+    fs.writeFileSync(path.join(integration, contract.allowed_to_modify[0]), "# touched outside the run\\n")
+    execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@localhost", "commit", "-qam", "outside the run"], { cwd: integration })
+  }
+  log({ agent, contract_id: contract.contract_id, cwd: process.cwd(), start, end: Date.now(), retry, repairing, attempt, rung, mode, evidence, evidence_exists: evidenceExists, checks: contract.verification.checks.map((c) => c.command) })
+  done(mode === "blocked" ? "BLOCKED: the interaction needs a product decision" : null)
 } else if (agent === "gate-designer") {
   // Makes the trivial check real: the contract's unit test.
   const contract = JSON.parse(fs.readFileSync(".codegen-contract/contract.json", "utf8"))
@@ -121,6 +138,7 @@ function orchestrate(tree, args, env = {}) {
       FAKE_LOG: path.join(tree.directory, "fake.log"),
       CODEGEN_METALOG: path.join(tree.directory, "metalog.jsonl"),
       FAKE_PLAN_TEMPLATE: path.join(fixture, "plan-template.json"),
+      FAKE_REPAIR_PLAN_TEMPLATE: path.join(fixture, "plan-repair.json"),
       FAKE_SOLUTIONS: path.join(fixture, "solutions"),
       PYTHONDONTWRITEBYTECODE: "1",
       ...env,
@@ -283,7 +301,9 @@ test("direct route: a plan that needs more than one contract is re-routed to pla
   try {
     const goalPath = path.join(tree.directory, ".codegen-goal/goal.json")
     const goal = JSON.parse(await readFile(goalPath, "utf8"))
-    await writeFile(goalPath, JSON.stringify({ ...goal, in_scope: ["lib/alpha.py", "lib/beta.py", "lib/gamma.py"] }))
+    // The fixture is sealed; a changed Goal has to be sealed again or the digest refuses it.
+    const widened = { ...goal, in_scope: ["lib/alpha.py", "lib/beta.py", "lib/gamma.py"] }
+    await writeFile(goalPath, JSON.stringify({ ...widened, approval: approvalRecord(widened) }))
     const result = await orchestrate(tree, ["--run-id", "r5"])
     assert.equal(result.code, 0, result.stderr)
     const state = JSON.parse(result.stdout)
@@ -361,11 +381,13 @@ test("a deliberated goal the user has not approved stops for approval", async ()
   try {
     const goalPath = path.join(tree.directory, ".codegen-goal/goal.json")
     const goal = JSON.parse(await readFile(goalPath, "utf8"))
-    await writeFile(goalPath, JSON.stringify({ ...goal, status: "DECIDED" }))
+    const { approval, ...open } = goal
+    await writeFile(goalPath, JSON.stringify({ ...open, status: "DECIDED" }))
     const result = await orchestrate(tree, ["--run-id", "r6"])
     assert.equal(result.code, 1)
     const state = JSON.parse(result.stdout)
     assert.equal(state.status, "APPROVAL_REQUIRED")
+    assert.match(state.stop_reason, /approve it first/)
     assert.equal(state.planner_calls, 0)
     await assert.rejects(readFile(path.join(tree.directory, "fake.log")))
   } finally {
@@ -373,13 +395,14 @@ test("a deliberated goal the user has not approved stops for approval", async ()
   }
 })
 
-test("a goal that still needs deliberation stops before planning", async () => {
+test("a goal that still needs deliberation stops before planning, naming what keeps it open", async () => {
   const tree = await project(path.join(here, "fixtures/goal-research/goal.json"))
   try {
     const result = await orchestrate(tree, ["--run-id", "r3"])
     assert.equal(result.code, 1)
     const state = JSON.parse(result.stdout)
-    assert.equal(state.status, "DELIBERATION_REQUIRED")
+    assert.equal(state.status, "APPROVAL_REQUIRED")
+    assert.match(state.stop_reason, /deliberate first \(external-research-required, required-research-pending\)/)
     assert.equal(state.planner_calls, 0)
     await assert.rejects(readFile(path.join(tree.directory, "fake.log")))
   } finally {
@@ -549,6 +572,189 @@ test("a Builder whose attempts keep changing the outcome is retried past two att
     assert.deepEqual(state.final_gate.changed_files, ["lib/alpha.py"], "the file outside the contract was restored before the retry")
     const builders = (await readLog(tree)).filter((entry) => entry.agent === "builder")
     assert.deepEqual(builders.map((entry) => entry.mode), ["scope", "gate", "pass"])
+  } finally {
+    await rm(tree.directory, { recursive: true, force: true })
+  }
+})
+
+// ---------------------------------------------------------------- Group D
+
+test("D1: an integration conflict keeps its paths, the rest of the wave integrates, and the contract is rebuilt on the new head", async () => {
+  const tree = await project()
+  try {
+    const { built } = await planThenBuild(tree, "d1", ["--concurrency", "1", "--keep-worktrees", "true"], { FAKE_TOUCH_INTEGRATION: "beta" })
+    assert.equal(built.code, 0, built.stderr)
+    const state = JSON.parse(built.stdout)
+    assert.equal(state.status, "COMPLETED")
+    const wave1 = state.waves[0]
+    assert.equal(wave1.status, "COMPLETED")
+    const beta = wave1.contracts.find((c) => c.contract_id === "beta")
+    assert.deepEqual(beta.conflict.paths, ["lib/beta.py"])
+    assert.equal(beta.conflict.original_commit, beta.result_commit)
+    assert.equal(beta.integration_head, null, "the conflicting commit never reached the branch")
+    const alpha = wave1.contracts.find((c) => c.contract_id === "alpha")
+    assert.ok(alpha.integration_head, "alpha integrated despite beta's conflict")
+    // The rebuild: same contract, fresh worktree from the head, conflict as evidence, integrated by the orchestrator.
+    const rebuild = state.waves.find((wave) => wave.kind === "rebuild")
+    assert.deepEqual(rebuild.phases, ["core"])
+    assert.equal(rebuild.status, "COMPLETED")
+    const rebuilt = rebuild.contracts[0]
+    assert.equal(rebuilt.contract_id, "beta")
+    assert.equal(rebuilt.kind, "rebuild")
+    assert.equal(rebuilt.parent_contract_id, "beta")
+    assert.ok(rebuilt.worktree.endsWith("/worktrees/beta.rebuild-1"))
+    assert.equal(rebuilt.base, alpha.integration_head)
+    assert.equal(rebuilt.evidence, ".codegen-contract/repair-evidence.json")
+    assert.ok(rebuilt.integration_head)
+    const evidence = JSON.parse(await readFile(path.join(rebuilt.worktree, ".codegen-contract/repair-evidence.json"), "utf8"))
+    assert.equal(evidence.kind, "integration-conflict")
+    assert.deepEqual(evidence.conflicting_paths, ["lib/beta.py"])
+    assert.match(evidence.original_patch, /return value \+ 3/)
+    assert.deepEqual(state.repairs.map((item) => [item.kind, item.contract_id, item.status]), [["rebuild", "beta", "INTEGRATED"]])
+    assert.deepEqual(state.integration_sequence.map((item) => item.contract_id), ["alpha", "beta", "gamma"])
+    // Gamma built on the rebuilt head; the final gate passed on the whole.
+    assert.equal(state.final_gate.result, "PASS")
+    assert.equal(state.final_gate_rounds.length, 0)
+    const { stdout: beta_py } = await tree.git("show", "codegen/d1:lib/beta.py")
+    assert.ok(beta_py.includes("return value + 3"))
+    const builders = (await readLog(tree)).filter((entry) => entry.agent === "builder")
+    assert.deepEqual(builders.map((entry) => [entry.contract_id, entry.repairing]), [["alpha", false], ["beta", false], ["beta", true], ["gamma", false]])
+    assert.ok(builders[2].cwd.endsWith("/worktrees/beta.rebuild-1"))
+    const sequence = await events(tree, "d1")
+    for (const event of ["INTEGRATION_CONFLICT", "REBUILD_REQUESTED", "INTEGRATED", "FINAL_GATE_PASS"]) assert.ok(sequence.includes(event), `missing ${event}`)
+    assert.ok(!sequence.includes("REPLAN_REQUESTED"))
+  } finally {
+    await rm(tree.directory, { recursive: true, force: true })
+  }
+})
+
+test("D2: a final gate failure is attributed by replay, repaired by a composed contract, and the final gate passes again", async () => {
+  const tree = await project()
+  try {
+    const { built } = await planThenBuild(tree, "d2", ["--concurrency", "1", "--keep-worktrees", "true"], {
+      FAKE_PLAN_TEMPLATE: path.join(fixture, "plan-interaction.json"),
+      FAKE_FAIL_SEQUENCE: "beta:subtle",
+    })
+    assert.equal(built.code, 0, built.stderr)
+    const state = JSON.parse(built.stdout)
+    assert.equal(state.status, "COMPLETED")
+    // Round 1 failed: alpha's interaction check broke once beta was integrated; the plan command too.
+    assert.equal(state.final_gate_rounds.length, 1)
+    const round = state.final_gate_rounds[0]
+    assert.equal(round.disposition, "REPAIR")
+    assert.equal(round.culprit_id, "beta")
+    assert.ok(JSON.parse(round.signature).reasons.includes("contract-gate-failed:alpha"))
+    const diagnosed = (await readFile(path.join(tree.directory, ".codegen-run/d2/events.jsonl"), "utf8")).trim().split("\n").map(JSON.parse).find((e) => e.event === "FINAL_GATE_DIAGNOSED")
+    assert.equal(diagnosed.kind, "contract-gate")
+    assert.deepEqual(diagnosed.replay.map((step) => [step.contract_id, step.pass]), [["alpha", true], ["beta", false], ["gamma", false]])
+    // The composed repair contract: culprit first, union of paths, failing check as change, the rest preserved.
+    const repairWave = state.waves.find((wave) => wave.kind === "repair")
+    const repair = repairWave.contracts[0]
+    assert.equal(repair.contract_id, "beta.repair-1")
+    assert.equal(repair.parent_contract_id, "beta")
+    assert.equal(repair.status, "PASSED")
+    const sealed = JSON.parse(await readFile(path.join(repair.worktree, ".codegen-contract/contract.json"), "utf8"))
+    assert.deepEqual(sealed.allowed_to_modify, ["lib/beta.py", "lib/alpha.py"])
+    assert.deepEqual(sealed.forbidden, ["tests/**", "lib/gamma.py"])
+    assert.deepEqual(sealed.requirements.map((r) => [r.id, r.kind]), [["beta.R1", "preserve"], ["alpha.R1", "preserve"], ["alpha.R2", "change"]])
+    assert.deepEqual(sealed.verification.checks.map((c) => c.id), ["beta.C1", "alpha.C1", "alpha.C2"])
+    assert.deepEqual(repair.gate_readiness.baseline.map((b) => [b.check_id, b.expected, b.exit_code === 0]), [["beta.C1", "pass", true], ["alpha.C1", "pass", true], ["alpha.C2", "fail", false]])
+    assert.equal(sealed.repair.failing_contract_id, "alpha")
+    assert.deepEqual(sealed.repair.failing_checks, ["C2"])
+    const evidence = JSON.parse(await readFile(path.join(repair.worktree, ".codegen-contract/repair-evidence.json"), "utf8"))
+    assert.equal(evidence.kind, "final-gate")
+    assert.equal(evidence.culprit_id, "beta")
+    assert.match(evidence.culprit_patch, /value \+ 4/)
+    assert.equal(state.derived_work[0].routing.disposition, "DIRECT_REPAIR")
+    assert.deepEqual(state.repairs.map((item) => [item.kind, item.contract_id, item.parent_contract_id, item.status]), [["final-gate", "beta.repair-1", "beta", "INTEGRATED"]])
+    // Round 2 passed; the ledger reads the last final gate; the branch holds the repair.
+    assert.equal(state.final_gate.result, "PASS")
+    assert.deepEqual(state.final_gate.checks.map((check) => [check.contract_id, check.exit_code]), [["alpha", 0], ["beta", 0], ["gamma", 0], ["beta.repair-1", 0], [null, 0]])
+    assert.deepEqual(state.goal_coverage.summary, { verified: 2, failed: 0, not_verified: 0, pending_human: 0 })
+    assert.deepEqual(state.integration_sequence.map((item) => item.contract_id), ["alpha", "beta", "gamma", "beta.repair-1"])
+    const { stdout: count } = await tree.git("rev-list", "--count", "main..codegen/d2")
+    assert.equal(count.trim(), "4")
+    const builders = (await readLog(tree)).filter((entry) => entry.agent === "builder")
+    assert.deepEqual(builders.map((entry) => [entry.contract_id, entry.mode]), [["alpha", "pass"], ["beta", "subtle"], ["gamma", "pass"], ["beta.repair-1", "pass"]])
+    const sequence = await events(tree, "d2")
+    for (const event of ["FINAL_GATE_FAIL", "FINAL_GATE_DIAGNOSED", "REPAIR_CONTRACT", "FINAL_GATE_PASS", "RUN_COMPLETED"]) assert.ok(sequence.includes(event), `missing ${event}`)
+    assert.ok(!sequence.includes("REPLAN_REQUESTED"))
+    await assert.rejects(access(path.join(tree.directory, ".codegen-run/d2/diagnosis")), "the diagnosis worktree is removed")
+  } finally {
+    await rm(tree.directory, { recursive: true, force: true })
+  }
+})
+
+test("D2: when the composed repair is blocked the Planner writes a repair plan, the run pauses for review, and resumes on the integration head", async () => {
+  const tree = await project()
+  try {
+    const env = { FAKE_PLAN_TEMPLATE: path.join(fixture, "plan-interaction.json"), FAKE_FAIL_SEQUENCE: "beta:subtle", FAKE_REPAIR_MODE: "blocked" }
+    const { built } = await planThenBuild(tree, "d3", ["--concurrency", "1"], env)
+    assert.equal(built.code, 0, built.stderr)
+    const paused = JSON.parse(built.stdout)
+    assert.equal(paused.status, "PLAN_REVIEW_REQUIRED")
+    assert.equal(paused.pending_plan.round, 1)
+    assert.equal(paused.pending_plan.plan_path, ".codegen-run/d3/integration/.codegen-plan/d3-repair-1.json")
+    assert.equal(paused.pending_plan.plan_markdown, ".codegen-run/d3/integration/.codegen-plan/d3-repair-1.md")
+    assert.match(paused.stop_reason, /--resume d3/)
+    const repairContract = paused.waves.find((wave) => wave.kind === "repair").contracts[0]
+    assert.equal(repairContract.status, "REPLAN_REQUIRED")
+    assert.equal(paused.repairs[0].status, "REPLAN_REQUIRED")
+    const headBefore = paused.integration_head
+    // The Planner worked inside the integration worktree with the repair evidence and the Goal.
+    const planners = (await readLog(tree)).filter((entry) => entry.agent === "planner")
+    assert.equal(planners.length, 2)
+    assert.equal(planners[1].repairing, true)
+    assert.ok(planners[1].cwd.endsWith("/.codegen-run/d3/integration"))
+    assert.match(planners[1].prompt, /Read the evidence at \.codegen-plan\/d3-repair-1\.evidence\.json/)
+    const evidence = JSON.parse(await readFile(path.join(tree.directory, ".codegen-run/d3/integration/.codegen-plan/d3-repair-1.evidence.json"), "utf8"))
+    assert.equal(evidence.kind, "repair")
+    assert.equal(evidence.integration_head, headBefore)
+    assert.deepEqual(evidence.approved_footprint, ["lib/alpha.py", "lib/beta.py", "lib/gamma.py"])
+    assert.match(evidence.reason, /beta\.repair-1 failed: CONTRACT_BLOCKED/)
+    const markdown = await readFile(path.join(tree.directory, paused.pending_plan.plan_markdown), "utf8")
+    assert.ok(markdown.includes("`beta-fix`"), markdown)
+    // The user's checkout and the integration branch are untouched by the pause.
+    assert.equal((await tree.git("status", "--porcelain")).stdout.trim(), "")
+    assert.equal((await tree.git("rev-parse", "codegen/d3")).stdout.trim(), headBefore)
+
+    // Resume: the repair plan builds on the integration head, integrates, and the final gate passes.
+    const resumed = await orchestrate(tree, ["--resume", "d3", "--concurrency", "1", "--keep-worktrees", "true"], env)
+    assert.equal(resumed.code, 0, resumed.stderr)
+    const state = JSON.parse(resumed.stdout)
+    assert.equal(state.status, "COMPLETED")
+    assert.equal(state.resumed, 1)
+    assert.equal(state.pending_plan, null)
+    assert.deepEqual(state.repair_plans.map((item) => [item.round, item.plan_id, item.reviewed]), [[1, "repair-beta", true]])
+    const fixWave = state.waves.find((wave) => wave.kind === "repair-plan")
+    assert.deepEqual(fixWave.phases, ["fix"])
+    assert.equal(fixWave.base, headBefore)
+    assert.equal(fixWave.contracts[0].contract_id, "beta-fix")
+    assert.equal(fixWave.contracts[0].status, "PASSED")
+    assert.deepEqual(state.integration_sequence.map((item) => item.contract_id), ["alpha", "beta", "gamma", "beta-fix"])
+    assert.equal(state.final_gate_rounds.length, 1)
+    assert.equal(state.final_gate.result, "PASS")
+    assert.deepEqual(state.goal_coverage.summary, { verified: 2, failed: 0, not_verified: 0, pending_human: 0 })
+    assert.ok(state.goal_coverage.requirements[0].claims.some((claim) => claim.contract_id === "beta-fix" && claim.status === "VERIFIED"), "the repair plan's contract appears in the ledger")
+    const { stdout: beta_py } = await tree.git("show", "codegen/d3:lib/beta.py")
+    assert.ok(beta_py.includes("return value + 3"))
+    const sequence = await events(tree, "d3")
+    for (const event of ["FINAL_GATE_FAIL", "REPAIR_CONTRACT", "REPLAN_REQUESTED", "PLAN_REQUESTED", "RUN_STOPPED", "RUN_RESUMED", "FINAL_GATE_PASS", "RUN_COMPLETED"]) assert.ok(sequence.includes(event), `missing ${event}`)
+  } finally {
+    await rm(tree.directory, { recursive: true, force: true })
+  }
+})
+
+test("resume refuses a run that is not paused for a repair plan or whose branch moved", async () => {
+  const tree = await project(path.join(fixture, "goal-direct.json"))
+  try {
+    const done = await orchestrate(tree, ["--run-id", "d4"], { FAKE_PLAN_TEMPLATE: path.join(fixture, "plan-direct.json") })
+    assert.equal(done.code, 0, done.stderr)
+    const refused = await orchestrate(tree, ["--resume", "d4"])
+    assert.equal(refused.code, 1)
+    assert.equal(JSON.parse(refused.stdout).status, "RESUME_FAILED")
+    const missing = await orchestrate(tree, ["--resume", "nope"])
+    assert.equal(JSON.parse(missing.stdout).status, "RESUME_FAILED")
   } finally {
     await rm(tree.directory, { recursive: true, force: true })
   }

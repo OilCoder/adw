@@ -17,7 +17,7 @@ import {
 } from "../lib/cli.mjs"
 import { readyForApproval } from "../lib/deliberation.mjs"
 import { routeGoal } from "../lib/goal-routing.mjs"
-import { renderGoalMarkdown, sealApprovedGoal, validateGoal } from "../lib/goal.mjs"
+import { approvalRecord, goalDigest, renderGoalMarkdown, sealApprovedGoal, validateGoal } from "../lib/goal.mjs"
 import { validateDecision } from "../lib/opinions.mjs"
 import { resolveDisplay, runAgentProcess } from "../lib/agent-run.mjs"
 import { recordCall, selectConfiguration } from "../lib/select-configuration.mjs"
@@ -28,15 +28,17 @@ const scriptDirectory = path.dirname(fileURLToPath(import.meta.url))
 const systemRoot = path.resolve(scriptDirectory, "../../..")
 
 const USAGE =
-  "usage: run-goal.mjs --intent <text> [--reports a.json,b.json] [--output .codegen-goal/goal.json] [--allow-sealed true] | --revise <goal.json> [--reports ...] [--decisions ...] [--intent <user guidance>] | --approve <goal.json>"
+  "usage: run-goal.mjs --intent <text> [--reports a.json,b.json] [--output .codegen-goal/goal.json] [--allow-sealed true] | --revise <goal.json> [--reports ...] [--decisions ...] [--intent <user guidance>] | --approve <goal.json> --digest <goal_digest of the summary the user approved>"
 
 // Approval is deterministic: the user approved this exact Goal, so it is sealed
-// in place without another model call.
-async function approve(directory, goalArgument) {
+// in place without another model call. `--digest` is the goal_digest of the
+// summary the user approved; a Goal whose file changed since is refused.
+async function approve(directory, goalArgument, args) {
   const goalFile = resolveInsideProject(directory, goalArgument, "Goal")
   if (!(await exists(goalFile.absolute))) throw new Error(`Goal does not exist: ${goalFile.relative}`)
+  if (!args.digest) throw new Error("approve requires --digest <goal_digest>: the digest of the draft, revise, or deliberate summary the user approved")
   const goal = JSON.parse(await readFile(goalFile.absolute, "utf8"))
-  const sealed = sealApprovedGoal(goal)
+  const sealed = sealApprovedGoal(goal, { digest: String(args.digest), via: "run-goal --approve" })
   await writeFile(goalFile.absolute, `${JSON.stringify(sealed, null, 2)}\n`)
   const markdown = path.join(path.dirname(goalFile.absolute), "GOAL.md")
   await writeFile(markdown, renderGoalMarkdown(sealed))
@@ -48,6 +50,7 @@ async function approve(directory, goalArgument) {
     markdown: path.relative(directory, markdown),
     goal_id: sealed.goal_id,
     previous_status: goal.status,
+    approval: sealed.approval,
     routing,
   }
   process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`)
@@ -149,8 +152,16 @@ async function callGoalManager({ directory, args, output, prompt, title, lines, 
   if (result === "SUCCESS") {
     try {
       goal = JSON.parse(await readFile(output.absolute, "utf8"))
+      // A model never seals: a SEALED Goal without the user's explicit
+      // --allow-sealed is rejected; with it, the runner stamps the approval
+      // record (the user approved sealing before the call) and rewrites the
+      // file, so the seal still carries who, when, and what.
+      if (goal?.status === "SEALED" && args["allow-sealed"] === "true" && goal.approval === undefined) {
+        goal.approval = approvalRecord(goal, { via: "run-goal --allow-sealed" })
+        await writeFile(output.absolute, `${JSON.stringify(goal, null, 2)}\n`)
+      }
       validation = validateGoal(goal)
-      if (validation.valid && goal.status === "SEALED" && args["allow-sealed"] !== "true") {
+      if (goal?.status === "SEALED" && args["allow-sealed"] !== "true") {
         validation = { valid: false, errors: ["Goal returned SEALED without explicit user approval (--allow-sealed true)"] }
         result = "SEALED_WITHOUT_APPROVAL"
       } else if (validation.valid) {
@@ -178,7 +189,7 @@ async function callGoalManager({ directory, args, output, prompt, title, lines, 
     context: { mode },
   })
   const selection = { configuration_id: plan.primary.configuration_id, model: plan.primary.model, rank: plan.primary.rank, ladder: plan.ladder, fits: plan.fits }
-  return { result, validation, routing, markdown: markdown ? path.relative(directory, markdown) : null, execution, goal, selection, lines }
+  return { result, validation, routing, markdown: markdown ? path.relative(directory, markdown) : null, execution, goal, goal_digest: validation?.valid ? goalDigest(goal) : null, selection, lines }
 }
 
 async function draft(directory, args, configurationId) {
@@ -207,6 +218,7 @@ async function draft(directory, args, configurationId) {
     output: output.relative,
     selection: call.selection,
     markdown: call.markdown,
+    goal_digest: call.goal_digest,
     research_reports: reports,
     user_action: call.execution.user_action,
     attempts: call.execution.attempts,
@@ -266,6 +278,7 @@ async function revise(directory, args, configurationId) {
     selection: call.selection,
     backup: path.relative(directory, backup),
     markdown: call.markdown,
+    goal_digest: call.goal_digest,
     research_reports: reports,
     decisions,
     user_action: call.execution.user_action,
@@ -284,7 +297,7 @@ async function main() {
   const args = parseArguments(process.argv.slice(2))
   const directory = path.resolve(args.directory ?? process.cwd())
   await requireGitHead(directory)
-  if (args.approve) return approve(directory, args.approve)
+  if (args.approve) return approve(directory, args.approve, args)
   if (!args.intent && !args.revise) throw new Error(USAGE)
   const configurationId = await resolvePinnedConfiguration(args, systemRoot)
   if (args.revise) return revise(directory, args, configurationId)

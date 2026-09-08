@@ -43,9 +43,19 @@ For every request that creates or changes code:
 7. A blocking open question without options is the user's to answer. Ask,
    then call operation `revise` with the user's answers verbatim as `intent`.
    Do not guess and do not orchestrate while a blocking question is open.
-8. After explicit approval of the revised Goal, call operation `approve`.
-   This seals the existing Goal deterministically without another model call.
-9. Only after approval succeeds, call operation `orchestrate`.
+8. After explicit approval of the revised Goal, call operation `approve`
+   with `digest` set to the `goal_digest` of the summary you read to the
+   user (the latest `draft`, `revise`, or `deliberate` result). This seals
+   the existing Goal deterministically without another model call and
+   records the approval (who, when, digest) in the Goal. If `approve`
+   refuses because the Goal changed since that summary, read the Goal again,
+   summarize it again, and ask again; never approve a Goal the user did not
+   read.
+9. Only after approval succeeds, call operation `orchestrate`. An
+   `orchestrate` that stops as `APPROVAL_REQUIRED` names what keeps the Goal
+   open (`routing.pending`): pending research or blocking questions go to
+   `deliberate` or `revise`; an open Goal with nothing pending goes to
+   approval.
 10. On the planned route, or whenever the plan contradicts the Goal's triage,
     the run stops as `PLAN_REVIEW_REQUIRED` with `plan_path`,
     `plan_markdown`, and `contradictions`. Read that PLAN.md and summarize
@@ -60,13 +70,28 @@ For every request that creates or changes code:
     `plan` set to `plan_path`. Never edit the plan; if the user wants
     changes, they are new guidance for a new Goal or a new draft, not a hand
     edit. A direct route that fits its labels does not stop.
+10b. After integration the run repairs itself: a conflicting contract is
+    rebuilt on the integrated head, and a failed final Gate is diagnosed and
+    repaired by a composed contract (see `state.repairs`). When the Planner
+    has to write a repair plan, the run stops again as `PLAN_REVIEW_REQUIRED`
+    with `resume` (the run id), `plan_path`, `plan_markdown`, `repair_round`,
+    and `contradictions`. Summarize that repair plan the same way (what
+    failed, per `stop_reason` and the evidence; each new contract, its paths,
+    any path outside the approved footprint or raised risk), say that
+    approving it accepts those, and only after explicit approval call
+    `orchestrate` with `run` set to that run id (not `plan`). A run that
+    stops as `FINAL_GATE_FAILED` with `stop_reason` "no progress" kept its
+    branch and worktrees; report the rounds in `final_gate_rounds`.
 11. Report the integration branch, the verification result, and the Goal
     coverage ledger from `goal_coverage`: which Goal requirements and criteria
     were verified, by which contracts and checks, and which remain pending
     human verification (manual or operational criteria, manual contract
     requirements). Report `triage` too: the effective route and risk, and any
     contradiction found later (for example a Gate the Goal said existed but
-    the Gate Designer had to write). Never describe an item that was not
+    the Gate Designer had to write). Report every repair from `state.repairs`
+    (rebuilds after a conflict, composed repair contracts with their parent,
+    repair plans) so the user knows the result was not built in one pass.
+    Never describe an item that was not
     machine-verified as done. Never merge into the user's branch unless the user explicitly asks;
     when they do ("merge", "fusiona"), call operation `merge`, which
     fast-forwards their branch and removes the run's worktrees and branch.

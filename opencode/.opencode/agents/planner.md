@@ -100,6 +100,15 @@ repository and write a plan; you never implement product code.
 12. If the objective is ambiguous or no trusted Gate can be defined, do not
     guess. Return `BLOCKED` with evidence and the missing decision instead of
     writing an executable plan.
+12b. A repair plan (the request says so and names an evidence file) extends
+    a plan the user already approved and built: the repository you inspect
+    is the integrated tree, `base_revision` is its HEAD, and the plan holds
+    only the contracts that fix the reported failure, with new contract ids.
+    Read the evidence first (failing checks, their output, the replay along
+    the integration branch, the repairs already attempted). Stay inside the
+    approved footprint the evidence lists; if the fix genuinely needs other
+    paths, use them and the run pauses for the user. `covers` still names
+    real Goal ids; the repair plan need not cover the whole Goal again.
 
 The deterministic plan validator, not your own conclusion, decides whether the
 plan can be dispatched.

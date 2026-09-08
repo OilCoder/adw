@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url"
 import { loadRegistry, newRunId, parseArguments, requireGitHead, resolveInsideProject, resolveSourceVerification, runsDirectory, exists } from "../lib/cli.mjs"
 import { resolveFitCheck } from "../lib/fit-check.mjs"
 import { deliberationPlan, readyForApproval, verifyRevision } from "../lib/deliberation.mjs"
-import { validateGoal } from "../lib/goal.mjs"
+import { goalDigest, validateGoal } from "../lib/goal.mjs"
 import { validateDecision } from "../lib/opinions.mjs"
 import { runProcess } from "../lib/process.mjs"
 import { reportAnswers, unverifiedFindings, validateResearchReport } from "../lib/research-report.mjs"
@@ -63,7 +63,7 @@ async function main() {
   await mkdir(artifacts, { recursive: true })
   const display = args.display ?? process.env.CODEGEN_DISPLAY ?? null
   const timeout = args.timeout ?? null
-  const summary = { result: null, goal: goalFile.relative, goal_id: goal.goal_id, run_id: runId, plan: null, research: [], opinions: [], revision: null, verification: null, ready_for_approval: false, user_action: null, artifacts }
+  const summary = { result: null, goal: goalFile.relative, goal_id: goal.goal_id, run_id: runId, plan: null, research: [], opinions: [], revision: null, verification: null, ready_for_approval: false, goal_digest: null, user_action: null, artifacts }
   async function finish(result, exitCode) {
     summary.result = result
     await writeFile(path.join(artifacts, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`)
@@ -92,6 +92,7 @@ async function main() {
   if (plan.status === "USER_DECISION_REQUIRED") return finish("USER_DECISION_REQUIRED", 1)
   if (plan.status === "NOTHING_TO_DELIBERATE") {
     summary.ready_for_approval = readyForApproval(goal)
+    summary.goal_digest = goalDigest(goal)
     return finish("NOTHING_TO_DELIBERATE", summary.ready_for_approval ? 0 : 1)
   }
 
@@ -141,6 +142,7 @@ async function main() {
   const revised = await readJson(goalFile.absolute)
   summary.verification = verifyRevision(goal, revised, { reports, decisions })
   summary.ready_for_approval = summary.verification.ready_for_approval
+  summary.goal_digest = summary.verification.ok ? goalDigest(revised) : null
   if (!summary.verification.ok) return finish("REVISION_INVALID", 1)
   return finish(summary.ready_for_approval ? "DECIDED" : "STILL_OPEN", summary.ready_for_approval ? 0 : 1)
 }

@@ -9,7 +9,7 @@ const finding = {
   required_for_goal: true,
   within_goal_scope: true,
   localized: true,
-  low_risk: true,
+  risk_accepted: true,
   existing_gate: true,
   allowed_to_modify: ["src/service.ts"],
 }
@@ -17,13 +17,13 @@ const finding = {
 test("small in-scope finding becomes a direct repair", () => {
   const result = routeDerivedWork(finding)
   assert.equal(result.disposition, "DIRECT_REPAIR")
-  assert.deepEqual(result.reasons, ["within-goal", "localized", "low-risk", "existing-gate"])
+  assert.deepEqual(result.reasons, ["within-goal", "localized", "risk-accepted", "existing-gate"])
 })
 
 test("scope and shape send the finding back to planning", () => {
-  const notLocal = routeDerivedWork({ ...finding, localized: false, low_risk: false })
+  const notLocal = routeDerivedWork({ ...finding, localized: false, risk_accepted: false })
   assert.equal(notLocal.disposition, "REPLAN_REQUIRED")
-  assert.deepEqual(notLocal.reasons, ["not-localized", "not-low-risk"])
+  assert.deepEqual(notLocal.reasons, ["not-localized", "risk-not-accepted"])
   const api = routeDerivedWork({ ...finding, changes_api: true })
   assert.deepEqual(api, { disposition: "REPLAN_REQUIRED", reasons: ["changes-api"] })
 })

@@ -129,7 +129,7 @@ npm run goal:run -- \
   --intent "Prevent registering users with an existing email" \
   --reports .codegen-research/RQ-1.json
 
-npm run goal:run -- --approve .codegen-goal/goal.json   # after the user approves
+npm run goal:run -- --approve .codegen-goal/goal.json --digest <goal_digest>   # after the user approves the summarized Goal
 npm run goal -- validate .codegen-goal/goal.json
 npm run goal -- render .codegen-goal/goal.json
 npm run goal -- route .codegen-goal/goal.json
@@ -138,15 +138,22 @@ npm run goal -- route .codegen-goal/goal.json
 The Goal Manager runs on the same tiers as the Planner (OpenAI, then Go) and
 writes `.codegen-goal/goal.json`; `GOAL.md` is rendered deterministically after
 validation. A Goal returned as `SEALED` is rejected unless the run passes
-`--allow-sealed true`, because only the user seals a Goal. `--approve` seals the
-existing Goal deterministically, without a model call, once the user has
-approved that exact Goal; it refuses a Goal that still has required pending
-research or blocking questions. The Router (`route`)
-is a deterministic function of the Goal: an
-open Goal with research, architecture uncertainty, or blocking questions routes
-`deliberative`; a `SEALED` Goal routes `direct` (localized, low risk, existing
-Gate) or `planned`. A `SEALED` Goal that carries deliberative signals must record
-its conclusions under `decisions`, so it never routes back to deliberation.
+`--allow-sealed true`, because only the user seals a Goal (with that flag the
+runner stamps the approval record itself, `via: run-goal --allow-sealed`).
+`--approve` seals the existing Goal deterministically, without a model call,
+once the user has approved that exact Goal: it takes `--digest`, the
+`goal_digest` every `draft`, `revise`, and `deliberate` summary reports (a
+sha256 of the Goal content without its status), refuses a Goal whose file no
+longer matches it, and refuses a Goal that still has required pending research
+or blocking questions. The sealed Goal carries an `approval` record (who,
+always the user; when; the digest; the path it came through) that the
+validator requires on every `SEALED` Goal and rejects on any other; `GOAL.md`
+shows it. The Router (`route`) is a deterministic function of a `SEALED` Goal:
+`direct` (localized, low risk, existing Gate) or `planned`. An open Goal is
+not routed: the Router reports `GOAL_NOT_SEALED` with what keeps it open
+(pending research, blocking questions, deliberative signals), and deliberation
+happens before the seal, in `deliberate.mjs`. A `SEALED` Goal that carries
+deliberative signals must record its conclusions under `decisions`.
 
 Answer one bounded research question from the Goal:
 
@@ -215,8 +222,9 @@ npm run orchestrate -- --plan .codegen-plan/plan.json --keep-worktrees true
 ```
 
 The orchestrator is deterministic glue over the runners above. It requires a
-Git HEAD and a `SEALED` Goal (an unapproved Goal stops as `APPROVAL_REQUIRED`,
-an open one as `DELIBERATION_REQUIRED`), routes the Goal, asks the Planner (the
+Git HEAD and a `SEALED` Goal (any other Goal stops as `APPROVAL_REQUIRED`,
+naming what keeps it open: pending research or blocking questions go to
+`deliberate`, nothing pending goes to approval), routes the Goal, asks the Planner (the
 direct route is the Planner capped at one contract), and validates the plan:
 the DAG, the paths, the risk ceiling, and its coverage of the Goal. Every
 contract requirement declares in `covers` the Goal requirement and
@@ -259,7 +267,10 @@ accepts the effective route and risk. Then, for each execution wave:
    with recharge instructions;
 4. commits only `allowed_to_modify` paths per contract and cherry-picks each
    result onto the integration branch `codegen/<run>`; the next wave starts from
-   that head, which is what satisfies `depends_on`.
+   that head, which is what satisfies `depends_on`. A cherry-pick conflict
+   keeps its unmerged paths as evidence, the rest of the wave integrates, and
+   the contract is rebuilt on the integrated head (`REBUILD_REQUESTED`,
+   worktree `<id>.rebuild-N`);
 
 After the last wave the final Gate reruns every contract gate on the integrated
 tree, checks the merged diff stays inside the union of allowed paths, and runs
@@ -305,10 +316,27 @@ points it at a temporary directory).
 Operational note: `opencode run` waits for EOF on stdin when stdin is not a
 TTY. The runners close stdin; if you script it by hand, add `< /dev/null`.
 
-Not automated yet (see the table in `ARCHITECTURE.md`): replanning after
-`REPLAN_REQUIRED` (the run stops with evidence), derived-work contracts
-(`.opencode/codegen/lib/derived-work.mjs` classifies findings but nothing feeds
-it yet), and Goal acceptance criteria, which are prose and are not executed.
+After integration the run repairs itself (`.opencode/codegen/lib/repair.mjs`):
+a failed final Gate is attributed by replaying the failing checks along the
+integration branch (a scratch `diagnosis` worktree, no model), a repair
+contract `<culprit>.repair-N` is composed from the culprit and the failing
+contract (union of their approved paths, their accepted risk, failing checks
+as `change`, the rest `preserve`), admitted by the derived-work Router, gated
+on the integration head, built, integrated, and the final Gate runs again.
+When the facts are inconclusive or the composed repair cannot run, the Planner
+writes a repair plan inside the integration worktree (`run-planner.mjs
+--repair true`, base = integration head, partial Goal coverage); on the
+planned route, or on any contradiction (raised risk, paths outside the
+approved footprint), the run pauses as `PLAN_REVIEW_REQUIRED` with `resume`
+and continues with `orchestrate.mjs --resume <run>` (tool argument `run`).
+Every repair loop stops by lack of progress: a final Gate round whose
+signature (reasons and failing checks per contract) repeats an earlier one,
+or a finding already repaired once (`state.final_gate_rounds`,
+`state.repairs`). Worktrees, branch, and evidence are always kept.
+
+Not automated (see the table in `ARCHITECTURE.md`): a `CONTRACT_BLOCKED` in
+the initial waves still stops as `REPLAN_REQUIRED` with evidence, and Goal
+acceptance criteria, which are prose and are not executed.
 
 ## Admission, order, and the metalog
 

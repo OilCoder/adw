@@ -5,15 +5,36 @@
   "status": "SEALED",
   "summary": "Three pure functions where gamma composes alpha and beta.",
   "objective": "Implement alpha, beta, and gamma so that the unit tests pass.",
-  "in_scope": ["lib/alpha.py", "lib/beta.py", "lib/gamma.py"],
-  "out_of_scope": ["tests/**"],
-  "requirements": [{ "id": "REQ-1", "statement": "All unit tests pass", "priority": "must" }],
+  "in_scope": [
+    "lib/alpha.py",
+    "lib/beta.py",
+    "lib/gamma.py"
+  ],
+  "out_of_scope": [
+    "tests/**"
+  ],
+  "requirements": [
+    {
+      "id": "REQ-1",
+      "statement": "All unit tests pass",
+      "priority": "must"
+    }
+  ],
   "constraints": [],
   "success_metrics": [
-    { "id": "MET-1", "metric": "Test suite", "target": "100% pass", "measurement": "python3 -m unittest discover" }
+    {
+      "id": "MET-1",
+      "metric": "Test suite",
+      "target": "100% pass",
+      "measurement": "python3 -m unittest discover"
+    }
   ],
   "acceptance_criteria": [
-    { "id": "ACC-1", "criterion": "python3 -m unittest discover -s tests passes", "verification_type": "automated" }
+    {
+      "id": "ACC-1",
+      "criterion": "python3 -m unittest discover -s tests passes",
+      "verification_type": "automated"
+    }
   ],
   "decisions": [],
   "research_questions": [],
@@ -24,5 +45,11 @@
     "existing_gate": true,
     "architecture_uncertainty": false,
     "external_research_required": false
+  },
+  "approval": {
+    "approved_by": "user",
+    "approved_at": "2026-09-08T00:00:00.000Z",
+    "goal_digest": "d279b996ff8ec3af11051849c3be7f56decb99790453a7f3e5b5054f667f324f",
+    "via": "test fixture"
   }
 }

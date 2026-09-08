@@ -129,6 +129,8 @@ flowchart TD
 | Contrato | Falta una decisión o requisito contradictorio | Regresa al Planner |
 | Gate | Test defectuoso o criterio imposible | Gate Designer corrige la verificación |
 | Contexto | Faltó un archivo necesario | Planner revisa alcance y contrato |
+| Integración | El commit de un contrato choca en la rama de integración | Reconstruir sobre el head integrado con las rutas en conflicto como evidencia; Planner si el Gate ya no cuadra |
+| Gate final | Contratos que pasan solos fallan juntos | Atribuir por reproducción, contrato de reparación compuesto; Planner si es inconcluso |
 | Herramienta/proveedor | Timeout, CLI roto o rate limit | Detener y escalar con evidencia |
 | Saldo Zen | Créditos insuficientes tras agotar Go | Detener, conservar estado y pedir recarga |
 | Capacidad | El Builder reproduce un intento anterior (sin progreso) | Model Selector sube un peldaño: la siguiente configuración de la lista recibe la evidencia acumulada sobre el contrato sellado |
@@ -144,7 +146,9 @@ el Router y puede convertirse en un contrato directo sin invocar al Planner
 pesado cuando cumple todas estas condiciones:
 
 - permanece dentro del objetivo y alcance autorizados;
-- es pequeno, localizado y de bajo riesgo;
+- es pequeno y localizado;
+- su riesgo ya fue aceptado por el usuario (el de los contratos aprobados de
+  los que deriva; una reparación nunca sube el riesgo por su cuenta);
 - no cambia arquitectura, dependencias, APIs ni decisiones de producto;
 - tiene archivos permitidos concretos y un Gate existente.
 
@@ -153,6 +157,73 @@ Un hallazgo ya reparado no se repara dos veces. Si alguna condicion falla, el de
 `USER_DECISION_REQUIRED` o registro sin ejecucion. El Orchestrator nunca debe
 usar esta via para ampliar silenciosamente el alcance ni para crear una cadena
 ilimitada de reparaciones.
+
+### Reparación tras integrar
+
+Que cada contrato pase por separado no garantiza que pasen juntos. Dos fallos
+aparecen solo después de integrar, y ninguno de los dos termina la corrida por
+sí solo: primero se diagnostica sin modelo, después se repara con lo que ya
+existe, y el Planner interviene solo cuando los hechos no bastan.
+
+**Conflicto de integración.** El Orchestrator incorpora los commits de una
+oleada uno a uno a la rama de integración; es el único que mueve esa rama. Si
+un commit choca, anota las rutas en conflicto antes de abortar (son la
+evidencia), integra el resto de la oleada y reconstruye el contrato en
+conflicto: el mismo contrato sellado, en un worktree nuevo sobre el head ya
+integrado, con las rutas y el parche original como evidencia para el Builder.
+Un commit cuyo padre es el head no puede volver a chocar. Por construcción un
+conflicto es casi imposible (el validador impide solapes dentro de una oleada y
+el commit solo lleva rutas permitidas): si ocurre, señala un hueco del
+validador o un cambio ajeno en la rama, no un error del Planner. Al Planner
+cuando, sobre el nuevo head, las comprobaciones ya no se comportan como el
+contrato exige (dos contratos hicieron el mismo trabajo), el Builder devuelve
+`BLOCKED` o agota la escalera.
+
+**Fallo del Gate final.** El Gate final dice qué comprobaciones de qué
+contrato fallan sobre el árbol integrado, no qué commit las rompió. El
+Orchestrator lo atribuye reproduciendo esas comprobaciones a lo largo de la
+rama de integración: primero el contrato solo sobre su base (debe pasar),
+después cada contrato de su misma oleada integrado antes que él, después cada
+head posterior; el primer paso donde fallan nombra al culpable. Un comando de
+`final_verification` del plan se reproduce desde la revisión base y necesita
+un head donde pasó antes de uno donde falla. Si nada pasa nunca, o el fallo no
+se reproduce, la atribución es inconclusa y va al Planner. Un diff fuera de la
+huella aprobada es defecto del harness: `BLOCKED`.
+
+Con culpable, el Orchestrator compone un contrato de reparación a partir de
+los dos contratos implicados, ambos ya aprobados: todas sus comprobaciones
+viajan con él; las que el Gate final vio fallar cubren requisitos `change`
+(fallan sobre el head de integración y deben pasar), las demás `preserve`. El
+alcance es la unión de las rutas de ambos, el riesgo el mayor de los dos:
+nada que el usuario no haya aceptado. El Router del trabajo derivado lo admite,
+la preparación del Gate lo verifica sobre el head, el Builder recibe la
+evidencia (salidas del Gate, la reproducción, los parches), el Orchestrator
+commitea, integra y repite el Gate final completo.
+
+**Cuándo interviene el Planner.** Cuando la atribución es inconclusa, cuando
+el contrato compuesto no se puede preparar, cuando el Router lo rechaza, o
+cuando su Builder devuelve `BLOCKED` o agota la escalera. El Planner trabaja
+sobre el árbol integrado (el worktree de integración es su repositorio), recibe
+la evidencia del fallo, y escribe un plan de reparación con base en el head de
+integración y contratos nuevos. Ese plan se valida como cualquier otro, salvo
+que no debe cubrir el Goal entero, y corre sobre lo ya integrado. En ruta
+planificada el usuario lo revisa siempre, como revisó el original; en ruta
+directa solo cuando contradice lo aprobado (riesgo mayor, rutas fuera de la
+huella). La corrida se pausa y se reanuda sobre su propia rama de integración.
+
+**El Goal no cambia.** Ninguna reparación edita el Goal; lo que cambia, y por
+eso se aprueba, es el plan. Si el Planner concluye que el Goal no se cumple
+sin una decisión de producto, devuelve `BLOCKED` y decide el usuario.
+
+**Parada.** Sin contadores (§9.3). Cada ronda del Gate final tiene una firma:
+sus razones y las comprobaciones fallidas por contrato. Una ronda que
+reproduce la firma de otra anterior se repararía con la misma evidencia, así
+que la corrida para ahí con todo conservado (cubre el ping-pong entre dos
+contratos). Un hallazgo (culpable y comprobaciones) reparado una vez no se
+repara dos veces. Pedir al Planner un plan de reparación por el mismo fallo
+del mismo contrato le daría los mismos hechos: también para ahí. Se conservan
+siempre los worktrees, la rama, la secuencia de integración y los datos de
+cada ronda.
 
 ### Admisión, orden y metalog
 
@@ -247,6 +318,12 @@ Sus posibles decisiones son:
 | Directa | Cambio claro, localizado, reversible y de bajo riesgo |
 | Planificada | Varias partes o dependencias, pero solución generalmente conocida |
 | Deliberativa | Alta incertidumbre, arquitectura, bug sistémico o riesgo importante |
+
+La decisión deliberativa se toma sobre un Goal sin sellar y se ejecuta antes
+del sello (investigar, opinar, decidir, revisar el Goal, aprobar). El Router
+que ve el Orchestrator solo enruta Goals sellados, a directa o planificada; un
+Goal abierto lo devuelve como "necesita deliberación" con lo que le falta,
+nunca como una ruta que el Orchestrator ejecute.
 
 El Router evita que una función sencilla pase por opiniones, réplicas, conciliación y múltiples fases.
 
@@ -684,6 +761,8 @@ Después de esa parada, el sistema no repite con el mismo modelo: sube un pelda�
 | Qué evidencia produjo el resultado | Verificación |
 | Si el contrato fue satisfecho | Gate |
 | Si reintentar, replantear o escalar | Orquestador |
+| Qué commit rompió el resultado integrado | Orquestador, por reproducción determinista |
+| Cómo se reorganiza el trabajo tras un fallo de integración | Planner, con la evidencia; el usuario aprueba el plan de reparación |
 
 ---
 

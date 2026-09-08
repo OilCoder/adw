@@ -13,6 +13,28 @@ function pathMatches(pattern, candidate) {
   return pattern === candidate
 }
 
+// Runs one sealed contract gate (its .codegen-contract directory) on the tree
+// checked out in `directory`, then leaves the tree as it was. The final Gate
+// runs every gate this way; the diagnosis replays one gate along the
+// integration branch the same way.
+export async function runContractGate({ directory, source, timeoutSeconds = 600, run = runProcess }) {
+  const gateDirectory = path.join(directory, ".codegen-contract")
+  const gateTracked =
+    (await git(directory, ["ls-files", "--error-unmatch", ".codegen-contract"], { allowFailure: true }))
+      .exitCode === 0
+  await rm(gateDirectory, { recursive: true, force: true })
+  await cp(source, gateDirectory, { recursive: true })
+  const result = await run(`bash ${GATE_WRAPPER}`, [], { cwd: directory, timeoutSeconds, shell: true })
+  await rm(gateDirectory, { recursive: true, force: true })
+  if (gateTracked) await git(directory, ["checkout", "--", ".codegen-contract"], { allowFailure: true })
+  return {
+    command: `bash ${GATE_WRAPPER}`,
+    exit_code: result.exitCode,
+    check_results: parseGateOutput(result.stdout),
+    output: `${result.stdout}\n${result.stderr}`.trim().slice(-4000),
+  }
+}
+
 // The final Gate judges the integrated result, not any single contract:
 // every contract gate must still pass on the merged tree, the merged diff
 // must stay inside the union of allowed paths, and the plan-level checks pass.
@@ -34,25 +56,11 @@ export async function runFinalGate({
   const reasons = []
   if (outsideScope.length > 0) reasons.push(`outside-scope:${outsideScope.join(",")}`)
 
-  const gateDirectory = path.join(directory, ".codegen-contract")
-  const gateTracked =
-    (await git(directory, ["ls-files", "--error-unmatch", ".codegen-contract"], { allowFailure: true }))
-      .exitCode === 0
   for (const { contract_id, source } of contractGates) {
-    await rm(gateDirectory, { recursive: true, force: true })
-    await cp(source, gateDirectory, { recursive: true })
-    const result = await run(`bash ${GATE_WRAPPER}`, [], { cwd: directory, timeoutSeconds, shell: true })
-    checks.push({
-      contract_id,
-      command: `bash ${GATE_WRAPPER}`,
-      exit_code: result.exitCode,
-      check_results: parseGateOutput(result.stdout),
-      output: `${result.stdout}\n${result.stderr}`.trim().slice(-4000),
-    })
-    if (result.exitCode !== 0) reasons.push(`contract-gate-failed:${contract_id}`)
+    const gate = await runContractGate({ directory, source, timeoutSeconds, run })
+    checks.push({ contract_id, ...gate })
+    if (gate.exit_code !== 0) reasons.push(`contract-gate-failed:${contract_id}`)
   }
-  await rm(gateDirectory, { recursive: true, force: true })
-  if (gateTracked) await git(directory, ["checkout", "--", ".codegen-contract"], { allowFailure: true })
 
   for (const command of plan.final_verification?.commands ?? []) {
     const result = await run(command, [], { cwd: directory, timeoutSeconds, shell: true })

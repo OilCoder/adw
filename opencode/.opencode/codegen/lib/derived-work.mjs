@@ -1,12 +1,15 @@
 // Derived work: a finding discovered during build, verification, or
 // integration. The Router classifies it before anything runs; it can never
-// silently widen scope. Not wired into the orchestrator yet; when it is, the
-// repair chain stops like every other loop, by lack of progress (a finding
-// already repaired is never repaired again), not by a counter.
+// silently widen scope. The orchestrator wires it to integration conflicts
+// and final-gate failures (lib/repair.mjs); the repair chain stops like every
+// other loop, by lack of progress (a finding already repaired is never
+// repaired again), not by a counter.
+// `risk_accepted`: the repair stays within a risk the user already accepted
+// (its parent contracts' effective risk), so it needs no new approval.
 const DIRECT_CONDITIONS = [
   ["within_goal_scope", "outside-goal-scope"],
   ["localized", "not-localized"],
-  ["low_risk", "not-low-risk"],
+  ["risk_accepted", "risk-not-accepted"],
   ["existing_gate", "no-existing-gate"],
 ]
 
@@ -41,6 +44,6 @@ export function routeDerivedWork(finding) {
 
   return {
     disposition: "DIRECT_REPAIR",
-    reasons: ["within-goal", "localized", "low-risk", "existing-gate"],
+    reasons: ["within-goal", "localized", "risk-accepted", "existing-gate"],
   }
 }

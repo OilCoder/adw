@@ -1,9 +1,12 @@
 import { validateGoal } from "./goal.mjs"
 
-// Router: decides how much process one Goal needs. It never writes code or
-// contracts. A SEALED Goal has already been deliberated (the validator requires
-// recorded decisions when deliberative signals are set), so it can only route to
-// direct or planned; deliberation applies to Goals that are still open.
+// Router: decides how much process one SEALED Goal needs, direct or planned.
+// It never writes code or contracts. Deliberation is not a route of the
+// Router: it happens before the seal (deliberate.mjs), and a Goal that is
+// not sealed is reported as such, with what still keeps it open, so the
+// caller sends the user to deliberate or to approve. A SEALED Goal has
+// already been deliberated (the validator requires recorded decisions when
+// deliberative signals are set).
 export function routeGoal(goal) {
   const validation = validateGoal(goal)
   if (!validation.valid) {
@@ -21,19 +24,15 @@ export function routeGoal(goal) {
   if (blockingQuestions.length > 0) deliberativeSignals.push("blocking-questions-open")
 
   if (goal.status !== "SEALED") {
-    if (deliberativeSignals.length === 0) {
-      return { status: "GOAL_NOT_SEALED", route: null, reasons: ["goal-requires-user-approval"] }
-    }
     return {
-      status: "ROUTED",
-      route: "deliberative",
-      reasons: deliberativeSignals,
-      allowed_events: [
-        "RESEARCH_REQUESTED",
-        "RESEARCH_COMPLETED",
-        "DECISION_RECONCILED",
-        "GOAL_REVISED",
-      ],
+      status: "GOAL_NOT_SEALED",
+      route: null,
+      reasons: deliberativeSignals.length === 0 ? ["goal-requires-user-approval"] : deliberativeSignals,
+      needs_deliberation: deliberativeSignals.length > 0,
+      pending: {
+        research_questions: pendingResearch.map((item) => item.id),
+        blocking_questions: blockingQuestions.map((item) => item.id),
+      },
     }
   }
 

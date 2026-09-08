@@ -43,5 +43,11 @@
     "existing_gate": true,
     "architecture_uncertainty": false,
     "external_research_required": false
+  },
+  "approval": {
+    "approved_by": "user",
+    "approved_at": "2026-09-08T00:00:00.000Z",
+    "goal_digest": "720a61f82e4de7c4af4b5664ecfbda2c38e527c92042833443f1c53309db74f7",
+    "via": "test fixture"
   }
 }

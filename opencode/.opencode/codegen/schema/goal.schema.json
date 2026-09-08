@@ -102,6 +102,34 @@
     },
     "routing": {
       "$ref": "#/$defs/routing"
+    },
+    "approval": {
+      "type": "object",
+      "description": "Present only on a SEALED Goal: who sealed it (always the user), when, through which path, and the sha256 digest of the Goal content (without status and approval) that was approved.",
+      "required": [
+        "approved_by",
+        "approved_at",
+        "goal_digest",
+        "via"
+      ],
+      "properties": {
+        "approved_by": {
+          "const": "user"
+        },
+        "approved_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "goal_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "via": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
     }
   },
   "$defs": {
