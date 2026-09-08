@@ -18,8 +18,9 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { resolveDisplay, runAgentProcess } from "../lib/agent-run.mjs"
-import { certificationSummary, checkRelease, recordCertification } from "../lib/certification.mjs"
+import { certificationSummary, checkRelease, recordCertification, roleSchemaHash } from "../lib/certification.mjs"
 import { exists, isInstalledProject, loadRegistry, newRunId, parseArguments } from "../lib/cli.mjs"
+import { materializeGate } from "../lib/gate.mjs"
 import { ROLES } from "../lib/model-selection.mjs"
 import { validateDecision, validateOpinion } from "../lib/opinions.mjs"
 import { runProcess } from "../lib/process.mjs"
@@ -190,31 +191,25 @@ const CERTIFICATIONS = {
   "gate-designer": async ({ configurationId, display, timeout, registry, artifacts }) => {
     const directory = await project("orchestrator-basic")
     try {
-      // A gate that passes on the baseline judges nothing; the designer must
-      // turn it into one that fails until alpha is implemented.
+      // A check that passes on the baseline judges nothing; the designer must
+      // turn it into one that fails until alpha is implemented. The contract
+      // is sealed exactly as the orchestrator seals it.
       await rm(path.join(directory, ".codegen-goal"), { recursive: true, force: true })
       await mkdir(path.join(directory, ".codegen-contract"))
-      await writeFile(path.join(directory, ".codegen-contract/gate.sh"), "#!/usr/bin/env bash\ntrue\n")
-      await writeFile(
-        path.join(directory, ".codegen-contract/contract.json"),
-        `${JSON.stringify(
-          {
-            contract_id: "alpha",
-            objective: "Implement alpha in lib/alpha.py",
-            work_class: "localized-low-risk-code-change",
-            risk: "low",
-            read: ["lib/alpha.py", "tests/test_alpha.py"],
-            allowed_to_modify: ["lib/alpha.py"],
-            forbidden: ["tests/**", "lib/beta.py", "lib/gamma.py"],
-            requirements: ["alpha(value) returns value * 2 for integers and floats"],
-            verification: { commands: ["bash .codegen-contract/gate.sh"], invariants: ["Only lib/alpha.py changes"] },
-            budgets: { max_builder_attempts: 1, max_contract_revisions: 0, max_unplanned_scope_expansion: 0 },
-            response: ["status", "changed files"],
-          },
-          null,
-          2,
-        )}\n`,
-      )
+      const sealed = await materializeGate(directory, {
+        contract_id: "alpha",
+        objective: "Implement alpha in lib/alpha.py",
+        work_class: "localized-low-risk-code-change",
+        risk: "low",
+        read: ["lib/alpha.py", "tests/test_alpha.py"],
+        allowed_to_modify: ["lib/alpha.py"],
+        forbidden: ["tests/**", "lib/beta.py", "lib/gamma.py"],
+        requirements: [{ id: "R1", statement: "alpha(value) returns value * 2 for integers and floats", kind: "change", verification: "automated" }],
+        verification: { checks: [{ id: "C1", covers: ["R1"], command: "true" }], invariants: ["Only lib/alpha.py changes"] },
+        budgets: { max_builder_attempts: 1, max_contract_revisions: 0, max_unplanned_scope_expansion: 0 },
+        response: ["status", "changed files"],
+      })
+      await writeFile(path.join(directory, ".codegen-contract/contract.json"), `${JSON.stringify(sealed, null, 2)}\n`)
       await git(directory, ["add", "."])
       await git(directory, ["commit", "-q", "-m", "certification: contract with a trivial gate"])
       const configuration = registry.configurations.find((item) => item.configuration_id === configurationId)
@@ -443,6 +438,9 @@ async function run(args) {
     detail: outcome.detail,
     duration_s: Math.round((Date.now() - started) / 1000),
     opencode_version: version.stdout.trim() || null,
+    // The shape this evidence was gathered against; stale evidence is told
+    // apart by it.
+    schema_hash: await roleSchemaHash(role),
     metrics: metricsOf(outcome.summary),
   }
 

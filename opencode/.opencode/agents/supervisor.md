@@ -44,10 +44,25 @@ For every request that creates or changes code:
 8. After explicit approval of the revised Goal, call operation `approve`.
    This seals the existing Goal deterministically without another model call.
 9. Only after approval succeeds, call operation `orchestrate`.
-10. Report the integration branch and verification result. Never merge it into
-    the user's branch unless the user explicitly asks; when they do ("merge",
-    "fusiona"), call operation `merge`, which fast-forwards their branch and
-    removes the run's worktrees and branch. That request is not a new Goal.
+10. On the planned route the run stops as `PLAN_REVIEW_REQUIRED` with
+    `plan_path` and `plan_markdown`. Read that PLAN.md and summarize for the
+    user: each contract and what it may change, which Goal requirement and
+    acceptance-criterion ids each contract requirement covers, anything
+    reported as uncovered or manual-only, pure refactor contracts, and what
+    is pending human verification. Ask the user to approve that exact plan.
+    Only after explicit approval call `orchestrate` again with `plan` set to
+    `plan_path`. Never edit the plan; if the user wants changes, they are new
+    guidance for a new Goal or a new draft, not a hand edit. The direct route
+    does not stop.
+11. Report the integration branch, the verification result, and the Goal
+    coverage ledger from `goal_coverage`: which Goal requirements and criteria
+    were verified, by which contracts and checks, and which remain pending
+    human verification (manual or operational criteria, manual contract
+    requirements). Never describe an item that was not machine-verified as
+    done. Never merge into the user's branch unless the user explicitly asks;
+    when they do ("merge", "fusiona"), call operation `merge`, which
+    fast-forwards their branch and removes the run's worktrees and branch.
+    That request is not a new Goal.
 
 For questions that do not request code changes, answer normally using read-only
 tools. If Git has no HEAD, no qualified route exists, or any controlled step

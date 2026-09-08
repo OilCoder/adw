@@ -1,8 +1,9 @@
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 
+import { goalCoverage } from "./coverage.mjs"
 import { runFinalGate } from "./final-gate.mjs"
-import { GATE_WRAPPER, checkGateReadiness, gateScript } from "./gate.mjs"
+import { checkGateReadiness, materializeGate } from "./gate.mjs"
 import { routeGoal } from "./goal-routing.mjs"
 import { validateGoal } from "./goal.mjs"
 import { validatePlan } from "./plan-validation.mjs"
@@ -90,12 +91,15 @@ export async function orchestrate({
     route: null,
     plan_id: null,
     plan_path: null,
+    plan_markdown: null,
+    plan_reviewed: false,
     base_revision: null,
     integration_branch: `codegen/${runId}`,
     integration_worktree: path.join(runDirectory, "integration"),
     integration_head: null,
     waves: [],
     final_gate: null,
+    goal_coverage: null,
     derived_work: [],
     planner_calls: 0,
     gate_designer_calls: 0,
@@ -140,14 +144,15 @@ export async function orchestrate({
   state.route = routing.route
   state.base_revision = baseRevision
 
-  // 2. Plan: reuse a validated plan or ask the Planner. The direct route is
-  //    the Planner constrained to exactly one contract.
+  // 2. Plan: reuse a plan the user reviewed, or ask the Planner. The direct
+  //    route is the Planner constrained to exactly one contract.
   const workClasses = new Set(Object.keys(registry.routes))
   const maxContracts = routing.route === "direct" ? 1 : null
   let plan
   if (planPath) {
     plan = JSON.parse(await readFile(path.resolve(directory, planPath), "utf8"))
     state.plan_path = planPath
+    state.plan_reviewed = true
   } else {
     if ((routing.budgets?.planner_calls ?? goal.budgets.max_planner_calls) < 1 && routing.route !== "direct") {
       return stop("BUDGET_BLOCKED", "no planner budget")
@@ -170,8 +175,11 @@ export async function orchestrate({
         maxContracts,
         evidence,
       })
-      await emit("PLAN_GENERATED", { result: summary.result, output, attempt: state.planner_calls })
-      if (summary.result === "PASS") break
+      await emit("PLAN_GENERATED", { result: summary.result, output, attempt: state.planner_calls, markdown: summary.markdown ?? null })
+      if (summary.result === "PASS") {
+        state.plan_markdown = summary.markdown ?? null
+        break
+      }
       const retriable = summary.result === "PLAN_INVALID" && state.planner_calls < Math.max(1, budget)
       if (!retriable) return stop("PLAN_FAILED", summary.result, { validation: summary.validation ?? null, attempts: state.planner_calls })
       evidence = `.codegen-plan/${runId}-${state.planner_calls}.evidence.json`
@@ -185,8 +193,10 @@ export async function orchestrate({
     plan = JSON.parse(await readFile(path.resolve(directory, output), "utf8"))
     state.plan_path = output
   }
-  const planValidation = validatePlan(plan, { workClasses, maxContracts, maxRisk: goal.routing.risk })
-  await emit("PLAN_VALIDATED", planValidation)
+  // The plan is validated against the Goal: every must requirement and every
+  // automated acceptance criterion has to be claimed by some contract.
+  const planValidation = validatePlan(plan, { workClasses, maxContracts, maxRisk: goal.routing.risk, goal })
+  await emit("PLAN_VALIDATED", { valid: planValidation.valid, errors: planValidation.errors, execution_waves: planValidation.execution_waves })
   if (!planValidation.valid) return stop("PLAN_INVALID", planValidation.errors.join("; "))
   if (plan.base_revision !== baseRevision) {
     return stop("PLAN_STALE", `plan base_revision ${plan.base_revision} is not HEAD ${baseRevision}`)
@@ -194,6 +204,17 @@ export async function orchestrate({
   state.plan_id = plan.plan_id
   const phasesById = new Map(plan.phases.map((phase) => [phase.phase_id, phase]))
   await emit("DAG_READY", { waves: planValidation.execution_waves })
+
+  // On the planned route the user reviews PLAN.md before anyone builds: the
+  // run stops here, before any worktree exists, and resumes when orchestrate
+  // is called again with the reviewed plan. The direct route (one contract)
+  // builds straight through.
+  if (routing.route === "planned" && !state.plan_reviewed) {
+    return stop("PLAN_REVIEW_REQUIRED", `review ${state.plan_markdown ?? state.plan_path} and orchestrate again with --plan ${state.plan_path}`, {
+      plan_path: state.plan_path,
+      plan_markdown: state.plan_markdown,
+    })
+  }
 
   // 3. Integration branch, isolated from the user's checkout.
   await createWorktree({
@@ -226,22 +247,12 @@ export async function orchestrate({
       await linkOpenCodeLayer(directory, worktree)
       await emit("WORKTREE_CREATED", { contract_id: contract.contract_id, worktree, base: state.integration_head })
 
+      // Seal: one script per check under .codegen-contract/checks/, the
+      // generated gate.sh that runs them all, and the contract pointing at
+      // the scripts. The Gate Designer may later rewrite check bodies only.
       const contractDirectory = path.join(worktree, ".codegen-contract")
       await mkdir(contractDirectory, { recursive: true })
-      const sealed = {
-        ...contract,
-        verification: {
-          ...contract.verification,
-          source_commands: contract.verification.commands,
-          commands: [`bash ${GATE_WRAPPER}`],
-        },
-      }
-      const usesProjectGate =
-        contract.verification.commands.length === 1 &&
-        contract.verification.commands[0] === `bash ${GATE_WRAPPER}`
-      if (!usesProjectGate) {
-        await writeFile(path.join(worktree, GATE_WRAPPER), gateScript(contract.verification.commands))
-      }
+      const sealed = await materializeGate(worktree, contract)
       await writeFile(path.join(contractDirectory, "contract.json"), `${JSON.stringify(sealed, null, 2)}\n`)
       await commitPaths(worktree, [".codegen-contract"], `codegen: seal ${contract.contract_id}`, { force: true })
 
@@ -382,6 +393,20 @@ export async function orchestrate({
     timeoutSeconds: gateTimeoutSeconds,
   })
   await emit(state.final_gate.result === "PASS" ? "FINAL_GATE_PASS" : "FINAL_GATE_FAIL", state.final_gate)
+
+  // 6. Goal coverage ledger: what each Goal id was claimed by, and what the
+  //    contracts and their checks actually did. Manual and operational items
+  //    stay pending human verification; nothing declares them green.
+  const results = new Map()
+  for (const record of state.waves.flatMap((wave) => wave.contracts)) {
+    const gate = state.final_gate.checks.find((check) => check.contract_id === record.contract_id)
+    results.set(record.contract_id, {
+      status: record.status,
+      checks: Object.fromEntries((gate?.check_results ?? []).map((item) => [item.check_id, item.result])),
+    })
+  }
+  state.goal_coverage = goalCoverage(plan, goal, results)
+  await emit("GOAL_COVERAGE", state.goal_coverage.summary)
 
   if (!keepWorktrees && state.final_gate.result === "PASS") {
     for (const worktree of worktreesToRemove) await removeWorktree({ repository: directory, directory: worktree })

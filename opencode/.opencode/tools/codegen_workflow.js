@@ -31,9 +31,10 @@ export async function chooseDisplay(directory, requested = process.env.CODEGEN_D
 
 export default tool({
   description:
-    "Run the controlled code-generation workflow. Draft a Goal from user intent; deliberate an open Goal (research pending questions, obtain opinions on blocking questions with options, fold the evidence into the Goal); revise the Goal with the user's answers; approve the existing Goal after explicit user confirmation; orchestrate an approved Goal; merge the integration branch of a completed run into the user's branch (fast-forward only) when the user explicitly asks.",
+    "Run the controlled code-generation workflow. Draft a Goal from user intent; deliberate an open Goal (research pending questions, obtain opinions on blocking questions with options, fold the evidence into the Goal); revise the Goal with the user's answers; approve the existing Goal after explicit user confirmation; orchestrate an approved Goal (on the planned route it stops as PLAN_REVIEW_REQUIRED with a PLAN.md for the user to review; call orchestrate again with `plan` set to the reviewed plan path to build); merge the integration branch of a completed run into the user's branch (fast-forward only) when the user explicitly asks.",
   args: {
     operation: tool.schema.string().describe("draft, deliberate, revise, approve, orchestrate, or merge"),
+    plan: tool.schema.string().optional().describe("For orchestrate: path of the plan the user reviewed and approved (the plan_path of a PLAN_REVIEW_REQUIRED stop). Builds that plan instead of asking the Planner."),
     branch: tool.schema.string().optional().describe("Integration branch to merge; defaults to the latest completed run"),
     intent: tool.schema.string().optional().describe("Complete user intent for draft, or the user's answers to open questions for revise"),
     goal: tool.schema.string().optional().describe("Goal path; defaults to .codegen-goal/goal.json"),
@@ -64,7 +65,7 @@ export default tool({
       scriptArgs = args.branch ? ["--branch", args.branch] : []
     } else {
       script = "orchestrate.mjs"
-      scriptArgs = ["--goal", goal, "--display", choice.display]
+      scriptArgs = ["--goal", goal, "--display", choice.display, ...(args.plan ? ["--plan", args.plan] : [])]
     }
 
     const env = { ...process.env, CODEGEN_DISPLAY: choice.display, ...(choice.url ? { CODEGEN_ATTACH: choice.url } : {}) }

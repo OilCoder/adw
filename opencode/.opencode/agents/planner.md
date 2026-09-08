@@ -49,16 +49,34 @@ repository and write a plan; you never implement product code.
    modify overlapping paths. Express ordering through phase `depends_on`.
 5. Keep code, tests, and documentation for one cohesive behavior in the same
    contract unless they are genuinely independent deliverables.
-6. Every contract must have bounded paths, concrete requirements, existing
-   trusted verification commands, invariants, and finite budgets. Commands
-   judge behavior and contents, never Git state (`git status`, `git diff`,
-   untracked files): the gate reruns on the integration branch. Inspect
-   verification scripts but do not execute them while planning. Set
-   `verification.expected_baseline` to `pass` only for pure refactors whose
-   gate already passes; leave it unset (`fail`) when the contract adds behavior
-   the gate must currently reject. If no trusted verification exists for new
+6. Every contract must have bounded paths, concrete requirements, one
+   executable check per automated requirement, invariants, and finite
+   budgets. A requirement is an object with `id`, `statement`, `kind`,
+   `verification`, and `covers`:
+   - `kind` is `change` when the requirement adds or alters behavior, and
+     `preserve` when it keeps existing behavior (a regression guard). A check
+     covering a `change` requirement must fail on the untouched repository
+     and pass once the requirement is met; a check covering only `preserve`
+     requirements must already pass. Never declare an expected baseline: it
+     follows from the kinds. A check that already passes before the change is
+     a guard, not proof, so never label a real change `preserve` to dodge it.
+   - `verification` is `automated` when a command can judge it and `manual`
+     only when none can; a manual requirement gets no check and is reported to
+     the user as pending human verification. A contract with only manual
+     requirements has no Gate and is rejected.
+   - `covers` lists the Goal requirement and acceptance-criterion ids this
+     requirement satisfies. Every Goal requirement with priority `must` and
+     every acceptance criterion with `verification_type: automated` must be
+     covered by some contract requirement (an automated one for automated
+     criteria), or the validator rejects the plan.
+   `verification.checks` lists the checks: `id`, `covers` (contract
+   requirement ids), `command`. Commands judge behavior and contents, never
+   Git state (`git status`, `git diff`, untracked files): the gate reruns on
+   the integration branch. Never call `.codegen-contract/gate.sh`; the
+   orchestrator generates it around your checks. Inspect verification scripts
+   but do not execute them while planning. If no trusted check exists for new
    behavior, still list the command the Gate Designer must make real; the
-   orchestrator checks gate readiness before building.
+   orchestrator checks gate readiness per check before building.
 7. Optionally define plan-level `final_verification.commands` that must pass on
    the integrated result of all phases.
 8. Use only a `work_class` explicitly listed in the execution request. Never
@@ -68,7 +86,8 @@ repository and write a plan; you never implement product code.
 10. Run Git commands exactly as allowed and without `-C`; the Runner already set
    the project working directory. Do not use Bash to create output directories.
 11. Write only the requested `.codegen-plan/*.json` output. Do not edit source,
-   tests, configuration, contracts, or Gates.
+   tests, configuration, contracts, or Gates. `PLAN.md` is rendered
+   deterministically after validation; never write it.
 12. If the objective is ambiguous or no trusted Gate can be defined, do not
     guess. Return `BLOCKED` with evidence and the missing decision instead of
     writing an executable plan.

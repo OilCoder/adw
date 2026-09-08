@@ -207,31 +207,48 @@ npm run orchestrate -- --plan .codegen-plan/plan.json --keep-worktrees true
 
 The orchestrator is deterministic glue over the runners above. It requires a
 Git HEAD and a `SEALED` Goal (an unapproved Goal stops as `APPROVAL_REQUIRED`,
-an open one as `DELIBERATION_REQUIRED`), routes the Goal, asks the Planner (the direct route is the Planner capped at one
-contract), validates the plan DAG, and then for each execution wave:
+an open one as `DELIBERATION_REQUIRED`), routes the Goal, asks the Planner (the
+direct route is the Planner capped at one contract), and validates the plan:
+the DAG, the paths, the risk ceiling, and its coverage of the Goal. Every
+contract requirement declares in `covers` the Goal requirement and
+acceptance-criterion ids it satisfies; a plan that leaves a `must` requirement
+or an automated criterion uncovered is rejected and re-requested with the
+errors as evidence, within `budgets.max_planner_calls`. A valid plan is
+rendered as `PLAN.md` next to it. On the planned route the run then stops as
+`PLAN_REVIEW_REQUIRED`: the user reviews `PLAN.md` and the run continues with
+`--plan <path>` (the direct route builds straight through). Then, for each
+execution wave:
 
 1. creates one detached Git worktree per contract under `.codegen-run/<run>/`
    (excluded through `.git/info/exclude`, never the tracked `.gitignore`),
-   links the untracked OpenCode layer into it, and seals the contract with a
-   generated `.codegen-contract/gate.sh` that wraps the contract's commands;
-2. checks Gate readiness: commands resolve and the gate fails on the untouched
-   baseline (`verification.expected_baseline: "pass"` opts a refactor out). A
-   fixable gap calls the Gate Designer, which may only write under
-   `.codegen-contract/`;
+   links the untracked OpenCode layer into it, and seals the contract: one
+   script per check under `.codegen-contract/checks/<id>.sh` and a generated
+   `.codegen-contract/gate.sh` that runs them all and reports each by id;
+2. checks Gate readiness check by check: scripts resolve, and on the untouched
+   baseline each check behaves as the requirements it covers demand (fails
+   when it covers a `change` requirement, passes when it covers only
+   `preserve` ones). A fixable gap names the check and calls the Gate
+   Designer, which may only write under `.codegen-contract/checks/`; a
+   `preserve` check failing on the baseline is not fixable and stops the run;
 3. runs Builders concurrently (`--concurrency`), retrying with an evidence file
-   on `GATE_FAIL`, `SCOPE_FAIL`, or `NO_CHANGES` within the contract's
-   `max_builder_attempts`; `CONTRACT_BLOCKED` stops as `REPLAN_REQUIRED`,
-    provider failures stop as `ESCALATE`, while an exhausted Zen balance stops
-    as `USER_ACTION_REQUIRED` with recharge instructions;
+   that carries every check's result on `GATE_FAIL`, `SCOPE_FAIL`, or
+   `NO_CHANGES` within the contract's `max_builder_attempts`;
+   `CONTRACT_BLOCKED` stops as `REPLAN_REQUIRED`, provider failures stop as
+   `ESCALATE`, while an exhausted Zen balance stops as `USER_ACTION_REQUIRED`
+   with recharge instructions;
 4. commits only `allowed_to_modify` paths per contract and cherry-picks each
    result onto the integration branch `codegen/<run>`; the next wave starts from
    that head, which is what satisfies `depends_on`.
 
 After the last wave the final Gate reruns every contract gate on the integrated
 tree, checks the merged diff stays inside the union of allowed paths, and runs
-the plan's optional `final_verification.commands`. The user's checkout is never
-modified; merging `codegen/<run>` is the user's decision. State lives in
-`.codegen-run/<run>/state.json` and `events.jsonl` (event names are listed in
+the plan's optional `final_verification.commands`. The Goal coverage ledger
+(`goal_coverage` in `state.json`) then says, per Goal requirement and
+criterion, which contracts claimed it and how their checks fared; manual and
+operational items stay pending human verification. The user's checkout is
+never modified; merging `codegen/<run>` is the user's decision (`npm run
+merge`, fast-forward only). State lives in `.codegen-run/<run>/state.json` and
+`events.jsonl` (event names are listed in
 `.opencode/codegen/lib/orchestrator.mjs`).
 
 ### Watching agents in the OpenCode session list

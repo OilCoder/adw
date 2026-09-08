@@ -2,7 +2,7 @@
 
 **Directriz de diseño:** `CODE_GENERATION_FLOW.md` (flujo, roles, rutas, límites).
 **Metodología de admisión de modelos:** `MODEL_SELECTION_SPEC.md`.
-**Este documento:** qué de esa directriz está implementado, cómo, y qué no. Se actualiza en el mismo commit que cambia el código. Diagnóstico que motivó la limpieza: `docs/DIAGNOSTICO-2026-09-03.md`.
+**Este documento:** qué de esa directriz está implementado, cómo, y qué no. Se actualiza en el mismo commit que cambia el código. Diagnóstico que motivó la limpieza: `docs/DIAGNOSTICO-2026-09-03.md`. Auditoría pieza a pieza del 2026-09-07: `caso-de-estudio-claude.md` (grupos A a E).
 
 ## Flujo ejecutable desde el supervisor
 
@@ -13,7 +13,9 @@ draft        run-goal.mjs --intent        Goal Manager redacta .codegen-goal/goa
 deliberate   deliberate.mjs               Researcher por pregunta pendiente · advisors + reconciler por pregunta bloqueante con opciones · Goal Manager revisa el Goal
 revise       run-goal.mjs --revise        Goal Manager incorpora las respuestas del usuario a preguntas sin opciones
 approve      run-goal.mjs --approve       sello determinista, sin modelo; solo tras aprobación explícita del usuario
-orchestrate  orchestrate.mjs              Router → Planner → readiness del Gate (Gate Designer) → Builders en worktrees → cherry-pick a codegen/<run> → Gate final
+orchestrate  orchestrate.mjs              Router → Planner → validación (DAG + cobertura del Goal) → PLAN.md → [ruta planificada: PLAN_REVIEW_REQUIRED] → readiness por comprobación (Gate Designer) → Builders en worktrees → cherry-pick a codegen/<run> → Gate final → libro de cobertura
+orchestrate  orchestrate.mjs --plan       continúa con el plan que el usuario aprobó (argumento `plan` de la tool)
+merge        merge-run.mjs                fast-forward de la rama codegen/<run> sobre la rama del usuario; borra worktrees y rama; solo cuando el usuario lo pide
 ```
 
 Cada agente corre como `opencode run --agent <rol> --model <configuración certificada para el rol> --format json`. Si el supervisor corre en la TUI de OpenCode **arrancada con `opencode --port 4096`** (sin `--port` la TUI no escucha en ningún puerto), el plugin `.opencode/plugins/codegen-server.js` publica la URL de ese servidor en `.opencode/.codegen-server.json` y los runners se enganchan con `--attach`: las sesiones de los agentes aparecen en la lista de sesiones de la TUI con el nombre `<agente> · <detalle>`. Sin servidor vivo, los eventos se capturan `inline`.
@@ -23,25 +25,29 @@ Cada agente corre como `opencode run --agent <rol> --model <configuración certi
 | Concepto (sección de la directriz) | Estado | Dónde |
 |---|---|---|
 | Objetivo / Goal (§5.1) | Implementado | `lib/goal.mjs`, `schema/goal.schema.json`, `scripts/run-goal.mjs`, agente `goal-manager` |
-| Router determinista (§5.2) | Implementado | `lib/goal-routing.mjs`; direct / planned / deliberative |
-| Ruta directa (§8.1) | Implementado como Planner limitado a un contrato | `lib/orchestrator.mjs` (`maxContracts = 1`) |
+| Router determinista (§5.2) | Implementado | `lib/goal-routing.mjs`; direct / planned / deliberative (esta última solo para un Goal sin sellar: el orquestador para con `DELIBERATION_REQUIRED`) |
+| Ruta directa (§8.1) | Implementado como Planner limitado a un contrato; sin pausa de revisión | `lib/orchestrator.mjs` (`maxContracts = 1`). El tope de dos intentos de la directriz **no se impone**: el Planner fija `max_builder_attempts` y el validador solo exige ≥ 1 |
 | Ruta planificada, DAG de fases y oleadas (§5.3, §8.2) | Implementado | `lib/plan-validation.mjs`, `scripts/run-planner.mjs`, agente `planner` |
+| El plan cubre el Goal (§5.3) | Implementado 2026-09-08 | `plan-validation.mjs` `planCoverage`: cada requisito de contrato lleva `covers`; un `must` sin cubrir o un criterio `automated` sin requisito automatizado que lo cubra rechaza el plan y entra en `PLAN_RETRY`. `should/could` sin cubrir y `must` cubiertos solo por manuales se reportan |
+| Plan legible y revisión del usuario (§8.2) | Implementado 2026-09-08 | `lib/coverage.mjs` `renderPlanMarkdown` → `.codegen-plan/<run>.md`; en ruta planificada `orchestrate` para en `PLAN_REVIEW_REQUIRED` antes de crear worktrees y continúa con `--plan`; `PLAN_STALE` si HEAD cambió |
 | Ruta deliberativa: investigar, opinar, decidir (§8.3) | Implementado desde 2026-09-03 | `scripts/deliberate.mjs`, `lib/deliberation.mjs`, `run-researcher.mjs`, `run-opinions.mjs`, `run-goal.mjs --revise`; agentes `researcher`, `advisor`, `reconciler` |
 | Decisión técnica vinculante | Implementado: la decisión es `PROPOSED` hasta que el usuario aprueba el Goal que la registra | `lib/opinions.mjs`, `run-goal.mjs --approve` |
-| Contrato sellado (§5.4) | Implementado | `orchestrator.mjs` escribe `.codegen-contract/contract.json` en el worktree y lo commitea (forzado si el proyecto lo ignora) |
-| Gate Designer (§3, §4) | Implementado, solo cuando el Gate no está listo | `lib/gate.mjs`, `scripts/run-gate-designer.mjs`; familia distinta de la del Builder |
-| GATE_READY: el Gate falla en el baseline antes de programar (§4) | Implementado | `gate.checkGateReadiness` |
-| Builder (§5.5) | Implementado | `scripts/run-builder.mjs`, agente `builder`; snapshot de archivos y control de alcance |
-| Verificación independiente y Gate (§5.6, §5.7) | Implementado | el runner reejecuta los comandos; `lib/final-gate.mjs` sobre la rama integrada |
+| Contrato sellado (§5.4) | Implementado | requisitos con `id`, `kind` (`change`/`preserve`), `verification` (`automated`/`manual`) y `covers`; una comprobación por requisito automatizado en `verification.checks`. `orchestrator.mjs` materializa `.codegen-contract/checks/<id>.sh` y `gate.sh` (`lib/gate.mjs` `materializeGate`) y commitea `.codegen-contract` (forzado si el proyecto lo ignora) |
+| Gate Designer (§3, §4) | Implementado, solo cuando una comprobación no está lista | `scripts/run-gate-designer.mjs`; familia distinta de la del Builder; solo escribe bajo `.codegen-contract/checks/`; tocar `contract.json` o `gate.sh` es `SCOPE_FAIL` y readiness se juzga contra el contrato sellado |
+| GATE_READY por requisito (§4) | Implementado 2026-09-08 | `gate.checkGateReadiness` corre cada comprobación en el baseline; el esperado se deriva de los requisitos que cubre (`lib/contract.mjs` `expectedBaseline`). Razones `check-passes-on-baseline:<id>` (reparable), `check-fails-on-baseline:<id>` (no reparable). Sigue juzgando solo el código de salida, no la razón del fallo |
+| Builder (§5.5) | Implementado | `scripts/run-builder.mjs`, agente `builder`; snapshot de archivos y control de alcance; la verificación controlada corre todas las comprobaciones y deja su resultado por id en la evidencia del reintento |
+| Verificación independiente y Gate (§5.6, §5.7) | Implementado | el runner reejecuta las comprobaciones; `lib/final-gate.mjs` sobre la rama integrada, con veredicto por comprobación (`CHECK <id>: PASS|FAIL`) |
+| Libro de cobertura del Goal (§5.7) | Implementado 2026-09-08 | `lib/coverage.mjs` `goalCoverage` → `state.goal_coverage` y evento `GOAL_COVERAGE`: por id del Goal, contratos que lo reclamaron, estado y comprobaciones; `manual`/`operational` quedan `PENDING_HUMAN`. Como las oleadas paran al primer fallo, en una corrida completada repite lo que el plan reclamó: su valor es cerrar el ciclo y decir qué no se comprobó a máquina |
 | Clasificación del fallo (§4) | Implementado parcialmente | `orchestrator.classifyBuilderOutcome`: reintento con evidencia, `REPLAN_REQUIRED`, `USER_ACTION_REQUIRED`, `ESCALATE`, `BLOCKED`. Retorno automático al Planner tras `REPLAN_REQUIRED`: **no implementado**, la corrida para con evidencia |
-| Replan acotado por plan inválido | Implementado | `orchestrator.mjs` (`PLAN_RETRY`, presupuesto `max_planner_calls`) |
+| Replan acotado por plan inválido | Implementado | `orchestrator.mjs` (`PLAN_RETRY`, presupuesto `max_planner_calls`); incluye los rechazos por cobertura |
 | Trabajo derivado (§4) | **Diseñado, no cableado** | `lib/derived-work.mjs` clasifica hallazgos; nada lo llama todavía |
-| Presupuestos (§9) | Implementado | `budgets` del Goal y del contrato; `max_builder_attempts` |
-| Model Selector por rol, Go antes que Zen, sin cambio automático de modelo (§4) | Implementado | `lib/model-selection.mjs`, `lib/builder-runner.mjs`, `config/model-pools.json` |
-| Admisión certificada por rol | Implementado, solo mantenimiento | `lib/certification.mjs`, `scripts/certify.mjs` (no se instala); `install.mjs` exige ruta completa |
+| Presupuestos (§9) | Implementado, sin techo del sistema | `budgets` del Goal los escribe el Goal Manager; `max_builder_attempts` lo escribe el Planner en el contrato; el código solo exige mínimos |
+| Model Selector por rol, Go antes que Zen, sin cambio automático de modelo (§4) | Implementado | `lib/model-selection.mjs`, `lib/builder-runner.mjs`, `config/model-pools.json`. El orden efectivo es `runner_policies.<rol>`; `economics` del registro no participa |
+| Admisión certificada por rol | Implementado, solo mantenimiento | `lib/certification.mjs`, `scripts/certify.mjs` (no se instala); `install.mjs` exige ruta completa. Desde 2026-09-08 la evidencia guarda `schema_hash` del esquema del rol (`roleSchemaHash`); el release check **todavía no lo exige** (ver decisiones) |
 | Saldo Zen agotado → parar y pedir recarga (§4) | Implementado | `builder-runner.classifyExecution` → `ZEN_BALANCE_EXHAUSTED` |
 | OpenRouter fuera de rutas automáticas (§4) | Implementado; sus configuraciones se retiraron del registro el 2026-09-03 | `tests/config-coherence.test.mjs` lo vigila |
-| Reviewer semántico (§3) | **No implementado** | los criterios de aceptación del Goal son prosa y no se ejecutan |
+| Reviewer semántico (§3) | **No implementado, diferido a propósito** (2026-09-08) | El hilo de ids convierte la omisión en afirmación visible, no la verifica: un Planner puede reclamar cobertura falsa o etiquetar `preserve`/`manual` un cambio automatizable; eso se ve en PLAN.md en la pausa. Un rol reviewer obliga a certificarlo con corrida real antes de que `install.mjs` vuelva a instalar (atadura A1 → C3); se añadirá cuando toque certificar modelos |
+| Merge del resultado | Implementado 2026-09-03 (b1cb1b1) | `scripts/merge-run.mjs`: fast-forward de `codegen/<run>` sobre la rama del usuario, checkout limpio obligatorio, borra worktrees y rama |
 | State Recorder (§3) | Implementado | `.codegen-run/<run>/state.json` y `events.jsonl` |
 
 ## Artefactos en el proyecto destino
@@ -53,9 +59,9 @@ Cada agente corre como `opencode run --agent <rol> --model <configuración certi
 | `.opencode/.codegen-install.json` | manifiesto: hashes, `harness_revision`, `installed_at` | ignorado |
 | `.opencode/.codegen-server.json` | URL del servidor de la TUI (plugin) | ignorado |
 | `.opencode/codegen/runs/` | eventos y resúmenes de cada agente | ignorado |
-| `.codegen-goal/`, `.codegen-research/`, `.codegen-opinions/`, `.codegen-plan/` | Goal y sus versiones previas, informes, opiniones y decisiones, planes | ignorados |
-| `.codegen-run/<run>/` | worktrees por contrato y rama de integración | ignorado (`.git/info/exclude`) |
-| `codegen/<run>` | rama con el resultado | la fusiona o borra el usuario |
+| `.codegen-goal/`, `.codegen-research/`, `.codegen-opinions/`, `.codegen-plan/` | Goal y sus versiones previas, informes, opiniones y decisiones, planes (`<run>.json` + `<run>.md` rendido) | ignorados |
+| `.codegen-run/<run>/` | worktrees por contrato y rama de integración; `state.json` con `goal_coverage` | ignorado (`.git/info/exclude`) |
+| `codegen/<run>` | rama con el resultado | la fusiona `merge` a petición del usuario, o la borra el usuario |
 
 `npm run clean` lista todo lo anterior salvo `.opencode/` y las ramas; con `--yes` lo borra.
 
@@ -65,16 +71,19 @@ Cada agente corre como `opencode run --agent <rol> --model <configuración certi
 - `CODEGEN_FIRST_OUTPUT_SECONDS` (120): un agente sin eventos en ese tiempo se detiene como `LOCAL_RUNNER_ERROR`.
 - `CODEGEN_RUNS_DIR`: dónde escribir artefactos (los tests usan un temporal). `CODEGEN_NODE`: binario `node` para la tool.
 - `OPENCODE_ENABLE_EXA=1`: lo fija `run-researcher.mjs`.
-- Flags de runners: `--display`, `--timeout`, `--minimum-status` (solo mantenimiento; los proyectos instalados rechazan `candidate`), `--configuration` (solo certificación).
+- Flags de runners: `--display`, `--timeout`, `--plan` (orquestar un plan revisado), `--minimum-status` (solo mantenimiento; los proyectos instalados rechazan `candidate`), `--configuration` (solo certificación).
 
 ## Agentes instalados
 
-`supervisor` (conversación), `goal-manager`, `researcher`, `advisor`, `reconciler`, `planner`, `gate-designer`, `builder`. Todos en `mode: primary` (con `subagent`, `opencode run --agent` cae al agente por defecto), sin `task`, sin `question`; `goal-manager` y `planner` no pueden leer `lib/`, `scripts/`, `config/` ni `tools/` del harness.
+`supervisor` (conversación), `goal-manager`, `researcher`, `advisor`, `reconciler`, `planner`, `gate-designer`, `builder`. Todos en `mode: primary` (con `subagent`, `opencode run --agent` cae al agente por defecto), sin `task`, sin `question`; `goal-manager` y `planner` no pueden leer `lib/`, `scripts/`, `config/` ni `tools/` del harness; `gate-designer` solo edita `.codegen-contract/checks/**`.
 
 ## Decisiones registradas
 
 - 2026-09-03: `qualified` describe una combinación modelo + proveedor + rol + harness, certificada en este repositorio y publicada por el instalador; `candidate` es solo mantenimiento.
-- 2026-09-03: el visor propio (tmux, wt, VS Code, transcripción guiada, extensión) se eliminó; las sesiones de los agentes se muestran en la TUI de OpenCode vía `--attach`. Evidencia del spike en `docs/DIAGNOSTICO-2026-09-03.md` §7.F: mismo `projectID` para sesiones desde worktrees, NDJSON intacto con `--attach`, plugin con `serverUrl`. Pendiente de confirmar por el usuario: que la lista de sesiones de la TUI se refresque en vivo.
+- 2026-09-03: el visor propio (tmux, wt, VS Code, transcripción guiada, extensión) se eliminó; las sesiones de los agentes se muestran en la TUI de OpenCode vía `--attach`. Evidencia del spike en `docs/DIAGNOSTICO-2026-09-03.md` §7.F.
 - 2026-09-03: investigación y deliberación quedaron cableadas al supervisor; antes solo las usaban la certificación y los tests. Solo corre la investigación `required`; una pregunta opcional nunca gasta una llamada.
-- 2026-09-04: primera corrida real en `las-viewer-v2` con el sistema limpio: la TUI arrancada sin `--port` dejó a los agentes en `inline`, y una pregunta de investigación opcional gastó un Researcher (BLOCKED). Ambas cosas corregidas.
-- Criterio de parada vigente: una orquestación real completa en `las-viewer-v2`, observada por el usuario y sin intervención del asistente, antes de añadir funcionalidad.
+- 2026-09-03: primera orquestación real completa en `las-viewer-v2` (commit `c56a7db`, `scripts/count-las.sh`, autor `OpenCode Codegen`), hoy en la historia de `main` de ese proyecto. Lecciones aplicadas el 2026-09-04: la TUI arrancada sin `--port` dejaba a los agentes en `inline`, y una pregunta de investigación opcional gastaba un Researcher. El criterio de parada anterior ("una orquestación real antes de añadir funcionalidad") quedó cumplido.
+- 2026-09-08 (grupo A de la auditoría): A1, A2 y A3 eran el mismo agujero en tres momentos y se cierran con un solo mecanismo, el hilo de ids Goal → requisito de contrato → comprobación → resultado. Lo que compra: la omisión silenciosa pasa a afirmación visible que el código exige completa. Lo que no compra: la veracidad de la afirmación (ver Reviewer). Fuera de alcance: merge automático, tope de intentos en ruta directa, reparación tras un veredicto negativo (grupo D), y "falla por la razón equivocada" en readiness.
+- 2026-09-08: `expected_baseline` deja de ser un campo libre. Se deriva del `kind` de los requisitos que cubre cada comprobación; una comprobación que ya pasaba antes del cambio es guarda, no cobertura. Un requisito `manual` no lleva comprobación y se reporta como pendiente de verificación humana; un contrato todo manual se rechaza; un contrato todo `preserve` es refactor puro y se señala.
+- 2026-09-08: pausa de revisión del plan solo en ruta planificada (`PLAN_REVIEW_REQUIRED`); la ruta directa sigue de corrido. El Reviewer semántico se difiere hasta la certificación de modelos (C3/C4).
+- 2026-09-08: el cambio de forma del contrato deja caducada la evidencia de certificación de `planner`, `gate-designer` y `builder`; además `goal.schema.json` cambió (3857ced, 20:16 UTC del 2026-09-03) después de las dos certificaciones del `goal-manager`. Decisión: la evidencia guarda `schema_hash`, y el release check lo exigirá en el commit que traiga la recertificación de esos cuatro roles (6 corridas en cuota Go), nunca antes, para no dejar el instalador bloqueado entre medias. Researcher, advisors y reconciler reciben el hash a mano: sus esquemas no han cambiado desde el commit inicial y se certificaron después.

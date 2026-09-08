@@ -18,6 +18,7 @@ import {
   resolvePinnedConfiguration,
   runsDirectory,
 } from "../lib/cli.mjs"
+import { contractChecks } from "../lib/contract.mjs"
 import { resolveDisplay, runAgentProcess } from "../lib/agent-run.mjs"
 import { runProcess } from "../lib/process.mjs"
 
@@ -157,23 +158,24 @@ async function main() {
       ? "CONTRACT_BLOCKED"
       : "NO_CHANGES"
   }
+  // Controlled verification: every check of the contract runs, one by one,
+  // so a failed attempt leaves evidence per requirement for the retry.
   if (result === "SUCCESS") {
-    for (const command of contract.verification?.commands ?? []) {
-      const check = await runProcess(command, [], {
+    for (const check of contractChecks(contract)) {
+      const run = await runProcess(check.command, [], {
         cwd: directory,
         timeoutSeconds: Number(args["gate-timeout"] ?? 300),
         shell: true,
       })
       verification.push({
-        command,
-        exit_code: check.exitCode,
-        signal: check.signal,
-        output: `${check.stdout}\n${check.stderr}`.trim().slice(-4000),
+        check_id: check.id,
+        covers: check.covers,
+        command: check.command,
+        exit_code: run.exitCode,
+        signal: run.signal,
+        output: `${run.stdout}\n${run.stderr}`.trim().slice(-4000),
       })
-      if (check.exitCode !== 0) {
-        result = "GATE_FAIL"
-        break
-      }
+      if (run.exitCode !== 0) result = "GATE_FAIL"
     }
   }
   if (result === "SUCCESS") result = "PASS"

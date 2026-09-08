@@ -74,7 +74,9 @@ async function main() {
     },
   })
   process.stdout.write(`${JSON.stringify(state, null, 2)}\n`)
-  process.exitCode = state.status === "COMPLETED" ? 0 : 1
+  // A run paused for plan review is not a failure: the user continues it
+  // with --plan once the plan is approved.
+  process.exitCode = ["COMPLETED", "PLAN_REVIEW_REQUIRED"].includes(state.status) ? 0 : 1
 }
 
 main().catch((error) => {

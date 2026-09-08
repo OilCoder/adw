@@ -8,6 +8,7 @@ import {
   runExecutionPlan,
   selectExecutionPlan,
 } from "../lib/builder-runner.mjs"
+import { renderPlanMarkdown } from "../lib/coverage.mjs"
 import { validatePlan } from "../lib/plan-validation.mjs"
 import {
   exists,
@@ -24,6 +25,23 @@ import { runProcess } from "../lib/process.mjs"
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url))
 const systemRoot = path.resolve(scriptDirectory, "../../..")
+
+// The Goal ids the plan has to account for, spelled out so the Planner
+// declares `covers` against real ids instead of guessing them.
+function coverageBrief(goal) {
+  const must = goal.requirements.filter((item) => item.priority === "must")
+  const other = goal.requirements.filter((item) => item.priority !== "must")
+  const automated = goal.acceptance_criteria.filter((item) => item.verification_type === "automated")
+  const human = goal.acceptance_criteria.filter((item) => item.verification_type !== "automated")
+  const line = (item) => `${item.id}: ${item.statement ?? item.criterion}`
+  return [
+    "Each contract requirement lists in `covers` the Goal ids it satisfies. The validator rejects the plan unless every one of these is covered:",
+    ...must.map((item) => `- requirement (must) ${line(item)}`),
+    ...automated.map((item) => `- acceptance criterion (automated, needs an automated contract requirement) ${line(item)}`),
+    ...(other.length > 0 ? ["Cover these when the plan addresses them; uncovered ones are reported, not rejected:", ...other.map((item) => `- requirement (${item.priority}) ${line(item)}`)] : []),
+    ...(human.length > 0 ? ["These criteria are verified by a human, never by a check; do not invent checks for them:", ...human.map((item) => `- acceptance criterion (${item.verification_type}) ${line(item)}`)] : []),
+  ].join("\n")
+}
 
 async function main() {
   const args = parseArguments(process.argv.slice(2))
@@ -65,7 +83,8 @@ async function main() {
   await mkdir(artifacts, { recursive: true })
   const display = resolveDisplay(args)
   const maxContracts = args["max-contracts"] ? Number(args["max-contracts"]) : null
-  const goalRisk = args.goal ? JSON.parse(await readFile(path.resolve(directory, args.goal), "utf8")).routing?.risk ?? null : null
+  const goal = args.goal ? JSON.parse(await readFile(path.resolve(directory, args.goal), "utf8")) : null
+  const goalRisk = goal?.routing?.risk ?? null
   const evidencePath = args.evidence ? path.resolve(directory, args.evidence) : null
   const evidence = evidencePath ? JSON.parse(await readFile(evidencePath, "utf8")) : null
   const prompt = [
@@ -75,7 +94,9 @@ async function main() {
     `Use only these work_class values: ${Object.keys(registry.routes).join(", ")}.`,
     "Paths in allowed_to_modify are exact file paths or dir/**; read and forbidden also accept *.ext globs. Never use other wildcards.",
     ...(goalRisk ? [`Every contract's risk must be ${goalRisk} or lower: the Goal was routed at risk ${goalRisk} and Builders are admitted per risk level.`] : []),
-    "verification.commands judge behavior and file contents only (run the script, run tests, compare outputs). Never inspect Git state (git status, git diff, untracked files): the same gate reruns on the integration branch where the change is already committed, and scope is enforced by the orchestrator.",
+    "Requirements are objects with id, statement, kind (change: adds or alters behavior; preserve: keeps existing behavior), verification (automated, or manual when no command can judge it), and covers (Goal ids). verification.checks lists one executable check per automated requirement: id, covers (requirement ids), command. A check covering a change requirement must fail on the untouched repository and pass once the requirement is met; a check covering only preserve requirements must already pass. Never declare an expected baseline: it follows from the kinds. A contract with only manual requirements has no Gate and is rejected.",
+    ...(goal ? [coverageBrief(goal)] : []),
+    "Check commands judge behavior and file contents only (run the script, run tests, compare outputs). Never inspect Git state (git status, git diff, untracked files): the same gate reruns on the integration branch where the change is already committed, and scope is enforced by the orchestrator. Never call .codegen-contract/gate.sh: the orchestrator generates it around your checks.",
     ...(evidence
       ? [
           `This is a retry. The previous plan (${path.relative(directory, evidencePath)}) was rejected by the deterministic validator with these errors: ${(evidence.errors ?? []).join("; ")}. Fix exactly those problems and keep everything else.`,
@@ -109,6 +130,7 @@ async function main() {
 
   let result = execution.status
   let validation = null
+  let markdown = null
   if (result === "SUCCESS" && !(await exists(outputPath))) result = "PLAN_NOT_WRITTEN"
   if (result === "SUCCESS") {
     try {
@@ -117,6 +139,7 @@ async function main() {
         workClasses: new Set(Object.keys(registry.routes)),
         maxContracts,
         maxRisk: goalRisk,
+        goal,
       })
       const revision = await runProcess("git", ["rev-parse", "HEAD"], {
         cwd: directory,
@@ -130,6 +153,12 @@ async function main() {
         validation.valid = false
       }
       result = validation.valid ? "PASS" : "PLAN_INVALID"
+      // PLAN.md is rendered deterministically next to the plan, never by the
+      // model, so the user can review contracts and Goal coverage.
+      if (validation.valid) {
+        markdown = outputPath.replace(/\.json$/, ".md")
+        await writeFile(markdown, renderPlanMarkdown(generatedPlan, goal))
+      }
     } catch (error) {
       validation = { valid: false, errors: [`Plan is not valid JSON: ${error.message}`] }
       result = "PLAN_INVALID"
@@ -139,9 +168,11 @@ async function main() {
   const report = {
     result,
     output: relativeOutput,
+    markdown: markdown ? path.relative(directory, markdown) : null,
     user_action: execution.user_action,
     attempts: execution.attempts,
-    validation,
+    validation: validation ? { valid: validation.valid, errors: validation.errors, execution_waves: validation.execution_waves ?? [] } : null,
+    coverage: validation?.coverage ?? null,
     artifacts,
   }
   await writeFile(path.join(artifacts, "summary.json"), `${JSON.stringify(report, null, 2)}\n`)

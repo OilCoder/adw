@@ -1,5 +1,33 @@
+import { createHash } from "node:crypto"
+import { readFile } from "node:fs/promises"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
+
 import { ROLES, eligibleConfigurations, roleStatus, validateRegistry } from "./model-selection.mjs"
 import { selectExecutionPlan } from "./builder-runner.mjs"
+
+const SCHEMA_DIRECTORY = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../schema")
+
+// The schema each role produces or consumes. Certification evidence records
+// a hash of it, so evidence gathered against an older shape can be told
+// apart from evidence that matches what the runners enforce today.
+export const ROLE_SCHEMAS = {
+  "goal-manager": ["goal.schema.json"],
+  planner: ["plan.schema.json"],
+  "gate-designer": ["plan.schema.json"],
+  builder: ["plan.schema.json"],
+  researcher: ["research-report.schema.json"],
+  advisor: ["opinion.schema.json"],
+  reconciler: ["opinion.schema.json", "decision.schema.json"],
+}
+
+export async function roleSchemaHash(role, schemaDirectory = SCHEMA_DIRECTORY) {
+  const files = ROLE_SCHEMAS[role]
+  if (!files) throw new Error(`Unknown role: ${role}`)
+  const hash = createHash("sha256")
+  for (const file of files) hash.update(await readFile(path.join(schemaDirectory, file)))
+  return hash.digest("hex")
+}
 
 // The requests the orchestrator and runners actually issue in production. A
 // release is complete only when every one of them resolves to a qualified

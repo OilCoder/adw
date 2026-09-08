@@ -1,6 +1,7 @@
 import { cp, rm } from "node:fs/promises"
 import path from "node:path"
 
+import { GATE_WRAPPER, parseGateOutput } from "./gate.mjs"
 import { runProcess } from "./process.mjs"
 import { changedFilesSince, git } from "./worktrees.mjs"
 
@@ -15,6 +16,8 @@ function pathMatches(pattern, candidate) {
 // The final Gate judges the integrated result, not any single contract:
 // every contract gate must still pass on the merged tree, the merged diff
 // must stay inside the union of allowed paths, and the plan-level checks pass.
+// Each contract gate reports its checks one by one; the coverage ledger
+// reads those verdicts.
 export async function runFinalGate({
   directory,
   baseRevision,
@@ -38,11 +41,12 @@ export async function runFinalGate({
   for (const { contract_id, source } of contractGates) {
     await rm(gateDirectory, { recursive: true, force: true })
     await cp(source, gateDirectory, { recursive: true })
-    const result = await run("bash .codegen-contract/gate.sh", [], { cwd: directory, timeoutSeconds, shell: true })
+    const result = await run(`bash ${GATE_WRAPPER}`, [], { cwd: directory, timeoutSeconds, shell: true })
     checks.push({
       contract_id,
-      command: "bash .codegen-contract/gate.sh",
+      command: `bash ${GATE_WRAPPER}`,
       exit_code: result.exitCode,
+      check_results: parseGateOutput(result.stdout),
       output: `${result.stdout}\n${result.stderr}`.trim().slice(-4000),
     })
     if (result.exitCode !== 0) reasons.push(`contract-gate-failed:${contract_id}`)
@@ -56,6 +60,7 @@ export async function runFinalGate({
       contract_id: null,
       command,
       exit_code: result.exitCode,
+      check_results: [],
       output: `${result.stdout}\n${result.stderr}`.trim().slice(-4000),
     })
     if (result.exitCode !== 0) reasons.push(`final-verification-failed:${command}`)

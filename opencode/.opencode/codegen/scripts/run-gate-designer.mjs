@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url"
 
 import { runExecutionPlan, selectExecutionPlan } from "../lib/builder-runner.mjs"
 import {
-  exists,
   loadRegistry,
   newRunId,
   parseArguments,
@@ -15,16 +14,41 @@ import {
   resolvePinnedConfiguration,
   runsDirectory,
 } from "../lib/cli.mjs"
-import { checkGateReadiness } from "../lib/gate.mjs"
+import { contractChecks, contractRequirements } from "../lib/contract.mjs"
+import { CHECKS_DIRECTORY, checkGateReadiness } from "../lib/gate.mjs"
 import { resolveDisplay, runAgentProcess } from "../lib/agent-run.mjs"
-import { runProcess } from "../lib/process.mjs"
 import { changedFilesSince, revision } from "../lib/worktrees.mjs"
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url))
 const systemRoot = path.resolve(scriptDirectory, "../../..")
 
-// The Gate Designer writes tests with a configuration admitted for its own
-// role and excludes the model family that will implement the contract.
+// Each readiness reason, spelled out with the requirement the check is
+// supposed to prove, so the designer works on the right check.
+function describeReasons(readiness, contract) {
+  const requirements = new Map(contractRequirements(contract).map((item) => [item.id, item]))
+  const checks = new Map(contractChecks(contract).map((check) => [check.id, check]))
+  const lines = []
+  for (const reason of readiness.reasons) {
+    const [kind, detail] = reason.split(":")
+    const check = checks.get(detail)
+    const covered = (check?.covers ?? []).map((id) => `${id} "${requirements.get(id)?.statement ?? "?"}"`).join("; ")
+    if (kind === "check-passes-on-baseline") {
+      lines.push(`- ${CHECKS_DIRECTORY}/${detail}.sh passes on the untouched baseline, so it proves nothing. It covers ${covered}. Rewrite it so it fails until those requirements are met and passes afterwards.`)
+    } else if (kind === "missing-script") {
+      lines.push(`- ${detail} does not exist; the check that calls it cannot run.`)
+    } else if (kind === "no-verification-checks") {
+      lines.push("- the contract declares no checks.")
+    } else {
+      lines.push(`- ${reason}`)
+    }
+  }
+  return lines.join("\n")
+}
+
+// The Gate Designer writes checks with a configuration admitted for its own
+// role and excludes the model family that will implement the contract. It
+// may only touch .codegen-contract/checks/: the contract and gate.sh are
+// sealed, and readiness is judged against the contract as sealed.
 async function main() {
   const args = parseArguments(process.argv.slice(2))
   if (!args.contract || !args["work-class"]) {
@@ -75,9 +99,10 @@ async function main() {
   const baseline = await revision(directory)
   const prompt = [
     `Prepare the Gate for the sealed contract at ${path.relative(directory, contractPath)}.`,
-    `Readiness check reported: ${before.reasons.join(", ")}.`,
-    "Write checks only under .codegen-contract/ and make .codegen-contract/gate.sh run them so the Gate fails on the current baseline and passes once the contract requirements are met.",
-    "Do not implement the product change. If a trustworthy Gate cannot be built, report BLOCKED.",
+    "Readiness check reported:",
+    describeReasons(before, contract),
+    `Each check lives in ${CHECKS_DIRECTORY}/<check id>.sh and covers the contract requirements listed in the contract. Rewrite only the failing checks' scripts (and any helper files next to them under ${CHECKS_DIRECTORY}/) so that each check fails on the current baseline for every change requirement it covers and passes once those requirements are met.`,
+    "Do not edit the contract, gate.sh, product code, existing tests, dependencies, or configuration. Do not implement the product change. If a trustworthy check cannot be built, report BLOCKED.",
   ].join("\n")
 
   const execution = await runExecutionPlan({
@@ -102,7 +127,9 @@ async function main() {
 
   let result = execution.status
   const changed = execution.attempts.at(-1)?.changed_files ?? []
-  const outsideScope = changed.filter((file) => !file.startsWith(".codegen-contract/"))
+  // Anything outside the checks directory is out of scope: the contract and
+  // the wrapper included. A designer that rewrote contract.json fails here.
+  const outsideScope = changed.filter((file) => !file.startsWith(`${CHECKS_DIRECTORY}/`))
   let after = null
   if (result === "SUCCESS" && outsideScope.length > 0) result = "SCOPE_FAIL"
   if (result === "SUCCESS") {
@@ -111,10 +138,7 @@ async function main() {
         ? "CONTRACT_BLOCKED"
         : "NO_CHANGES"
     } else {
-      const refreshed = (await exists(contractPath))
-        ? JSON.parse(await readFile(contractPath, "utf8"))
-        : contract
-      after = await checkGateReadiness({ directory, contract: refreshed })
+      after = await checkGateReadiness({ directory, contract })
       result = after.ready ? "GATE_READY" : "GATE_NOT_READY"
     }
   }

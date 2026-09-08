@@ -71,15 +71,29 @@ the evidence and admission methodology.
   handle the conversation and high-level decisions. Child runners receive the
   configuration certified for their role from the registry.
 - `.opencode/codegen/scripts/orchestrate.mjs` is the only component that
-  chains Router, Planner, Gate readiness, Builders, integration, and the final
-  Gate. It is deterministic and spawns the runners; it never calls a model
-  directly. It requires a Git HEAD and a `SEALED` Goal.
+  chains Router, Planner, Gate readiness, Builders, integration, the final
+  Gate, and the Goal coverage ledger. It is deterministic and spawns the
+  runners; it never calls a model directly. It requires a Git HEAD and a
+  `SEALED` Goal.
+- The plan is validated against the Goal: every contract requirement declares
+  the Goal ids it `covers`, and a plan that leaves a `must` requirement or an
+  automated acceptance criterion uncovered is rejected and re-requested with
+  the errors as evidence. `PLAN.md` is rendered next to the plan. On the
+  planned route the run stops as `PLAN_REVIEW_REQUIRED` until the user
+  approves that plan and `orchestrate` is called again with it; the direct
+  route builds straight through.
 - Every contract builds in its own Git worktree under `.codegen-run/<run>/`
   from the current integration head. Results are cherry-picked onto the branch
   `codegen/<run>`. The user's checkout is never modified.
-- A contract is `GATE_READY` only when its gate fails on the untouched
-  baseline (or `expected_baseline` is `pass` for a refactor). The Gate
-  Designer may only write under `.codegen-contract/`.
+- Each contract check is materialized as `.codegen-contract/checks/<id>.sh`
+  and the generated `gate.sh` runs them all. A contract is `GATE_READY` only
+  when every check behaves as the requirements it covers demand on the
+  untouched baseline: fails when it covers a `change` requirement, passes when
+  it covers only `preserve` ones. The Gate Designer may only write under
+  `.codegen-contract/checks/`; the contract and `gate.sh` are sealed.
+- After the final Gate, `state.json` carries `goal_coverage`: per Goal
+  requirement and criterion, which contracts claimed it and how their checks
+  fared. Manual and operational items stay pending human verification.
 - Deliberation (`run-opinions.mjs`) needs an open question with a closed
   option set and distinct model families per advisor. Its output is a
   `PROPOSED` decision, never a sealed one; it becomes binding only when the

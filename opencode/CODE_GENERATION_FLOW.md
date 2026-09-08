@@ -85,9 +85,9 @@ Para llegar a ese estado deben existir:
 - un contrato sellado y versionado;
 - archivos permitidos y prohibidos;
 - criterios de aceptación definidos;
-- comandos o comprobaciones de verificación disponibles;
+- una comprobación ejecutable por cada requisito automatizable del contrato;
 - un Gate capaz de producir PASS o FAIL;
-- una comprobación de que el Gate puede ejecutarse y no acepta trivialmente cualquier resultado;
+- una comprobación, requisito por requisito, de que cada comprobación puede ejecutarse y no acepta trivialmente cualquier resultado: la que cubre un cambio falla en el baseline, la que cubre un comportamiento conservado pasa;
 - presupuesto de intentos;
 - estado conocido del repositorio.
 
@@ -248,6 +248,15 @@ oleada, siempre que sus contratos no modifiquen rutas solapadas. El validador
 determinista calcula estas oleadas y rechaza ciclos o paralelismo inseguro antes
 del despacho.
 
+El plan también debe dar cuenta del Goal. Cada requisito de contrato declara qué
+requisitos y criterios de aceptación del Goal cubre. El validador rechaza un plan
+que deje sin cubrir un requisito obligatorio del Goal o un criterio de aceptación
+automatizable; un plan rechazado vuelve al Planner con los errores como
+evidencia, dentro de su presupuesto. Los requisitos no obligatorios sin cubrir y
+los criterios que solo un humano puede verificar se reportan, no bloquean. El
+plan validado se rinde en un documento legible que, en la ruta planificada, el
+usuario revisa y aprueba antes de que ningún Builder programe.
+
 El Planner no implementa el cambio. Su producto es una especificación suficientemente precisa para que otro modelo pueda programar sin rediseñar la tarea.
 
 ### 5.4 Contrato
@@ -285,13 +294,33 @@ forbidden:
   - package.json
 
 requirements:
-  - consultar el correo antes de crear el usuario
-  - devolver el error de dominio EmailAlreadyExists
-  - conservar el comportamiento para correos nuevos
+  - id: R1
+    statement: consultar el correo antes de crear el usuario
+    kind: change            # añade comportamiento: su comprobación falla antes del cambio
+    verification: automated
+    covers: [REQ-1, ACC-1]  # ids del Goal que este requisito satisface
+  - id: R2
+    statement: devolver el error de dominio EmailAlreadyExists
+    kind: change
+    verification: automated
+    covers: [REQ-1, ACC-1]
+  - id: R3
+    statement: conservar el comportamiento para correos nuevos
+    kind: preserve          # conserva comportamiento: su comprobación ya pasa antes del cambio
+    verification: automated
+    covers: [REQ-2]
+  - id: R4
+    statement: el mensaje de error es comprensible para el usuario final
+    verification: manual    # ninguna comprobación lo juzga; queda pendiente de verificación humana
 
 verification:
-  commands:
-    - npm test -- tests/users/register.test.ts
+  checks:
+    - id: C1
+      covers: [R1, R2]
+      command: npm test -- tests/users/register.duplicate.test.ts
+    - id: C2
+      covers: [R3]
+      command: npm test -- tests/users/register.test.ts
   invariants:
     - no cambiar firmas públicas
     - no modificar archivos fuera del alcance
@@ -306,6 +335,16 @@ response:
   - resultado de tests
   - bloqueos o decisiones pendientes
 ```
+
+Cada requisito automatizable tiene al menos una comprobación que lo cubre. El
+comportamiento esperado de una comprobación antes de programar no se declara:
+se deriva de los requisitos que cubre. Una que cubre un cambio debe fallar en el
+baseline; una que ya pasaba antes del cambio es una guarda, nunca prueba de
+cobertura. Un requisito que ningún comando puede juzgar se declara manual, no
+lleva comprobación y se reporta como pendiente de verificación humana; un
+contrato solo de requisitos manuales no tiene Gate y se rechaza. Un contrato
+cuyos requisitos son todos de conservación es un refactor puro: se admite y se
+señala como tal.
 
 Durante la ejecución, el Builder no puede reinterpretar o ampliar unilateralmente el contrato.
 
@@ -384,6 +423,12 @@ Gate: PASS
 ```
 
 El Gate no tiene que ser un agente ni un script nuevo para cada fase. Puede ser una regla del orquestador que evalúe comandos existentes y restricciones declaradas en el contrato.
+
+Al cerrar una corrida, el orquestador cierra el ciclo contra el Goal con un
+libro de cobertura: por cada requisito y criterio de aceptación del Goal, qué
+contratos lo reclamaron, si pasaron y qué dijeron sus comprobaciones. Los
+criterios manuales u operativos y los requisitos manuales de contrato se listan
+como pendientes de verificación humana; nunca se declaran cumplidos.
 
 ### 5.8 Orquestador
 
@@ -501,6 +546,10 @@ flowchart TD
 ```
 
 Se usa cuando existen dependencias o resultados intermedios reales.
+
+En esta ruta el usuario revisa el plan rendido, con su cobertura del Goal, y lo
+aprueba antes de que empiece la construcción. La ruta directa, con un solo
+contrato, no se detiene.
 
 Una fase debe:
 

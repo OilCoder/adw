@@ -14,38 +14,18 @@
           "objective": "Implement alpha",
           "work_class": "localized-low-risk-code-change",
           "risk": "low",
-          "read": [
-            "lib/alpha.py",
-            "tests/test_alpha.py"
-          ],
-          "allowed_to_modify": [
-            "lib/alpha.py"
-          ],
-          "forbidden": [
-            "tests/**",
-            "lib/beta.py",
-            "lib/gamma.py"
-          ],
+          "read": ["lib/alpha.py", "tests/test_alpha.py"],
+          "allowed_to_modify": ["lib/alpha.py"],
+          "forbidden": ["tests/**", "lib/beta.py", "lib/gamma.py"],
           "requirements": [
-            "alpha doubles its input"
+            { "id": "R1", "statement": "alpha doubles its input", "kind": "change", "verification": "automated", "covers": ["REQ-1", "ACC-1"] }
           ],
           "verification": {
-            "commands": [
-              "python3 -m unittest tests/test_alpha.py"
-            ],
-            "invariants": [
-              "Only lib/alpha.py changes"
-            ]
+            "checks": [{ "id": "C1", "covers": ["R1"], "command": "python3 -m unittest tests/test_alpha.py" }],
+            "invariants": ["Only lib/alpha.py changes"]
           },
-          "budgets": {
-            "max_builder_attempts": 2,
-            "max_contract_revisions": 0,
-            "max_unplanned_scope_expansion": 0
-          },
-          "response": [
-            "status",
-            "changed files"
-          ]
+          "budgets": { "max_builder_attempts": 2, "max_contract_revisions": 0, "max_unplanned_scope_expansion": 0 },
+          "response": ["status", "changed files"]
         }
       ]
     }

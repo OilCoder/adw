@@ -83,6 +83,84 @@
     }
   },
   "$defs": {
+    "requirement": {
+      "type": "object",
+      "description": "One requirement of the contract. Its id is referenced by the checks that verify it.",
+      "required": [
+        "id",
+        "statement"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unique within the contract, for example R1."
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "change",
+            "preserve"
+          ],
+          "default": "change",
+          "description": "change: the requirement adds or alters behavior, so its checks must fail on the untouched baseline. preserve: the requirement keeps existing behavior, so its checks must already pass on the baseline. A check that already passed before the change proves nothing about a change requirement."
+        },
+        "verification": {
+          "enum": [
+            "automated",
+            "manual"
+          ],
+          "default": "automated",
+          "description": "automated: at least one check verifies it. manual: no check can verify it; it is reported as pending human verification. A contract needs at least one automated requirement, otherwise it has no Gate."
+        },
+        "covers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true,
+          "default": [],
+          "description": "Ids of Goal requirements and acceptance criteria this requirement satisfies. Every Goal requirement with priority must and every acceptance criterion with verification_type automated must be covered by some contract requirement (automated ones for automated criteria)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "check": {
+      "type": "object",
+      "description": "One executable check of the Gate. The orchestrator materializes it as .codegen-contract/checks/<id>.sh; the generated gate.sh runs every check.",
+      "required": [
+        "id",
+        "covers",
+        "command"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unique within the contract, for example C1."
+        },
+        "covers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true,
+          "description": "Ids of the contract requirements this check verifies. Its expected baseline behavior follows from them: it must fail on the baseline when it covers any change requirement, and pass when it covers only preserve requirements."
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Shell command that judges behavior or file contents. Never Git state, never the generated gate.sh."
+        }
+      },
+      "additionalProperties": false
+    },
     "contract": {
       "type": "object",
       "required": [
@@ -143,23 +221,21 @@
           "type": "array",
           "minItems": 1,
           "items": {
-            "type": "string",
-            "minLength": 1
+            "$ref": "#/$defs/requirement"
           }
         },
         "verification": {
           "type": "object",
           "required": [
-            "commands",
+            "checks",
             "invariants"
           ],
           "properties": {
-            "commands": {
+            "checks": {
               "type": "array",
               "minItems": 1,
               "items": {
-                "type": "string",
-                "minLength": 1
+                "$ref": "#/$defs/check"
               }
             },
             "invariants": {
@@ -168,13 +244,6 @@
                 "type": "string",
                 "minLength": 1
               }
-            },
-            "expected_baseline": {
-              "enum": [
-                "fail",
-                "pass"
-              ],
-              "description": "How the gate must behave on the untouched baseline: fail for new behavior (default), pass for pure refactors."
             }
           },
           "additionalProperties": false

@@ -31,9 +31,11 @@ if (agent === "planner") {
   const plan = JSON.parse(fs.readFileSync(process.env.FAKE_PLAN_TEMPLATE, "utf8"))
   plan.base_revision = execFileSync("git", ["rev-parse", "HEAD"]).toString().trim()
   // FAKE_PLAN_INVALID_FIRST: the first plan uses a wildcard the validator
-  // rejects; the retry (prompt carries the evidence) is clean.
+  // rejects; FAKE_PLAN_UNCOVERED_FIRST: the first plan forgets to cover the
+  // Goal's must requirement. The retry (prompt carries the evidence) is clean.
   const retry = /This is a retry/.test(prompt)
   if (process.env.FAKE_PLAN_INVALID_FIRST && !retry) plan.phases[0].contracts[0].allowed_to_modify = ["lib/*.py"]
+  if (process.env.FAKE_PLAN_UNCOVERED_FIRST && !retry) for (const phase of plan.phases) for (const c of phase.contracts) c.requirements[0].covers = ["ACC-1"]
   fs.mkdirSync(path.dirname(output), { recursive: true })
   fs.writeFileSync(output, JSON.stringify(plan, null, 2))
   log({ agent, prompt, retry })
@@ -48,7 +50,7 @@ if (agent === "planner") {
   const wrong = process.env.FAKE_FAIL_FIRST === contract.contract_id && !retry
   const solution = path.join(process.env.FAKE_SOLUTIONS, contract.contract_id + (wrong ? "-wrong" : "") + ".py")
   fs.copyFileSync(solution, contract.allowed_to_modify[0])
-  log({ agent, contract_id: contract.contract_id, cwd: process.cwd(), start, end: Date.now(), retry, evidence, evidence_exists: evidenceExists, gate: contract.verification.commands })
+  log({ agent, contract_id: contract.contract_id, cwd: process.cwd(), start, end: Date.now(), retry, evidence, evidence_exists: evidenceExists, checks: contract.verification.checks.map((c) => c.command) })
   done()
 } else {
   log({ agent, prompt })
@@ -91,6 +93,17 @@ function orchestrate(tree, args, env = {}) {
   )
 }
 
+// The planned route pauses for plan review: the first call plans and stops,
+// the second builds the reviewed plan.
+async function planThenBuild(tree, runId, args = [], env = {}) {
+  const planned = await orchestrate(tree, ["--run-id", `${runId}-plan`, ...args], env)
+  assert.equal(planned.code, 0, planned.stderr)
+  const review = JSON.parse(planned.stdout)
+  assert.equal(review.status, "PLAN_REVIEW_REQUIRED")
+  const built = await orchestrate(tree, ["--run-id", runId, "--plan", review.plan_path, ...args], env)
+  return { review, built }
+}
+
 async function readLog(tree) {
   return (await readFile(path.join(tree.directory, "fake.log"), "utf8")).trim().split("\n").map(JSON.parse)
 }
@@ -100,16 +113,28 @@ async function events(tree, runId) {
     .trim().split("\n").map((line) => JSON.parse(line).event)
 }
 
-test("planned route: parallel wave, dependent wave, integration branch, final gate", async () => {
+test("planned route: plan review pause, parallel wave, dependent wave, integration branch, final gate, coverage ledger", async () => {
   const tree = await project()
   try {
     // Builders sleep long enough for the overlap assertion to hold on a loaded machine.
-    const result = await orchestrate(tree, ["--run-id", "r1", "--concurrency", "2"], { FAKE_SLEEP_MS: "2000" })
-    assert.equal(result.code, 0, result.stderr)
-    const state = JSON.parse(result.stdout)
+    const { review, built } = await planThenBuild(tree, "r1", ["--concurrency", "2"], { FAKE_SLEEP_MS: "2000" })
+
+    // The pause: plan and PLAN.md exist, no worktree does, the Planner ran once.
+    assert.equal(review.route, "planned")
+    assert.equal(review.planner_calls, 1)
+    assert.equal(review.plan_path, ".codegen-plan/r1-plan.json")
+    assert.equal(review.plan_markdown, ".codegen-plan/r1-plan.md")
+    const markdown = await readFile(path.join(tree.directory, review.plan_markdown), "utf8")
+    assert.ok(markdown.includes("`REQ-1` [must] All unit tests pass — **covered**"), markdown)
+    await assert.rejects(access(path.join(tree.directory, ".codegen-run/r1-plan/integration")))
+    assert.deepEqual(review.waves, [])
+
+    assert.equal(built.code, 0, built.stderr)
+    const state = JSON.parse(built.stdout)
     assert.equal(state.status, "COMPLETED")
     assert.equal(state.route, "planned")
-    assert.equal(state.planner_calls, 1)
+    assert.equal(state.planner_calls, 0)
+    assert.equal(state.plan_reviewed, true)
     assert.deepEqual(state.waves.map((wave) => wave.phases), [["core"], ["compose"]])
     assert.deepEqual(state.waves.map((wave) => wave.status), ["COMPLETED", "COMPLETED"])
     assert.ok(state.waves.flatMap((wave) => wave.contracts).every((c) => c.status === "PASSED" && c.result_commit))
@@ -118,6 +143,12 @@ test("planned route: parallel wave, dependent wave, integration branch, final ga
     assert.deepEqual(state.final_gate.checks.map((check) => [check.contract_id, check.exit_code]), [
       ["alpha", 0], ["beta", 0], ["gamma", 0], [null, 0],
     ])
+    assert.deepEqual(state.final_gate.checks[0].check_results, [{ check_id: "C1", result: "PASS" }])
+
+    // The ledger closes the loop against the Goal.
+    assert.deepEqual(state.goal_coverage.summary, { verified: 2, failed: 0, not_verified: 0, pending_human: 0 })
+    assert.equal(state.goal_coverage.requirements[0].status, "VERIFIED")
+    assert.deepEqual(state.goal_coverage.requirements[0].claims.map((claim) => [claim.contract_id, claim.status]), [["alpha", "VERIFIED"], ["beta", "VERIFIED"], ["gamma", "VERIFIED"]])
 
     // Wave 1 builders overlapped in time; gamma started only after both ended.
     const log = (await readLog(tree)).filter((entry) => entry.agent === "builder")
@@ -125,7 +156,7 @@ test("planned route: parallel wave, dependent wave, integration branch, final ga
     assert.ok(byId.alpha.start < byId.beta.end && byId.beta.start < byId.alpha.end, "wave-1 builders did not overlap")
     assert.ok(byId.gamma.start >= Math.max(byId.alpha.end, byId.beta.end))
     assert.ok(byId.alpha.cwd.endsWith("/.codegen-run/r1/worktrees/alpha"))
-    assert.deepEqual(byId.alpha.gate, ["bash .codegen-contract/gate.sh"])
+    assert.deepEqual(byId.alpha.checks, ["bash .codegen-contract/checks/C1.sh"])
 
     // The integration branch carries the three results and nothing else.
     const { stdout: files } = await tree.git("ls-tree", "-r", "--name-only", "codegen/r1")
@@ -142,21 +173,23 @@ test("planned route: parallel wave, dependent wave, integration branch, final ga
     await assert.rejects(access(path.join(tree.directory, ".codegen-run/r1/worktrees/alpha")))
 
     const sequence = await events(tree, "r1")
-    for (const event of ["GOAL_LOADED", "ROUTED", "PLAN_REQUESTED", "PLAN_VALIDATED", "DAG_READY", "WAVE_READY", "GATE_READY", "BUILDER_DISPATCHED", "CONTRACT_PASSED", "INTEGRATED", "WAVE_COMPLETED", "FINAL_GATE_PASS", "RUN_COMPLETED"]) {
+    for (const event of ["GOAL_LOADED", "ROUTED", "PLAN_VALIDATED", "DAG_READY", "WAVE_READY", "GATE_READY", "BUILDER_DISPATCHED", "CONTRACT_PASSED", "INTEGRATED", "WAVE_COMPLETED", "FINAL_GATE_PASS", "GOAL_COVERAGE", "RUN_COMPLETED"]) {
       assert.ok(sequence.includes(event), `missing event ${event}`)
     }
     assert.ok(!sequence.includes("GATE_DESIGN_REQUESTED"))
+    assert.ok(!sequence.includes("PLAN_REQUESTED"))
+    assert.ok((await events(tree, "r1-plan")).includes("PLAN_REQUESTED"))
   } finally {
     await rm(tree.directory, { recursive: true, force: true })
   }
 })
 
-test("serial concurrency and retry with evidence after a failed gate", async () => {
+test("serial concurrency and retry with per-check evidence after a failed gate", async () => {
   const tree = await project()
   try {
-    const result = await orchestrate(tree, ["--run-id", "r2", "--concurrency", "1", "--keep-worktrees", "true"], { FAKE_FAIL_FIRST: "beta" })
-    assert.equal(result.code, 0, result.stderr)
-    const state = JSON.parse(result.stdout)
+    const { built } = await planThenBuild(tree, "r2", ["--concurrency", "1", "--keep-worktrees", "true"], { FAKE_FAIL_FIRST: "beta" })
+    assert.equal(built.code, 0, built.stderr)
+    const state = JSON.parse(built.stdout)
     assert.equal(state.status, "COMPLETED")
     const beta = state.waves[0].contracts.find((c) => c.contract_id === "beta")
     assert.deepEqual(beta.attempts.map((attempt) => attempt.result), ["GATE_FAIL", "PASS"])
@@ -170,6 +203,8 @@ test("serial concurrency and retry with evidence after a failed gate", async () 
 
     const evidence = JSON.parse(await readFile(path.join(tree.directory, ".codegen-run/r2/worktrees/beta/.codegen-contract/evidence-1.json"), "utf8"))
     assert.equal(evidence.result, "GATE_FAIL")
+    assert.equal(evidence.verification[0].check_id, "C1")
+    assert.deepEqual(evidence.verification[0].covers, ["R1"])
     assert.match(evidence.verification[0].output, /AssertionError/)
     const sequence = await events(tree, "r2")
     assert.ok(sequence.includes("RETRY"))
@@ -178,7 +213,7 @@ test("serial concurrency and retry with evidence after a failed gate", async () 
   }
 })
 
-test("direct route: the Planner is capped at one contract and the run has one wave", async () => {
+test("direct route: the Planner is capped at one contract, the run has one wave, and it never pauses", async () => {
   const tree = await project(path.join(fixture, "goal-direct.json"))
   try {
     const result = await orchestrate(tree, ["--run-id", "r4"], { FAKE_PLAN_TEMPLATE: path.join(fixture, "plan-direct.json") })
@@ -187,10 +222,14 @@ test("direct route: the Planner is capped at one contract and the run has one wa
     assert.equal(state.status, "COMPLETED")
     assert.equal(state.route, "direct")
     assert.equal(state.planner_calls, 1)
+    assert.equal(state.plan_reviewed, false)
+    assert.equal(state.plan_markdown, ".codegen-plan/r4.md")
     assert.equal(state.waves.length, 1)
     assert.deepEqual(state.final_gate.changed_files, ["lib/alpha.py"])
+    assert.equal(state.goal_coverage.summary.verified, 2)
     const planner = (await readLog(tree)).find((entry) => entry.agent === "planner")
     assert.match(planner.prompt, /exactly one phase containing exactly one contract/)
+    assert.match(planner.prompt, /requirement \(must\) REQ-1: All unit tests pass/)
   } finally {
     await rm(tree.directory, { recursive: true, force: true })
   }
@@ -249,7 +288,7 @@ test("a plan the validator rejects is re-requested with evidence within the plan
     const result = await orchestrate(tree, ["--run-id", "r7"], { FAKE_PLAN_INVALID_FIRST: "1" })
     assert.equal(result.code, 0, result.stderr)
     const state = JSON.parse(result.stdout)
-    assert.equal(state.status, "COMPLETED")
+    assert.equal(state.status, "PLAN_REVIEW_REQUIRED")
     assert.equal(state.planner_calls, 2)
     assert.equal(state.plan_path, ".codegen-plan/r7-2.json")
     const names = await events(tree, "r7")
@@ -270,14 +309,50 @@ test("a plan the validator rejects is re-requested with evidence within the plan
   }
 })
 
+test("a plan that leaves a must requirement uncovered is rejected and re-requested with the coverage error", async () => {
+  const tree = await project()
+  try {
+    const goalPath = path.join(tree.directory, ".codegen-goal/goal.json")
+    const goal = JSON.parse(await readFile(goalPath, "utf8"))
+    await writeFile(goalPath, JSON.stringify({ ...goal, budgets: { ...goal.budgets, max_planner_calls: 2 } }))
+    const result = await orchestrate(tree, ["--run-id", "r10"], { FAKE_PLAN_UNCOVERED_FIRST: "1" })
+    assert.equal(result.code, 0, result.stderr)
+    const state = JSON.parse(result.stdout)
+    assert.equal(state.status, "PLAN_REVIEW_REQUIRED")
+    assert.equal(state.planner_calls, 2)
+    const evidence = JSON.parse(await readFile(path.join(tree.directory, ".codegen-plan/r10-1.evidence.json"), "utf8"))
+    assert.ok(evidence.errors.some((e) => e.includes("Goal requirement REQ-1 (must) is not covered")), evidence.errors.join("\n"))
+    await assert.rejects(access(path.join(tree.directory, ".codegen-plan/r10-1.md")), "no PLAN.md for a rejected plan")
+    await access(path.join(tree.directory, ".codegen-plan/r10-2.md"))
+  } finally {
+    await rm(tree.directory, { recursive: true, force: true })
+  }
+})
+
+test("a reviewed plan whose base revision is no longer HEAD is refused", async () => {
+  const tree = await project()
+  try {
+    const planned = await orchestrate(tree, ["--run-id", "r11-plan"])
+    assert.equal(JSON.parse(planned.stdout).status, "PLAN_REVIEW_REQUIRED")
+    await writeFile(path.join(tree.directory, "README.md"), "moved on\n")
+    await tree.git("-c", "user.name=t", "-c", "user.email=t@localhost", "add", ".")
+    await tree.git("-c", "user.name=t", "-c", "user.email=t@localhost", "commit", "-q", "-m", "moved on")
+    const built = await orchestrate(tree, ["--run-id", "r11", "--plan", ".codegen-plan/r11-plan.json"])
+    assert.equal(built.code, 1)
+    assert.equal(JSON.parse(built.stdout).status, "PLAN_STALE")
+  } finally {
+    await rm(tree.directory, { recursive: true, force: true })
+  }
+})
+
 test("a project that ignores .codegen-contract still gets sealed contracts committed in the worktree", async () => {
   const tree = await project()
   try {
     await writeFile(path.join(tree.directory, ".gitignore"), "bin-fake/\nfake.log\n__pycache__/\n.codegen-goal/\n.codegen-plan/\n.codegen-contract/\n.codegen-run/\n")
     await tree.git("-c", "user.name=t", "-c", "user.email=t@localhost", "commit", "-qam", "ignore contract dir")
-    const result = await orchestrate(tree, ["--run-id", "r9", "--concurrency", "2"])
-    assert.equal(result.code, 0, result.stderr)
-    const state = JSON.parse(result.stdout)
+    const { built } = await planThenBuild(tree, "r9", ["--concurrency", "2"])
+    assert.equal(built.code, 0, built.stderr)
+    const state = JSON.parse(built.stdout)
     assert.equal(state.status, "COMPLETED")
     assert.ok(state.waves.flatMap((wave) => wave.contracts).every((c) => c.status === "PASSED"))
   } finally {

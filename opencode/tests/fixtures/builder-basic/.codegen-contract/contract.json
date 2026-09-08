@@ -15,13 +15,13 @@
     "tests/**"
   ],
   "requirements": [
-    "Return normal Python division as a float.",
-    "Raise ValueError with the exact message 'divisor must not be zero' when the divisor is zero.",
-    "Preserve the public function signature."
+    { "id": "R1", "statement": "Return normal Python division as a float.", "kind": "change", "verification": "automated" },
+    { "id": "R2", "statement": "Raise ValueError with the exact message 'divisor must not be zero' when the divisor is zero.", "kind": "change", "verification": "automated" },
+    { "id": "R3", "statement": "Preserve the public function signature.", "kind": "preserve", "verification": "manual" }
   ],
   "verification": {
-    "commands": [
-      "bash .codegen-contract/gate.sh"
+    "checks": [
+      { "id": "C1", "covers": ["R1", "R2"], "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v" }
     ],
     "invariants": [
       "Only calculator.py changes.",
