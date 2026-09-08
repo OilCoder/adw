@@ -24,14 +24,13 @@ test("every registry configuration is whitelisted (or declared) by its provider 
   }
 })
 
-test("automatic routes use OpenCode providers only; OpenRouter is manual", () => {
+test("automatic routes use OpenCode providers, plus the user's OpenAI subscription for the Planner and the Goal Manager; OpenRouter is manual", () => {
   for (const role of ROLES) {
     const policy = registry.runner_policies[role]
     assert.ok(policy, `runner policy for ${role}`)
-    assert.deepEqual(policy.providers.filter((p) => !["opencode-go", "opencode"].includes(p)), [], `${role} routes outside OpenCode`)
-    for (const id of policy.configuration_ids) {
-      assert.ok(registry.configurations.some((c) => c.configuration_id === id), `${role} policy references unknown ${id}`)
-    }
+    const allowed = ["planner", "goal-manager"].includes(role) ? ["openai", "opencode-go", "opencode"] : ["opencode-go", "opencode"]
+    assert.deepEqual(policy.providers, allowed, `${role} provider tiers`)
+    assert.equal(policy.configuration_ids, undefined, `${role} order is computed from price, never written by hand`)
   }
   assert.equal(registry.configurations.filter((c) => c.provider === "openrouter").length, 0)
 })
@@ -40,5 +39,6 @@ test("every enabled provider is a built-in provider or has a provider block", ()
   for (const provider of config.enabled_providers) {
     assert.ok(BUILTIN_PROVIDERS.has(provider) || config.provider?.[provider], `${provider} is enabled but undefined`)
   }
-  assert.ok(!config.enabled_providers.includes("openai"), "openai has no configuration in the registry and was removed from enabled_providers")
+  assert.ok(config.enabled_providers.includes("openai"), "openai supplies the Planner's first tier (user decision 2026-09-08)")
+  assert.deepEqual(config.provider.openai.whitelist, ["gpt-5.6-sol"])
 })

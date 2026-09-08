@@ -22,7 +22,7 @@ const model = argv[argv.indexOf("--model") + 1]
 const agent = argv[argv.indexOf("--agent") + 1]
 const prompt = argv[argv.length - 1]
 fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify({ model, agent, prompt, exa: process.env.OPENCODE_ENABLE_EXA ?? null }) + "\\n")
-if (process.env.FAKE_ZEN_EMPTY && model.startsWith("opencode-go/")) {
+if (process.env.FAKE_ZEN_EMPTY) {
   console.log(JSON.stringify({type:"error",error:{name:"APIError",data:{statusCode:402,message:"Insufficient credit balance. Add credits to continue.",isRetryable:false}}}))
   process.exit(1)
 }
@@ -55,6 +55,7 @@ function run(script, args, { directory, bin }, env = {}) {
       ...process.env,
       PATH: `${bin}${path.delimiter}${process.env.PATH}`,
       FAKE_LOG: path.join(directory, "fake.log"),
+      CODEGEN_METALOG: path.join(directory, "metalog.jsonl"),
       ...env,
     },
   }).then(
@@ -66,7 +67,7 @@ function run(script, args, { directory, bin }, env = {}) {
 test("run-researcher runs one admitted configuration, validates, and renders the report", async () => {
   const tree = await worktree()
   try {
-    const result = await run("run-researcher.mjs", ["--question", "RQ-1", "--minimum-status", "candidate", "--source-verification", "offline"], tree, {
+    const result = await run("run-researcher.mjs", ["--question", "RQ-1", "--source-verification", "offline"], tree, {
       FAKE_OUTPUT_FIXTURE: path.join(fixtures, "report.json"),
     })
     assert.equal(result.code, 0, result.stderr)
@@ -99,7 +100,7 @@ test("run-researcher rejects a report that does not answer the Goal question", a
     const mismatched = path.join(tree.directory, "mismatched.json")
     const report = JSON.parse(await readFile(path.join(fixtures, "report.json"), "utf8"))
     await writeFile(mismatched, JSON.stringify({ ...report, question_id: "RQ-9" }))
-    const result = await run("run-researcher.mjs", ["--question", "RQ-1", "--minimum-status", "candidate", "--source-verification", "offline"], tree, {
+    const result = await run("run-researcher.mjs", ["--question", "RQ-1", "--source-verification", "offline"], tree, {
       FAKE_OUTPUT_FIXTURE: mismatched,
     })
     assert.equal(result.code, 1)
@@ -119,7 +120,7 @@ test("run-researcher refuses questions that are not pending and does not call th
     const goal = JSON.parse(await readFile(goalPath, "utf8"))
     goal.research_questions[0].status = "completed"
     await writeFile(goalPath, JSON.stringify(goal))
-    const result = await run("run-researcher.mjs", ["--question", "RQ-1", "--minimum-status", "candidate"], tree)
+    const result = await run("run-researcher.mjs", ["--question", "RQ-1"], tree)
     assert.equal(result.code, 2)
     assert.match(result.stderr, /is completed, not pending/)
     await assert.rejects(readFile(path.join(tree.directory, "fake.log")))
@@ -136,7 +137,7 @@ test("run-goal stops and requests a recharge when the Zen balance is exhausted",
     await cp(path.join(fixtures, "report.json"), path.join(tree.directory, ".codegen-research/RQ-1.json"))
     const result = await run(
       "run-goal.mjs",
-      ["--intent", "Reject duplicate emails", "--reports", ".codegen-research/RQ-1.json", "--minimum-status", "candidate"],
+      ["--intent", "Reject duplicate emails", "--reports", ".codegen-research/RQ-1.json"],
       tree,
       { FAKE_OUTPUT_FIXTURE: path.join(fixtures, "goal.json"), FAKE_ZEN_EMPTY: "1" },
     )
@@ -145,7 +146,7 @@ test("run-goal stops and requests a recharge when the Zen balance is exhausted",
     assert.equal(summary.result, "ZEN_BALANCE_EXHAUSTED")
     assert.match(summary.user_action, /Recharge the Zen balance/)
     assert.equal(summary.attempts.length, 1)
-    assert.equal(summary.attempts[0].configuration.provider, "opencode-go")
+    assert.equal(summary.attempts[0].configuration.provider, "openai", "the Goal Manager starts on the user's OpenAI subscription")
     assert.equal(summary.markdown, null)
     assert.equal(summary.routing, null)
     assert.deepEqual(summary.research_reports, [
@@ -177,7 +178,7 @@ test("run-goal rejects a model-sealed Goal unless the user approved sealing", as
         ],
       }),
     )
-    const rejected = await run("run-goal.mjs", ["--intent", "x", "--minimum-status", "candidate"], tree, {
+    const rejected = await run("run-goal.mjs", ["--intent", "x"], tree, {
       FAKE_OUTPUT_FIXTURE: sealedFixture,
     })
     assert.equal(rejected.code, 1)
@@ -189,7 +190,7 @@ test("run-goal rejects a model-sealed Goal unless the user approved sealing", as
     await rm(path.join(tree.directory, ".codegen-goal"), { recursive: true })
     const approved = await run(
       "run-goal.mjs",
-      ["--intent", "x", "--minimum-status", "candidate", "--allow-sealed", "true"],
+      ["--intent", "x", "--allow-sealed", "true"],
       tree,
       { FAKE_OUTPUT_FIXTURE: sealedFixture },
     )
@@ -205,14 +206,14 @@ test("run-goal rejects a model-sealed Goal unless the user approved sealing", as
 test("run-goal refuses to overwrite an existing Goal and rejects invalid research evidence", async () => {
   const tree = await worktree()
   try {
-    const existing = await run("run-goal.mjs", ["--intent", "x", "--minimum-status", "candidate"], tree)
+    const existing = await run("run-goal.mjs", ["--intent", "x"], tree)
     assert.equal(existing.code, 2)
     assert.match(existing.stderr, /Goal output already exists/)
 
     await writeFile(path.join(tree.directory, "bad.json"), JSON.stringify({ schema_version: 1 }))
     const invalid = await run(
       "run-goal.mjs",
-      ["--intent", "x", "--output", ".codegen-goal/other.json", "--reports", "bad.json", "--minimum-status", "candidate"],
+      ["--intent", "x", "--output", ".codegen-goal/other.json", "--reports", "bad.json"],
       tree,
     )
     assert.equal(invalid.code, 2)
@@ -259,7 +260,7 @@ test("runners refuse to start without a Git HEAD", async () => {
   const tree = await worktree()
   try {
     await rm(path.join(tree.directory, ".git"), { recursive: true, force: true })
-    const result = await run("run-researcher.mjs", ["--question", "RQ-1", "--minimum-status", "candidate"], tree, {
+    const result = await run("run-researcher.mjs", ["--question", "RQ-1"], tree, {
       FAKE_OUTPUT_FIXTURE: path.join(fixtures, "report.json"),
     })
     assert.equal(result.code, 2)

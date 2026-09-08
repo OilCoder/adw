@@ -22,9 +22,22 @@ const path = require("node:path")
 const { execFileSync } = require("node:child_process")
 const argv = process.argv
 const agent = argv[argv.indexOf("--agent") + 1]
+const model = argv[argv.indexOf("--model") + 1]
 const prompt = argv[argv.length - 1]
 const sleepMs = Number(process.env.FAKE_SLEEP_MS || 600)
-function log(record) { fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify(record) + "\\n") }
+function log(record) { fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify({ model, ...record }) + "\\n") }
+// Distinct models this fake has already seen for an agent (and contract), in
+// order: the rung of the current model. FAKE_*_RUNGS says how many rungs
+// fail ("*" = every rung), so escalation is observable per configuration.
+function rungOf(filter) {
+  const seen = []
+  for (const line of (fs.existsSync(process.env.FAKE_LOG) ? fs.readFileSync(process.env.FAKE_LOG, "utf8") : "").split("\\n").filter(Boolean)) {
+    const entry = JSON.parse(line)
+    if (filter(entry) && !seen.includes(entry.model)) seen.push(entry.model)
+  }
+  return seen.includes(model) ? seen.indexOf(model) + 1 : seen.length + 1
+}
+function failingRung(value, rung) { return value === "*" || rung <= Number(value || 0) }
 function done() { console.log(JSON.stringify({type:"step_finish",part:{cost:0.001,tokens:{input:5,output:5,reasoning:0,cache:{read:0,write:0}}}})) }
 if (agent === "planner") {
   const output = prompt.match(/Write the complete plan to (\\S+)\\./)[1]
@@ -38,8 +51,8 @@ if (agent === "planner") {
   if (process.env.FAKE_PLAN_UNCOVERED_FIRST && !retry) for (const phase of plan.phases) for (const c of phase.contracts) c.requirements[0].covers = ["ACC-1"]
   // FAKE_PLAN_TOUCH_MANIFEST: the first contract may also modify package.json (a risk floor).
   if (process.env.FAKE_PLAN_TOUCH_MANIFEST) plan.phases[0].contracts[0].allowed_to_modify.push("package.json")
-  // FAKE_PLAN_INVALID_ALWAYS: every plan uses the rejected wildcard (no progress).
-  if (process.env.FAKE_PLAN_INVALID_ALWAYS) plan.phases[0].contracts[0].allowed_to_modify = ["lib/*.py"]
+  // FAKE_PLAN_INVALID_RUNGS: the first N planner configurations always write the rejected wildcard (no progress; "*" = all).
+  if (failingRung(process.env.FAKE_PLAN_INVALID_RUNGS, rungOf((entry) => entry.agent === "planner"))) plan.phases[0].contracts[0].allowed_to_modify = ["lib/*.py"]
   // FAKE_PLAN_TRIVIAL_CHECK: the first contract's check passes on the baseline.
   if (process.env.FAKE_PLAN_TRIVIAL_CHECK) plan.phases[0].contracts[0].verification.checks[0].command = "true"
   fs.mkdirSync(path.dirname(output), { recursive: true })
@@ -53,21 +66,23 @@ if (agent === "planner") {
   const evidenceExists = evidence ? fs.existsSync(evidence) : null
   const start = Date.now()
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, sleepMs)
-  // FAKE_FAIL_FIRST: wrong solution on the first attempt. FAKE_FAIL_ALWAYS: the
-  // same wrong solution on every attempt (no progress). FAKE_FAIL_SEQUENCE
+  // FAKE_FAIL_FIRST: wrong solution on the first attempt. FAKE_FAIL_RUNGS: the
+  // first N builder configurations write the same wrong solution on every
+  // attempt (no progress; "*" = all). FAKE_FAIL_SEQUENCE
   // "<contract>:<mode>,<mode>,...": one mode per attempt, scope (also writes a
   // file outside the contract), gate (wrong solution), or pass.
   const attempt = evidence ? Number((evidence.match(/evidence-(\\d+)\\.json$/) || [])[1]) + 1 : 1
+  const rung = rungOf((entry) => entry.agent === "builder" && entry.contract_id === contract.contract_id)
   const [sequenceId, sequenceModes] = (process.env.FAKE_FAIL_SEQUENCE || ":").split(":")
   const sequence = sequenceId === contract.contract_id ? sequenceModes.split(",") : []
-  const wrong = process.env.FAKE_FAIL_ALWAYS === contract.contract_id || (process.env.FAKE_FAIL_FIRST === contract.contract_id && !retry)
+  const wrong = failingRung(process.env.FAKE_FAIL_RUNGS, rung) || (process.env.FAKE_FAIL_FIRST === contract.contract_id && !retry)
   const mode = sequence[attempt - 1] || (wrong ? "gate" : "pass")
   if (mode === "scope") fs.writeFileSync("lib/extra.py", "# outside the contract\\n")
   const solution = path.join(process.env.FAKE_SOLUTIONS, contract.contract_id + (mode === "gate" ? "-wrong" : "") + ".py")
   fs.copyFileSync(solution, contract.allowed_to_modify[0])
-  // FAKE_FAIL_ALWAYS changes the file every time (a Builder that keeps editing) while the same check keeps failing.
-  if (process.env.FAKE_FAIL_ALWAYS === contract.contract_id) fs.appendFileSync(contract.allowed_to_modify[0], "# attempt " + attempt + "\\n")
-  log({ agent, contract_id: contract.contract_id, cwd: process.cwd(), start, end: Date.now(), retry, attempt, mode, evidence, evidence_exists: evidenceExists, checks: contract.verification.checks.map((c) => c.command) })
+  // A failing rung changes the file every time (a Builder that keeps editing) while the same check keeps failing.
+  if (wrong && mode === "gate") fs.appendFileSync(contract.allowed_to_modify[0], "# attempt " + attempt + "\\n")
+  log({ agent, contract_id: contract.contract_id, cwd: process.cwd(), start, end: Date.now(), retry, attempt, rung, mode, evidence, evidence_exists: evidenceExists, checks: contract.verification.checks.map((c) => c.command) })
   done()
 } else if (agent === "gate-designer") {
   // Makes the trivial check real: the contract's unit test.
@@ -89,7 +104,7 @@ async function project(goalFixture = path.join(fixture, ".codegen-goal/goal.json
   for (const entry of ["lib", "tests"]) await cp(path.join(fixture, entry), path.join(directory, entry), { recursive: true })
   await mkdir(path.join(directory, ".codegen-goal"))
   await cp(goalFixture, path.join(directory, ".codegen-goal/goal.json"))
-  await writeFile(path.join(directory, ".gitignore"), "bin-fake/\nfake.log\n__pycache__/\n.codegen-goal/\n.codegen-plan/\n")
+  await writeFile(path.join(directory, ".gitignore"), "bin-fake/\nfake.log\nmetalog.jsonl\n__pycache__/\n.codegen-goal/\n.codegen-plan/\n")
   const git = (...args) => execFile("git", args, { cwd: directory })
   await git("init", "-q", "-b", "main")
   await git("-c", "user.name=t", "-c", "user.email=t@localhost", "add", ".")
@@ -98,12 +113,13 @@ async function project(goalFixture = path.join(fixture, ".codegen-goal/goal.json
 }
 
 function orchestrate(tree, args, env = {}) {
-  return execFile(process.execPath, [path.join(systemRoot, ".opencode/codegen/scripts/orchestrate.mjs"), "--minimum-status", "candidate", ...args], {
+  return execFile(process.execPath, [path.join(systemRoot, ".opencode/codegen/scripts/orchestrate.mjs"), ...args], {
     cwd: tree.directory,
     env: {
       ...process.env,
       PATH: `${tree.bin}${path.delimiter}${process.env.PATH}`,
       FAKE_LOG: path.join(tree.directory, "fake.log"),
+      CODEGEN_METALOG: path.join(tree.directory, "metalog.jsonl"),
       FAKE_PLAN_TEMPLATE: path.join(fixture, "plan-template.json"),
       FAKE_SOLUTIONS: path.join(fixture, "solutions"),
       PYTHONDONTWRITEBYTECODE: "1",
@@ -388,13 +404,32 @@ test("a plan the validator rejects is re-requested with evidence, and a plan tha
     assert.deepEqual(planners.map((entry) => entry.retry), [false, true])
     assert.ok(planners[1].prompt.includes("rejected by the deterministic validator"))
 
-    // A plan that reproduces the errors of an earlier attempt stops the run: no progress, no counter.
-    const stopped = await orchestrate(tree, ["--run-id", "r8"], { FAKE_PLAN_INVALID_ALWAYS: "1" })
+    // A planner that reproduces its own errors makes no progress: the next
+    // configuration of the list gets the evidence, and the plan is reviewed.
+    const escalated = await orchestrate(tree, ["--run-id", "r8"], { FAKE_PLAN_INVALID_RUNGS: "1" })
+    assert.equal(escalated.code, 0, escalated.stderr)
+    const reviewed = JSON.parse(escalated.stdout)
+    assert.equal(reviewed.status, "PLAN_REVIEW_REQUIRED")
+    assert.equal(reviewed.planner_calls, 3)
+    assert.equal(reviewed.escalations.length, 1)
+    assert.equal(reviewed.escalations[0].role, "planner")
+    assert.match(reviewed.escalations[0].reason, /no progress: attempt 2 reproduced the validation errors of attempt 1/)
+    const plannerModels = (await readLog(tree)).filter((entry) => entry.agent === "planner").slice(-3).map((entry) => entry.model)
+    assert.equal(plannerModels[0], plannerModels[1])
+    assert.notEqual(plannerModels[1], plannerModels[2], "the third call went to the next rung")
+    assert.ok((await events(tree, "r8")).includes("ESCALATED"))
+    const escalationEvidence = JSON.parse(await readFile(path.join(tree.directory, reviewed.escalations[0].evidence), "utf8"))
+    assert.equal(escalationEvidence.escalated_from, reviewed.escalations[0].from)
+    const metalog = (await readFile(path.join(tree.directory, "metalog.jsonl"), "utf8")).trim().split("\n").map((line) => JSON.parse(line))
+    assert.deepEqual(metalog.filter((entry) => entry.kind === "stop").map((entry) => [entry.role, entry.configuration_id]), [["planner", reviewed.escalations[0].from]])
+
+    // When every planner reproduces the errors, the run stops with the list exhausted.
+    const stopped = await orchestrate(tree, ["--run-id", "r8b"], { FAKE_PLAN_INVALID_RUNGS: "*" })
     assert.equal(stopped.code, 1)
     const failed = JSON.parse(stopped.stdout)
     assert.equal(failed.status, "PLAN_FAILED")
-    assert.equal(failed.planner_calls, 2)
-    assert.match(failed.stop_reason, /no progress: attempt 2 reproduced the validation errors of attempt 1/)
+    assert.match(failed.stop_reason, /no progress: .*; no other planner admitted/)
+    assert.ok(failed.escalations.length >= 2)
   } finally {
     await rm(tree.directory, { recursive: true, force: true })
   }
@@ -448,21 +483,53 @@ test("a project that ignores .codegen-contract still gets sealed contracts commi
   }
 })
 
-test("a Builder that reproduces its previous attempt stops the contract: no progress, without an attempt cap", async () => {
+test("a Builder that reproduces its previous attempt is escalated: the next rung gets the evidence on a reset worktree and passes", async () => {
   const tree = await project(path.join(fixture, "goal-direct.json"))
   try {
-    const result = await orchestrate(tree, ["--run-id", "r14"], { FAKE_PLAN_TEMPLATE: path.join(fixture, "plan-direct.json"), FAKE_FAIL_ALWAYS: "alpha" })
+    const result = await orchestrate(tree, ["--run-id", "r14"], { FAKE_PLAN_TEMPLATE: path.join(fixture, "plan-direct.json"), FAKE_FAIL_RUNGS: "1" })
+    assert.equal(result.code, 0, result.stderr)
+    const state = JSON.parse(result.stdout)
+    assert.equal(state.status, "COMPLETED")
+    const alpha = state.waves[0].contracts[0]
+    assert.equal(alpha.status, "PASSED")
+    assert.deepEqual(alpha.attempts.map((item) => [item.attempt, item.rung, item.result, item.repeats]), [[1, 1, "GATE_FAIL", null], [2, 1, "GATE_FAIL", 1], [3, 2, "PASS", null]])
+    assert.equal(alpha.escalations.length, 1)
+    assert.equal(alpha.escalations[0].from, alpha.attempts[0].configuration_id)
+    assert.equal(alpha.escalations[0].to, alpha.attempts[2].configuration_id)
+    assert.match(alpha.escalations[0].reason, /no progress: attempt 2 reproduced attempt 1 \(GATE_FAIL\)/)
+    assert.equal(alpha.escalations[0].evidence, ".codegen-contract/evidence-rung-2.json")
+    assert.deepEqual(state.final_gate.changed_files, ["lib/alpha.py"], "the failing rung's edits were reset before the next rung started")
+    const builders = (await readLog(tree)).filter((entry) => entry.agent === "builder")
+    assert.deepEqual(builders.map((entry) => entry.rung), [1, 1, 2])
+    assert.equal(builders[0].model, builders[1].model)
+    assert.notEqual(builders[1].model, builders[2].model)
+    assert.ok(builders[2].evidence_exists, "the next rung read the escalation evidence")
+    const names = await events(tree, "r14")
+    assert.ok(names.includes("RETRY") && names.includes("ESCALATED") && names.includes("CONTRACT_PASSED"))
+    const metalog = (await readFile(path.join(tree.directory, "metalog.jsonl"), "utf8")).trim().split("\n").map((line) => JSON.parse(line))
+    const stops = metalog.filter((entry) => entry.kind === "stop")
+    assert.deepEqual(stops.map((entry) => [entry.role, entry.configuration_id, entry.rank]), [["builder", alpha.escalations[0].from, 1]])
+    const calls = metalog.filter((entry) => entry.kind === "call" && entry.role === "builder")
+    assert.deepEqual(calls.map((entry) => entry.outcome), ["failure", "failure", "success"])
+    assert.ok(calls.every((entry) => Array.isArray(entry.ladder) && entry.ladder.length > 1 && entry.rank >= 1))
+  } finally {
+    await rm(tree.directory, { recursive: true, force: true })
+  }
+})
+
+test("when every Builder rung reproduces its attempts the contract fails with the list exhausted", async () => {
+  const tree = await project(path.join(fixture, "goal-direct.json"))
+  try {
+    const result = await orchestrate(tree, ["--run-id", "r16"], { FAKE_PLAN_TEMPLATE: path.join(fixture, "plan-direct.json"), FAKE_FAIL_RUNGS: "*", FAKE_SLEEP_MS: "0" })
     assert.equal(result.code, 1)
     const state = JSON.parse(result.stdout)
-    assert.notEqual(state.status, "COMPLETED")
     const alpha = state.waves[0].contracts[0]
     assert.equal(alpha.status, "BUILD_FAILED")
-    assert.match(alpha.stop, /no progress: attempt 2 reproduced attempt 1 \(GATE_FAIL\)/)
-    assert.deepEqual(alpha.attempts.map((item) => [item.attempt, item.result, item.repeats]), [[1, "GATE_FAIL", null], [2, "GATE_FAIL", 1]])
-    const builders = (await readLog(tree)).filter((entry) => entry.agent === "builder")
-    assert.deepEqual(builders.map((entry) => entry.attempt), [1, 2])
-    const names = await events(tree, "r14")
-    assert.ok(names.includes("RETRY") && names.includes("CONTRACT_FAILED"))
+    assert.match(alpha.stop, /no progress: .*; no other builder admitted/)
+    const rungs = new Set(alpha.attempts.map((item) => item.configuration_id))
+    assert.equal(alpha.escalations.length, rungs.size - 1)
+    assert.ok(rungs.size >= 5, "every admitted rung was tried")
+    assert.ok(alpha.attempts.every((item) => item.result === "GATE_FAIL"))
   } finally {
     await rm(tree.directory, { recursive: true, force: true })
   }

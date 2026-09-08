@@ -2,20 +2,16 @@ import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { tool } from "@opencode-ai/plugin"
 
-import { isInstalledProject } from "../codegen/lib/cli.mjs"
+import { loadMetalogSummary } from "../codegen/lib/metalog.mjs"
 import { ROLES, selectModel } from "../codegen/lib/model-selection.mjs"
 
 export default tool({
   description:
-    "Select a configuration certified for one role and work class, preferring OpenCode Go and using Zen-only capacity when Go is insufficient. This does not check live provider availability.",
+    "Show the ordered list of configurations admitted for one role and work class: cheapest first inside each provider tier (OpenAI for the Planner and Goal Manager, then OpenCode Go, then Zen), with this project's metalog applied (failed fits excluded, repeated failures demoted). This does not check live provider availability.",
   args: {
     role: tool.schema.string().describe(`Role requesting the model: ${ROLES.join(", ")}`),
     workClass: tool.schema.string().describe("Work class declared in config/model-pools.json"),
     risk: tool.schema.string().optional().describe("low, medium, or high; defaults to low"),
-    minimumStatus: tool.schema
-      .string()
-      .optional()
-      .describe("Admission level; production always uses qualified. Lower levels exist only for certification inside the harness repository."),
     requiredContext: tool.schema
       .number()
       .int()
@@ -33,12 +29,6 @@ export default tool({
       .describe("Exclude a model family to preserve independent review"),
   },
   async execute(args, context) {
-    const minimumStatus = args.minimumStatus ?? "qualified"
-    if (minimumStatus !== "qualified" && (await isInstalledProject(context.directory))) {
-      throw new Error(
-        "MAINTENANCE_ONLY: this project runs only qualified configurations; lower admission levels belong to the harness repository",
-      )
-    }
     const registryPath = path.join(
       context.directory,
       ".opencode",
@@ -47,6 +37,7 @@ export default tool({
       "model-pools.json",
     )
     const registry = JSON.parse(await readFile(registryPath, "utf8"))
-    return JSON.stringify(selectModel(registry, { ...args, minimumStatus }), null, 2)
+    const metalog = await loadMetalogSummary(context.directory)
+    return JSON.stringify(selectModel(registry, { ...args, metalog }), null, 2)
   },
 })

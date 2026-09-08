@@ -63,10 +63,8 @@ process.exit(1)
           ".codegen-contract/contract.json",
           "--work-class",
           "localized-low-risk-code-change",
-          "--minimum-status",
-          "candidate",
         ],
-        { env: { ...process.env, PATH: `${bin}:${process.env.PATH}` } },
+        { env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, CODEGEN_METALOG: path.join(worktree, "metalog.jsonl") } },
       )
     } catch (error) {
       failure = error

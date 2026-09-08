@@ -27,30 +27,36 @@ function errorEvent(statusCode, message, name = "APIError") {
   })}\n`
 }
 
-test("Builder plan selects its Go primary without a transport fallback", () => {
+test("Builder plan selects the cheapest admitted Go configuration, with its rank and the whole ladder", () => {
   const plan = selectBuilderExecutionPlan(registry, {
     workClass: "localized-low-risk-code-change",
     risk: "low",
-    minimumStatus: "candidate",
   })
 
   assert.equal(plan.status, "READY")
-  assert.equal(plan.primary.configuration_id, "builder-go-minimax-m3")
+  assert.equal(plan.primary.configuration_id, "builder-go-qwen3.8-flash")
+  assert.equal(plan.primary.rank, 1)
+  assert.equal(plan.ladder[0], "builder-go-qwen3.8-flash")
+  assert.ok(plan.ladder.length > 5)
   assert.equal("fallback" in plan, false)
+  // Escalation excludes the rungs already tried; the rank still counts from the top.
+  const next = selectBuilderExecutionPlan(registry, { workClass: "localized-low-risk-code-change", risk: "low", excludeConfigurations: [plan.ladder[0]] })
+  assert.equal(next.primary.configuration_id, plan.ladder[1])
+  assert.equal(next.primary.rank, 2)
 })
 
-test("Planner plan selects the certified Go primary (Luna) without a transport fallback", () => {
+test("Planner plan starts on the user's OpenAI subscription and falls to Go after it", () => {
   const plan = selectExecutionPlan(registry, "planner", {
     workClass: "complex-engineering-plan",
     risk: "medium",
-    minimumStatus: "candidate",
     requiresTools: true,
     requiresCodeEditing: false,
   })
 
   assert.equal(plan.status, "READY")
-  assert.equal(plan.primary.configuration_id, "builder-go-gpt-5.6-luna")
-  assert.equal(plan.primary.admission_status, "qualified")
+  assert.equal(plan.primary.configuration_id, "planner-openai-gpt-5.6-sol")
+  assert.equal(plan.primary.provider, "openai")
+  assert.equal(plan.ladder[1], "builder-go-gpt-5.6-luna", "the cheapest Go planner is the second rung")
   assert.equal("fallback" in plan, false)
 })
 
@@ -58,7 +64,6 @@ test("Builder plan selects Zen directly when no candidate Go model meets high ri
   const plan = selectBuilderExecutionPlan(registry, {
     workClass: "repository-code-change",
     risk: "high",
-    minimumStatus: "candidate",
   })
 
   assert.equal(plan.status, "READY")
@@ -116,7 +121,6 @@ test("auth, configuration, local timeout, and partial execution stop cleanly", (
 test("Runner stops after one Go call when the Zen balance is exhausted", async () => {
   const plan = selectBuilderExecutionPlan(registry, {
     workClass: "localized-low-risk-code-change",
-    minimumStatus: "candidate",
   })
   const calls = []
   const result = await runBuilderExecution({
@@ -135,7 +139,6 @@ test("Runner stops after one Go call when the Zen balance is exhausted", async (
 test("Runner executes a single Go call after a non-provider failure", async () => {
   const plan = selectBuilderExecutionPlan(registry, {
     workClass: "localized-low-risk-code-change",
-    minimumStatus: "candidate",
   })
   let calls = 0
   const result = await runBuilderExecution({

@@ -51,7 +51,7 @@ Los roles describen responsabilidades lógicas. **Un rol no equivale necesariame
 | Reconciler | Compara opiniones y fija una decisión técnica | Solo cuando hubo opiniones múltiples |
 | Planner / Engineer | Inspecciona el repositorio, diseña el cambio y redacta el contrato | Siempre |
 | Gate Designer / Test Agent | Define o prepara la verificación ejecutable | Cuando no bastan los tests y controles existentes |
-| Model Selector | Escoge una configuración calificada para el trabajo | Siempre, puede ser una regla del orquestador |
+| Model Selector | Escoge la configuración admitida más barata para el trabajo: lista del rol por nivel de proveedor y precio, corregida por el metalog del proyecto | Siempre, puede ser una regla del orquestador |
 | Runner | Adapta la ejecución al proveedor o CLI seleccionado | Siempre como capa técnica |
 | Builder | Lee el contrato y escribe o edita el código | Siempre |
 | Verifier | Ejecuta la verificación oficial de forma controlada | Siempre |
@@ -111,7 +111,7 @@ flowchart TD
 ### Secuencia detallada
 
 1. El Orchestrator confirma que el contrato y el Gate están listos.
-2. El Model Selector elige un Builder calificado para esa clase de trabajo.
+2. El Model Selector elige el Builder admitido más barato para esa clase de trabajo. La primera vez que el proyecto usa una configuración, una comprobación de encaje de segundos confirma que escribe un archivo con sus herramientas; si no encaja, queda excluida en ese proyecto.
 3. El Runner crea la ejecución y entrega contrato y contexto.
 4. El Builder lee los archivos autorizados y realiza la implementación.
 5. El Builder puede ejecutar tests para autocorregirse.
@@ -131,7 +131,7 @@ flowchart TD
 | Contexto | Faltó un archivo necesario | Planner revisa alcance y contrato |
 | Herramienta/proveedor | Timeout, CLI roto o rate limit | Detener y escalar con evidencia |
 | Saldo Zen | Créditos insuficientes tras agotar Go | Detener, conservar estado y pedir recarga |
-| Capacidad | Builder no puede resolver dentro del límite | Model Selector escala a otra configuración |
+| Capacidad | El Builder reproduce un intento anterior (sin progreso) | Model Selector sube un peldaño: la siguiente configuración de la lista recibe la evidencia acumulada sobre el contrato sellado |
 
 El sistema nunca debe tratar todos los `FAIL` como un motivo para repetir exactamente la misma llamada.
 
@@ -154,6 +154,31 @@ Un hallazgo ya reparado no se repara dos veces. Si alguna condicion falla, el de
 usar esta via para ampliar silenciosamente el alcance ni para crear una cadena
 ilimitada de reparaciones.
 
+### Admisión, orden y metalog
+
+Una configuración está admitida para una clase de trabajo cuando figura en su
+ruta del registro. Esa lista se arma con benchmarks públicos de código y uso de
+herramientas, no con corridas propias; es un filtro ("estos modelos saben
+programar"), no un orden. El orden dentro de un rol lo calcula el código y
+nadie lo escribe a mano: primero por nivel de proveedor (la suscripción OpenAI
+del usuario para el Planner y el Goal Manager, después OpenCode Go, después
+Zen) y dentro de cada nivel del más barato al más caro, con el precio por
+millón de tokens de la tabla (entrada más salida; la caché desempata). El
+sistema empieza por el más barato capaz.
+
+Cada proyecto lleva un metalog: una línea por llamada a un modelo, con el rol,
+la configuración, su puesto en la lista, la lista completa, el resultado y su
+motivo. El selector lo lee. La primera vez que el proyecto usa una
+configuración, una comprobación de encaje de segundos confirma que escribe un
+archivo con el contenido pedido usando sus herramientas; si falla, la
+configuración queda excluida en ese proyecto. Un fallo atribuible al modelo
+(sin progreso, artefacto inválido, fuera de alcance, formato) cuenta; una cuota
+agotada, una credencial, un proveedor caído o un contrato bloqueado nunca
+cuentan. Con un número fijo de fallos seguidos en un rol (dos, visible en el
+registro) la configuración baja al final de la lista hasta que vuelve a
+acertar. Si nadie leyera el metalog, la lista se pudriría; por eso lo lee el
+selector, no una persona.
+
 El selector escoge primero una configuración Go que cumpla todos los requisitos.
 Si ninguna es suficiente, puede escoger directamente un modelo exclusivo de
 Zen. El pago después de los límites de Go lo resuelve `Use balance` dentro del
@@ -169,10 +194,12 @@ OpenCode Go
 Sin Go capaz → seleccionar Zen por capacidad antes de ejecutar
 ```
 
-El runtime no cambia automáticamente a otro modelo después de un fallo.
-OpenRouter queda fuera de las rutas automáticas. Un timeout local, una
-credencial inválida, un modelo mal configurado, un cambio parcial o un Gate
-fallido tampoco autorizan otro intento de transporte.
+El runtime no cambia de modelo por un fallo técnico: un timeout local, una
+credencial inválida, un modelo mal configurado, una cuota agotada, un proveedor
+caído o un cambio parcial detienen la corrida y se clasifican. Sí sube un
+peldaño cuando el modelo deja de progresar (§9.3): la siguiente configuración de
+la lista recibe la evidencia acumulada sobre el contrato sellado, y la corrida
+para cuando la lista se agota. OpenRouter queda fuera de las rutas automáticas.
 
 ### Estados mínimos
 
@@ -641,7 +668,7 @@ reintento sería idéntico, y el sistema para con la evidencia acumulada. En la
 práctica, la misma comprobación fallando dos veces seguidas detiene el
 contrato; un Builder que avanza de verdad no tiene tope.
 
-Después de esa parada, el sistema no repite. Debe escalar capacidad, solicitar una decisión o detener el trabajo con evidencia.
+Después de esa parada, el sistema no repite con el mismo modelo: sube un peldaño en la lista del rol (§4, Admisión, orden y metalog), la siguiente configuración recibe la evidencia acumulada sobre el contrato sellado, y el fallo queda en el metalog del proyecto. Agotada la lista, detiene el trabajo con evidencia.
 
 ---
 

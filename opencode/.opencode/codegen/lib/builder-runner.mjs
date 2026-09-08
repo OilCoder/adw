@@ -1,39 +1,24 @@
-import { eligibleConfigurations, roleStatus, validateRegistry } from "./model-selection.mjs"
+import { selectModel } from "./model-selection.mjs"
 import { summarizeEvents } from "./run-metrics.mjs"
 
 const ZEN_RECHARGE_ACTION = "OpenCode Zen balance is exhausted. Recharge the Zen balance, then resume the run."
 const GO_BALANCE_ACTION = "OpenCode Go reached a usage limit. Verify that Use balance is enabled in the OpenCode console."
 
-function configurationView(configuration, role) {
-  return {
-    configuration_id: configuration.configuration_id,
-    model: configuration.opencode_model,
-    provider: configuration.provider,
-    family: configuration.family,
-    admission_status: roleStatus(configuration, role),
-    context_tokens: configuration.capabilities?.context_tokens ?? null,
-  }
-}
-
-// The policy name is the role: every runner asks for configurations admitted
-// for its own role, in the order the role policy declares.
-export function selectExecutionPlan(registry, role, request) {
-  validateRegistry(registry)
-  const policy = registry.runner_policies?.[role]
-  if (!policy) throw new Error(`Registry does not define a ${role} runner policy`)
-
-  const { eligible, rejected } = eligibleConfigurations(registry, { ...request, role })
-  const primary = policy.configuration_ids
-    .map((id) => eligible.find((configuration) => configuration.configuration_id === id))
-    .find((configuration) => configuration && policy.providers.includes(configuration.provider))
-
-  if (!primary) {
+// The execution plan of a runner: the primary is the cheapest admitted
+// configuration of the role not excluded by escalation, `rank` its place in
+// the role's ordered list, `ladder` the whole list (ids in order). The
+// metalog of the project, when given, excludes failed fits and demotes
+// repeated failures.
+export function selectExecutionPlan(registry, role, request, { metalog = null } = {}) {
+  const selected = selectModel(registry, { ...request, role, metalog })
+  const ladder = selected.ladder.map((item) => item.configuration_id)
+  if (selected.status !== "SELECTED") {
     return {
       status: "NO_MATCH",
       work_class: request.workClass,
       role,
-      minimum_status: request.minimumStatus ?? "qualified",
-      rejected,
+      ladder,
+      rejected: selected.rejected,
     }
   }
 
@@ -41,17 +26,18 @@ export function selectExecutionPlan(registry, role, request) {
     status: "READY",
     work_class: request.workClass,
     role,
-    primary: configurationView(primary, role),
-    rejected,
+    primary: { ...selected.selection, ladder },
+    ladder,
+    rejected: selected.rejected,
   }
 }
 
-export function selectBuilderExecutionPlan(registry, request) {
+export function selectBuilderExecutionPlan(registry, request, options = {}) {
   return selectExecutionPlan(registry, "builder", {
     ...request,
     requiresCodeEditing: true,
     requiresTools: true,
-  })
+  }, options)
 }
 export function classifyExecution({
   exitCode,

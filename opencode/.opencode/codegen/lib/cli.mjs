@@ -1,7 +1,6 @@
 import { access, readFile } from "node:fs/promises"
 import path from "node:path"
 
-import { MINIMUM_STATUSES } from "./model-selection.mjs"
 import { runProcess } from "./process.mjs"
 
 export const INSTALL_MANIFEST = ".opencode/.codegen-install.json"
@@ -38,6 +37,11 @@ export function newRunId() {
 export function runsDirectory(systemRoot, ...segments) {
   const root = process.env.CODEGEN_RUNS_DIR ?? path.join(systemRoot, ".opencode/codegen/runs")
   return path.join(root, ...segments)
+}
+
+// Comma-separated flag values, trimmed, empty dropped.
+export function listArgument(value) {
+  return String(value ?? "").split(",").map((item) => item.trim()).filter(Boolean)
 }
 
 export async function loadRegistry(systemRoot) {
@@ -78,28 +82,13 @@ export async function isInstalledProject(systemRoot) {
   return exists(path.join(systemRoot, INSTALL_MANIFEST))
 }
 
-export async function resolveMinimumStatus(args, systemRoot) {
-  const value = args["minimum-status"] ?? "qualified"
-  if (!MINIMUM_STATUSES.includes(value)) {
-    throw new Error(`minimum-status must be one of: ${MINIMUM_STATUSES.join(", ")}`)
-  }
-  if (value !== "qualified" && (await isInstalledProject(systemRoot))) {
-    const error = new Error(
-      `MAINTENANCE_ONLY: admission level ${value} is reserved for certification inside the harness repository; installed projects run only qualified configurations`,
-    )
-    error.code = "MAINTENANCE_ONLY"
-    throw error
-  }
-  return value
-}
-
 // Pinning a configuration bypasses the policy order (never the admission
 // filters) and exists for certification runs only.
 export async function resolvePinnedConfiguration(args, systemRoot) {
   const value = args.configuration ?? null
   if (value && (await isInstalledProject(systemRoot))) {
     const error = new Error(
-      "MAINTENANCE_ONLY: pinning a configuration is reserved for certification inside the harness repository",
+      "MAINTENANCE_ONLY: pinning a configuration is reserved for maintenance inside the harness repository",
     )
     error.code = "MAINTENANCE_ONLY"
     throw error

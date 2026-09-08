@@ -6,20 +6,22 @@ import { access, chmod, copyFile, mkdir, readFile, readdir, rm, stat, writeFile 
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { checkRelease } from "./.opencode/codegen/lib/certification.mjs"
+import { checkRelease } from "./.opencode/codegen/lib/release.mjs"
 
 const sourceRoot = path.dirname(fileURLToPath(import.meta.url))
 const sourceOpenCode = path.join(sourceRoot, ".opencode")
 const manifestRelative = ".opencode/.codegen-install.json"
-// Machine-local state, plus the maintenance-only scripts (certification and
-// smokes run inside this repository, never in a target project).
+// Machine-local state (runs, the metalog, the install manifest, the server
+// file), plus the maintenance-only scripts (the catalog sync edits the
+// registry of this repository; the smoke runs here, never in a target).
 const ignoredOpenCodePaths = new Set([
   "node_modules",
   "package.json",
   "package-lock.json",
   "bun.lock",
   "codegen/runs",
-  "codegen/scripts/certify.mjs",
+  "codegen/metalog.jsonl",
+  "codegen/scripts/catalog.mjs",
   "codegen/scripts/run-builder-smoke.sh",
   ".codegen-install.json",
   ".codegen-server.json",
@@ -29,6 +31,7 @@ const requiredIgnores = [
   ".opencode/package-lock.json",
   ".opencode/bun.lock",
   ".opencode/codegen/runs/",
+  ".opencode/codegen/metalog.jsonl",
   ".opencode/.codegen-install.json",
   ".opencode/.codegen-server.json",
   ".codegen-goal/",
@@ -185,7 +188,7 @@ async function prepareRootFiles(targetRoot) {
   const scriptConflicts = []
   targetPackage.scripts ??= {}
   for (const [name, command] of Object.entries(sourcePackage.scripts ?? {})) {
-    if (["test", "install:target", "certify", "release:check"].includes(name)) continue
+    if (["test", "install:target", "catalog", "release:check"].includes(name)) continue
     if (targetPackage.scripts[name] && targetPackage.scripts[name] !== command) scriptConflicts.push(`package.json scripts.${name}`)
     else targetPackage.scripts[name] = command
   }
@@ -218,13 +221,13 @@ async function main() {
   if (!(await exists(targetRoot)) || !(await stat(targetRoot)).isDirectory()) throw new Error(`Target is not a directory: ${targetRoot}`)
   if (targetRoot === sourceRoot) throw new Error("Source and target directories must be different")
 
-  // A target project receives only a certified system: every role must have
-  // a qualified configuration for the requests production issues.
+  // A target project receives a complete system: every request production
+  // issues must resolve to at least one admitted configuration.
   const registry = await readJson(path.join(sourceRoot, ".opencode/codegen/config/model-pools.json"), null)
   if (!registry) throw new Error("Source registry .opencode/codegen/config/model-pools.json is missing")
   const release = checkRelease(registry)
   if (!release.ok) {
-    throw new Error(`Release check failed; certify the missing roles with certify.mjs before installing:\n- ${release.missing.join("\n- ")}`)
+    throw new Error(`Release check failed; add admitted configurations to the routes of model-pools.json before installing:\n- ${release.missing.join("\n- ")}`)
   }
 
   const managed = await prepareManagedFiles(targetRoot)
@@ -234,7 +237,7 @@ async function main() {
   if (conflicts.length) throw new Error(`Installation conflicts:\n- ${conflicts.join("\n- ")}`)
 
   console.log(`${dryRun ? "Would install" : "Installing"} OpenCode code-generation system into ${targetRoot}`)
-  console.log(`Release check: qualified route complete (builder family ${release.builder_family})`)
+  console.log(`Release check: every role has an admitted configuration (builder family first in line: ${release.builder_family})`)
   console.log(`Harness revision: ${managed.manifest.harness_revision ?? "unknown (source is not a Git checkout)"}`)
   console.log(`Managed files to copy: ${managed.copies.length}`)
   if (managed.removals.length) console.log(`Files dropped by the harness to remove: ${managed.removals.map((file) => path.relative(targetRoot, file)).join(", ")}`)

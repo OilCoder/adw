@@ -14,9 +14,10 @@
     "plan:validate": "node .opencode/codegen/scripts/validate-plan.mjs",
     "gate:design": "node .opencode/codegen/scripts/run-gate-designer.mjs",
     "builder": "node .opencode/codegen/scripts/run-builder.mjs",
-    "certify": "node .opencode/codegen/scripts/certify.mjs",
-    "release:check": "node .opencode/codegen/scripts/certify.mjs check",
-    "test": "CODEGEN_DISPLAY=inline CODEGEN_RUNS_DIR=${TMPDIR:-/tmp}/codegen-test-runs node --test",
+    "catalog": "node .opencode/codegen/scripts/catalog.mjs",
+    "release:check": "node .opencode/codegen/scripts/release-check.mjs check",
+    "models:status": "node .opencode/codegen/scripts/release-check.mjs status",
+    "test": "CODEGEN_DISPLAY=inline CODEGEN_FIT_CHECK=off CODEGEN_RUNS_DIR=${TMPDIR:-/tmp}/codegen-test-runs CODEGEN_METALOG=${TMPDIR:-/tmp}/codegen-test-runs/metalog.jsonl node --test",
     "clean": "node .opencode/codegen/scripts/clean.mjs",
     "merge": "node .opencode/codegen/scripts/merge-run.mjs"
   }

@@ -37,8 +37,8 @@ npm run install:target -- /path/to/project
 ```
 
 The installer first runs the release check (`npm run release:check`): every
-role must have a `qualified` configuration for the requests production issues,
-otherwise nothing is copied. It then copies only reusable `.opencode/` runtime
+request production issues must resolve to an admitted configuration for its
+role, otherwise nothing is copied. It then copies only reusable `.opencode/` runtime
 files, merges missing OpenCode settings (including `default_agent: supervisor`)
 and provider whitelist entries, adds the code-generation npm scripts without
 replacing the target's `test` script or shipping the maintenance scripts, and
@@ -60,8 +60,9 @@ harness revision in the message, so the installed copy never drifts uncommitted.
 Provider credentials, `.opencode/node_modules/`, run artifacts, generated lock
 files, the published server URL, and the installation manifest are machine-local
 state and are never part of the payload or source commit. Tests, design
-documents, `certify.mjs`, and the builder smoke stay in this source repository
-for maintenance and are not copied into target projects. `npm run clean` lists
+documents, the catalog sync (`catalog.mjs`), and the builder smoke stay in this
+source repository for maintenance and are not copied into target projects. The
+project's metalog (`.opencode/codegen/metalog.jsonl`) is machine-local too. `npm run clean` lists
 the working artifacts of a target (`.codegen-*` directories, run artifacts,
 stale worktrees) and removes them with `--yes`; it never deletes `codegen/*`
 branches.
@@ -73,7 +74,7 @@ goes through the `codegen_workflow` tool (`draft` a Goal, `deliberate` it when
 it has pending research or blocking questions with options, `revise` it with
 the user's answers, `approve` it after the user's explicit approval,
 `orchestrate`), and every model-backed step runs
-in a child process with the configuration certified for that role. If Git has
+in a child process with the cheapest configuration admitted for that role. If Git has
 no HEAD or any controlled step fails, the supervisor reports the blocker and
 stops with zero product edits. The role agents are addressable only through
 `opencode run --agent <role>`, which is what the runners do.
@@ -98,7 +99,7 @@ opencode run --model opencode-go/minimax-m3 --agent builder "..."
 ```
 
 Run a sealed Builder contract through the capability-first, Go-preferred policy
-(production selection: only configurations certified as `builder`):
+(the cheapest configuration admitted as `builder`, checked for fit the first time this project uses it):
 
 ```bash
 npm run builder -- \
@@ -116,7 +117,7 @@ npm run planner -- \
 npm run plan:validate -- .codegen-plan/plan.json
 ```
 
-The Planner uses the configuration certified as `planner` (`opencode-go/gpt-5.6-luna`, alternate `opencode-go/glm-5.3`). The plan schema is
+The Planner starts on the user's OpenAI subscription (`openai/gpt-5.6-sol`) and falls to the cheapest Go planner (`opencode-go/gpt-5.6-luna`) after it. The plan schema is
 `.opencode/codegen/schema/plan.schema.json`. Independent phases form the
 same execution wave; the validator rejects cycles, unknown work classes,
 unsafe paths, and file overlap between contracts that could run concurrently.
@@ -134,7 +135,7 @@ npm run goal -- render .codegen-goal/goal.json
 npm run goal -- route .codegen-goal/goal.json
 ```
 
-The Goal Manager runs with the configuration certified as `goal-manager` and
+The Goal Manager runs on the same tiers as the Planner (OpenAI, then Go) and
 writes `.codegen-goal/goal.json`; `GOAL.md` is rendered deterministically after
 validation. A Goal returned as `SEALED` is rejected unless the run passes
 `--allow-sealed true`, because only the user seals a Goal. `--approve` seals the
@@ -155,7 +156,7 @@ npm run research -- validate .codegen-research/RQ-1.json .codegen-goal/goal.json
 npm run research -- render .codegen-research/RQ-1.json
 ```
 
-The Researcher runs one configuration certified as `researcher` from the
+The Researcher runs the cheapest configuration admitted for it on the
 Go-preferred `research-synthesis` route. The Runner also sets `OPENCODE_ENABLE_EXA=1` so
 hosted search remains available when needed. The
 report must cite only sources actually retrieved and give every finding a
@@ -178,9 +179,9 @@ Deliberate a blocking open question that carries a closed option set:
 npm run opinions -- --question OQ-1 --advisors 2
 ```
 
-Advisors run once each on distinct model families certified as `advisor`.
+Advisors run once each on distinct model families admitted as `advisor`, cheapest first.
 Unanimity on a listed option becomes a proposed decision deterministically;
-divergence (or an `OTHER` position) goes to a Reconciler certified as
+divergence (or an `OTHER` position) goes to a Reconciler admitted as
 `reconciler` from a family that gave no opinion, whose decision must cite every
 opinion and explain every rejected position. The output under `.codegen-opinions/<id>/` is
 `PROPOSED`: the Goal Manager records it under `decisions` (with `opinion_ids`)
@@ -248,8 +249,11 @@ accepts the effective route and risk. Then, for each execution wave:
    that carries every check's result on `GATE_FAIL`, `SCOPE_FAIL`, or
    `NO_CHANGES` while each attempt changes the outcome; an attempt that
    reproduces an earlier one (same result, same failing checks or paths outside
-   scope) stops the contract as `BUILD_FAILED` with reason "no progress". There
-   is no attempt cap: cost is controlled in OpenCode and at the provider;
+   scope) is "no progress" for that configuration: the worktree goes back to
+   the sealed contract, the next rung of the Builder's list gets the
+   accumulated evidence (`ESCALATED`), and the contract fails as `BUILD_FAILED`
+   only when the list is exhausted. There is no attempt cap: cost is controlled
+   in OpenCode and at the provider;
    `CONTRACT_BLOCKED` stops as `REPLAN_REQUIRED`, provider failures stop as
    `ESCALATE`, while an exhausted Zen balance stops as `USER_ACTION_REQUIRED`
    with recharge instructions;
@@ -306,80 +310,59 @@ Not automated yet (see the table in `ARCHITECTURE.md`): replanning after
 (`.opencode/codegen/lib/derived-work.mjs` classifies findings but nothing feeds
 it yet), and Goal acceptance criteria, which are prose and are not executed.
 
-## Certification and admission
+## Admission, order, and the metalog
 
-Admission is a property of one combination: model, provider, role, and this
-harness. It is recorded per role under `admission.roles` in
-`.opencode/codegen/config/model-pools.json`; the catalog `status` of a
-configuration is capped at `candidate`, so a configuration certified as
-`builder` is not thereby admitted as `planner`. Every runner requests
-configurations `qualified` for its own role, and production never lowers that
-level: `--minimum-status candidate` and `--configuration <id>` (pinning) are
-maintenance options that the runners refuse in an installed project (detected
-through the install manifest). A target project's user never needs to know that
-`candidate` exists.
+Admission is membership in a work-class route of
+`.opencode/codegen/config/model-pools.json`, decided from public coding and
+tool-use benchmarks (the evidence is recorded per configuration under
+`admission.public_evidence` with its sources). The list is a filter, never an
+order. The order inside a role is computed: provider tiers from
+`runner_policies.<role>.providers` (the user's OpenAI subscription for the
+Planner and the Goal Manager, then OpenCode Go, then Zen), and inside a tier
+the price per million tokens, cheapest first (input plus output; cached input
+breaks ties). Nobody writes `configuration_ids`; the registry rejects them.
 
-Certification runs only in this repository, on the real runners and the real
-OpenCode binary, against the fixtures under `tests/fixtures/`:
+Every project keeps a metalog, `.opencode/codegen/metalog.jsonl` (ignored):
+one line per model call, fit check, and no-progress stop, with the role, the
+configuration, its rank, the whole ladder, the result, the reason, tokens, and
+cost. The selector reads it:
+
+- The first time a project uses a configuration, a fit check runs one call of
+  seconds in a temporary directory that carries the project's providers: the
+  model must write `probe.json` with the exact content asked, through its
+  tools. A failed fit excludes the configuration in that project; an unknown
+  verdict (rate limit, provider down, missing login) is retried next time.
+  `--fit-check off` exists for this repository's tests only.
+- Only failures attributable to the model count (no progress, invalid
+  artifact, scope violation, format). Quota, authentication, provider outages,
+  and blocked contracts are neutral. `selection.demote_after_consecutive_failures`
+  (2) failures in a row in one role sink the configuration to the bottom of
+  that role's list until it succeeds again.
+- `--configuration <id>` pins a configuration for maintenance; installed
+  projects refuse it.
 
 ```bash
-npm run certify -- run --role builder --configuration builder-go-minimax-m3
-npm run certify -- run --role planner --configuration planner-go-glm-5.3
-npm run certify -- run --role goal-manager --configuration planner-go-glm-5.3
-npm run certify -- run --role gate-designer --configuration builder-go-mimo-v2.5-pro
-npm run certify -- run --role researcher --configuration builder-go-gpt-5.6-luna
-npm run certify -- run --role advisor --configuration builder-go-gpt-5.6-luna \
-  --with builder-go-deepseek-v4-pro,builder-go-minimax-m3
-npm run certify -- run --role reconciler --configuration builder-go-minimax-m3
-npm run certify -- status
-npm run release:check
+npm run release:check     # every production request resolves to an admitted configuration
+npm run models:status     # the ordered list per role, with this project's metalog applied
+npm run catalog -- diff   # registry vs the live OpenCode catalog (models.dev): dropped, unknown Go models, price and context changes
+npm run catalog -- apply  # copy prices and context of known configurations; membership never changes here
 ```
 
-Each run copies a fixture into a throwaway Git repository, executes the role's
-runner with the pinned configuration, validates the artifact deterministically
-(Gate pass and scope for the Builder, a valid plan on HEAD for the Planner, an
-approvable Goal for the Goal Manager, a gate that fails on the baseline for the
-Gate Designer, a complete cited report for the Researcher, a proposed decision
-for advisors and reconciler), and writes the verdict with its evidence (run id,
-duration, tokens, cost, OpenCode version) into the registry. A failure demotes
-the role entry to `candidate` and keeps the failure. Run artifacts stay under
-the ignored `.opencode/codegen/runs/certification/`.
-
-The release check (`.opencode/codegen/lib/certification.mjs`) resolves the
-requests production issues: Goal Manager and Planner on
-`complex-engineering-plan`, Builder and Gate Designer on
-`localized-low-risk-code-change` and `repository-code-change` (the Gate
-Designer excluding the certified Builder's family), Researcher on
-`research-synthesis`, two advisor families and a third reconciler family on
-`independent-analysis`. It runs as a test (`npm test` is red while the route is
-incomplete), inside the installer before any file is copied, and by hand before
-a commit. The whole certified route ships with the installer.
+The release check (`.opencode/codegen/lib/release.mjs`) resolves the requests
+production issues: Goal Manager and Planner on `complex-engineering-plan`,
+Builder and Gate Designer on `localized-low-risk-code-change` and
+`repository-code-change` (the Gate Designer excluding the family of the Builder
+first in line), Researcher on `research-synthesis`, two advisor families and a
+third reconciler family on `independent-analysis`. It runs as a test, inside
+the installer before any file is copied, and by hand before a commit. A new
+model enters a route by hand, with its public evidence; the catalog sync only
+reports it.
 
 Enable Go's console option `Use balance`: after a Go usage limit, the same Go
 request continues against Zen credits. Set a Zen monthly spending limit. If the
 balance is exhausted, the system stops with `ZEN_BALANCE_EXHAUSTED`; after a
 recharge, resume from the preserved run instead of retrying another provider.
 
-Basic-smoke pool (sealed Builder fixture, one attempt each):
-
-- 2026-09-02, Go and Zen: `minimax-m2.7`, `qwen3.6-plus`, `kimi-k2.7-code`.
-- 2026-09-03, Go and Zen: `minimax-m3` (new Builder primary), `gpt-5.6-luna`,
-  `deepseek-v4-pro`. Go only, no Zen equivalent in the catalog:
-  `mimo-v2.5-pro`, `qwen3.8-flash`, `glm-5.3-flash`. The Zen smokes remain
-  admission evidence, not quota fallbacks. Separate Zen-only candidates provide
-  capacity escalation when the Go candidates fail hard requirements.
-- 2026-09-03, Zen-only capacity candidates: `claude-opus-5` PASS in 22 s
-  ($0.1009145) and `gemini-3.1-pro` PASS in 20 s ($0.065864). The Zen copy of
-  `gpt-5.6-sol` also passed, but was removed from the active registry because
-  the authenticated `openai/gpt-5.6-sol` endpoint already supplies that model.
-- 2026-09-03, mid/low-tier expansion: Go `deepseek-v4-flash` PASS in 19 s
-  ($0.002201476 quota value); Zen `claude-sonnet-5` PASS in 37 s ($0.0407811),
-  `claude-haiku-4-5` PASS in 19 s ($0.0178989), `gemini-3.8-flash` PASS in 45 s
-  ($0.06101265), and `gemini-3.5-flash-lite` PASS in 14 s ($0.00895502).
-  Every smoke changed only `calculator.py` and passed scope, integrity, and Gate
-  checks. These remain conservative candidates, not broad qualification.
-- `kimi-k3` and `qwen3.8-max` are registered as `watch` on Go without a smoke.
-
-`docs/archive/GO_CATALOG_ANALYSIS.md` records the full Go catalog with quota prices and the
-public evidence behind these choices. Basic smokes are compatibility evidence
-for candidacy; only the certification above qualifies a role.
+History: the certification by fixture (`certify.mjs`, `qualified` per role) and
+the basic-smoke pool of 2026-09-02/03 were removed on 2026-09-08 (audit group
+C); `docs/archive/GO_CATALOG_ANALYSIS.md` keeps the earlier catalog analysis.

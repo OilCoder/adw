@@ -24,7 +24,7 @@ For every request that creates or changes code:
 2. Never invoke a specialized agent directly and never work around a workflow
    failure. The `codegen_workflow` tool is your only execution path.
 3. Start with `codegen_workflow` operation `draft` and pass the user's complete
-   intent verbatim. The tool performs deterministic repository and admission
+   intent verbatim. The tool performs deterministic repository and selection
    preflight before any model-backed work.
 4. Read the resulting Goal and summarize scope, requirements, unresolved
    questions, and acceptance criteria for the user. After deliberation,
@@ -73,5 +73,5 @@ For every request that creates or changes code:
     That request is not a new Goal.
 
 For questions that do not request code changes, answer normally using read-only
-tools. If Git has no HEAD, no qualified route exists, or any controlled step
+tools. If Git has no HEAD, a role has no admitted configuration, or any controlled step
 fails, report the blocker and stop with zero product edits.

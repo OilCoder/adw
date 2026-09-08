@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { classifyExecution, selectExecutionPlan } from "../lib/builder-runner.mjs"
+import { classifyExecution } from "../lib/builder-runner.mjs"
 import {
   exists,
   loadRegistry,
@@ -12,7 +12,6 @@ import {
   parseArguments,
   requireGitHead,
   resolveInsideProject,
-  resolveMinimumStatus,
   resolvePinnedConfiguration,
   resolveSourceVerification,
   runsDirectory,
@@ -20,6 +19,8 @@ import {
 import { validateGoal } from "../lib/goal.mjs"
 import { resolveDisplay, runAgentProcess } from "../lib/agent-run.mjs"
 import { runProcess } from "../lib/process.mjs"
+import { summarizeEvents } from "../lib/run-metrics.mjs"
+import { recordCall, selectConfiguration } from "../lib/select-configuration.mjs"
 import { renderResearchMarkdown, reportAnswers, unverifiedFindings, validateResearchReport } from "../lib/research-report.mjs"
 import { applyVerification, offlineVerification, verifySources } from "../lib/source-verification.mjs"
 
@@ -40,7 +41,6 @@ async function main() {
   }
   const directory = path.resolve(args.directory ?? process.cwd())
   await requireGitHead(directory)
-  const minimumStatus = await resolveMinimumStatus(args, systemRoot)
   const configurationId = await resolvePinnedConfiguration(args, systemRoot)
   const sourceVerification = await resolveSourceVerification(args, systemRoot)
   const goalFile = resolveInsideProject(directory, args.goal ?? ".codegen-goal/goal.json", "Goal")
@@ -65,14 +65,21 @@ async function main() {
   }
 
   const registry = await loadRegistry(systemRoot)
-  const plan = selectExecutionPlan(registry, "researcher", {
-    workClass: "research-synthesis",
-    risk: goal.routing.risk,
-    minimumStatus,
-    configurationId,
-    requiredContext: Number(args["required-context"] ?? 0),
-    requiresTools: true,
-    requiresCodeEditing: false,
+  const display = resolveDisplay(args)
+  const plan = await selectConfiguration({
+    systemRoot,
+    registry,
+    role: "researcher",
+    args,
+    display,
+    request: {
+      workClass: "research-synthesis",
+      risk: goal.routing.risk,
+      configurationId,
+      requiredContext: Number(args["required-context"] ?? 0),
+      requiresTools: true,
+      requiresCodeEditing: false,
+    },
   })
   if (plan.status !== "READY") {
     process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`)
@@ -84,7 +91,6 @@ async function main() {
   const runId = newRunId()
   const artifacts = runsDirectory(systemRoot, "researcher", runId)
   await mkdir(artifacts, { recursive: true })
-  const display = resolveDisplay(args)
   const prompt = [
     `Research question ${question.id} from ${goalFile.relative}: ${question.question}`,
     `Why it is needed: ${question.why_needed}`,
@@ -152,8 +158,21 @@ async function main() {
     await writeFile(markdown, renderResearchMarkdown(report))
   }
 
+  await recordCall({
+    systemRoot,
+    role: "researcher",
+    plan,
+    result,
+    success: Boolean(validation?.valid) && reportAnswers(report),
+    runId,
+    execution: { metrics: summarizeEvents(run.stdout) },
+    reason: validation && !validation.valid ? validation.errors.slice(0, 3).join("; ") : validation?.valid && !reportAnswers(report) ? "report answers nothing: no finding verified by retrieval" : null,
+    context: { question_id: question.id },
+  })
+
   const summary = {
     result,
+    selection: { configuration_id: plan.primary.configuration_id, model: plan.primary.model, rank: plan.primary.rank, ladder: plan.ladder, fits: plan.fits },
     question_id: question.id,
     output: output.relative,
     markdown: markdown ? path.relative(directory, markdown) : null,

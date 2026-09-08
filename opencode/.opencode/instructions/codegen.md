@@ -11,33 +11,42 @@ Treat roles, agents, models, and model calls as separate concepts.
   it when it has pending research or blocking questions with options (on the
   user's go), `revise` it with the user's answers, `approve` it only after
   the user explicitly approves that exact Goal, then `orchestrate`.
-- Without a Git HEAD, without a certified route, or after any controlled step
-  fails, the supervisor reports the blocker and stops with zero product edits.
+- Without a Git HEAD, without an admitted configuration for a role, or after
+  any controlled step fails, the supervisor reports the blocker and stops with
+  zero product edits.
 
 ## Model selection
 
-- Call `model_select` with the requesting role before dispatching model-backed
-  work. Admission is certified per role: a configuration admitted as `builder`
-  is not admitted as `planner`.
+- Call `model_select` with the requesting role to see the ordered list for a
+  work class. Admission is membership in the work-class route of the registry
+  (decided from public benchmarks); the order is computed, cheapest first
+  inside each provider tier (the user's OpenAI subscription for the Planner
+  and the Goal Manager, then OpenCode Go, then Zen), with this project's
+  metalog applied. Nobody writes the order by hand.
 - Select by role, work class, risk, context, and capabilities.
 - Never invent a model ID or select a model merely because it appears in the
   provider catalog.
-- Production work uses `minimumStatus: "qualified"`, which is the default. This
-  project runs only certified configurations; there is no lower level to ask
-  for here.
-- Treat the returned alternate as another eligible configuration, not an automatic retry.
-- A configured model is not necessarily available now. The Runner must perform
-  provider and endpoint preflight before execution.
+- The first time this project uses a configuration, the runner checks its fit
+  with one call of seconds (it must write a probe file through its tools). A
+  failed fit excludes the configuration here; the metalog remembers it.
+- The metalog (`.opencode/codegen/metalog.jsonl`) records every model call
+  with its rank, ladder, result, and reason. Two failures in a row attributable
+  to the model in one role sink the configuration to the bottom of that role's
+  list until it succeeds again; quota, authentication, provider, and blocked
+  contracts never count.
 - Dispatch sealed Builder contracts through
-  `.opencode/codegen/scripts/run-builder.mjs`. Selection is capability-first:
-  prefer Go, but select a Zen-only candidate directly when no Go candidate
-  meets the risk, context, and capability requirements.
+  `.opencode/codegen/scripts/run-builder.mjs`. Selection prefers Go and admits
+  a Zen-only configuration directly when no Go configuration meets the risk,
+  context, and capability requirements.
 - Keep `Use balance` enabled in the OpenCode console. After a Go usage limit,
   OpenCode continues the same request against the Zen balance without changing
   the selected provider or model.
-- Never switch models because of quota or execution failure. Authentication,
-  configuration, rate-limit, availability, partial-edit, and Gate failures stop
-  for classification. OpenRouter is not part of automatic routes.
+- Technical failures never switch models: authentication, configuration,
+  rate-limit, availability, and partial-edit failures stop for classification.
+  A configuration that makes no progress (it reproduces an earlier attempt) is
+  escalated by the orchestrator: the worktree returns to the sealed contract
+  and the next rung gets the accumulated evidence. OpenRouter is not part of
+  automatic routes.
 - `ZEN_BALANCE_EXHAUSTED` is terminal. Preserve the run and ask the user to
   recharge Zen before resuming; do not retry another model.
 
@@ -81,7 +90,8 @@ the evidence and admission methodology.
 
 - The supervisor uses the user's chosen provider (for example, OpenAI) to
   handle the conversation and high-level decisions. Child runners receive the
-  configuration certified for their role from the registry.
+  cheapest configuration admitted for their role from the registry, corrected
+  by the project's metalog.
 - `.opencode/codegen/scripts/orchestrate.mjs` is the only component that
   chains Router, Planner, Gate readiness, Builders, integration, the final
   Gate, and the Goal coverage ledger. It is deterministic and spawns the

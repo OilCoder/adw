@@ -63,9 +63,9 @@ async function worktree() {
 }
 
 function run(tree, args, positions) {
-  return execFile(process.execPath, [path.join(systemRoot, ".opencode/codegen/scripts/run-opinions.mjs"), "--minimum-status", "candidate", ...args], {
+  return execFile(process.execPath, [path.join(systemRoot, ".opencode/codegen/scripts/run-opinions.mjs"), ...args], {
     cwd: tree.directory,
-    env: { ...process.env, PATH: `${tree.bin}${path.delimiter}${process.env.PATH}`, FAKE_LOG: path.join(tree.directory, "fake.log"), FAKE_POSITIONS: JSON.stringify(positions) },
+    env: { ...process.env, PATH: `${tree.bin}${path.delimiter}${process.env.PATH}`, FAKE_LOG: path.join(tree.directory, "fake.log"), CODEGEN_METALOG: path.join(tree.directory, "metalog.jsonl"), FAKE_POSITIONS: JSON.stringify(positions) },
   }).then(
     (result) => ({ code: 0, ...result }),
     (error) => ({ code: error.code, stdout: error.stdout, stderr: error.stderr }),
@@ -97,7 +97,7 @@ test("unanimous advisors from distinct families produce a proposal without a rec
 test("divergent advisors go to a reconciler from a third family", async () => {
   const tree = await worktree()
   try {
-    const result = await run(tree, ["--question", "OQ-1"], { gpt: "database-constraint", deepseek: "OTHER", default: "application-check" })
+    const result = await run(tree, ["--question", "OQ-1"], { gpt: "database-constraint", mimo: "OTHER", default: "application-check" })
     assert.equal(result.code, 0, result.stderr)
     const summary = JSON.parse(result.stdout)
     assert.equal(summary.result, "DECISION_PROPOSED")

@@ -1,13 +1,9 @@
-const STATUS_RANK = {
-  deprecated: 0,
-  watch: 1,
-  candidate: 2,
-  qualified: 3,
-}
-
-// Catalog status is capped at candidate. `qualified` exists only per role,
-// recorded by the certification process of the harness repository.
-const CATALOG_STATUSES = ["deprecated", "watch", "candidate"]
+// Model selection: the registry names which configurations are admitted for
+// each work class (routes, decided from public benchmarks) and which
+// providers each role may use, in tier order. The order inside a role is
+// never written by hand: it is the price per million tokens, cheapest first,
+// with configurations the metalog demoted at the bottom.
+const CATALOG_STATUSES = ["active", "watch", "deprecated"]
 
 const RISK_RANK = {
   low: 0,
@@ -27,7 +23,7 @@ export const ROLES = [
   "reconciler",
 ]
 
-export const MINIMUM_STATUSES = ["watch", "candidate", "qualified"]
+export const DEFAULT_DEMOTION_THRESHOLD = 2
 
 function requireEnum(value, values, label) {
   if (!values.includes(value)) {
@@ -35,12 +31,19 @@ function requireEnum(value, values, label) {
   }
 }
 
-// Admission is decided per role: a configuration certified as Builder is not
-// thereby admitted as Planner. Without a role entry the catalog status applies,
-// which can never be qualified.
-export function roleStatus(configuration, role) {
-  const entry = configuration.admission?.roles?.[role]
-  return entry?.status ?? configuration.status
+// One scalar per configuration: input plus output price per million tokens.
+// Go stores subscription quota values and Zen stores prices; both are USD
+// figures of the same magnitude, so they order together.
+export function configurationCost(configuration) {
+  const economics = configuration.economics ?? {}
+  const input = economics.input_per_million ?? economics.input_per_million_quota_value ?? 0
+  const output = economics.output_per_million ?? economics.output_per_million_quota_value ?? 0
+  const cached = economics.cached_input_per_million ?? economics.cached_input_per_million_quota_value ?? 0
+  return { total: input + output, input, output, cached }
+}
+
+export function demotionThreshold(registry) {
+  return registry.selection?.demote_after_consecutive_failures ?? DEFAULT_DEMOTION_THRESHOLD
 }
 
 export function validateRegistry(registry) {
@@ -49,6 +52,12 @@ export function validateRegistry(registry) {
   }
   if (!registry.routes || !Array.isArray(registry.configurations)) {
     throw new Error("Registry must define routes and configurations")
+  }
+  if (registry.selection !== undefined) {
+    const threshold = registry.selection?.demote_after_consecutive_failures
+    if (!Number.isInteger(threshold) || threshold < 1) {
+      throw new Error("selection.demote_after_consecutive_failures must be a positive integer")
+    }
   }
 
   const ids = new Set()
@@ -59,7 +68,7 @@ export function validateRegistry(registry) {
     ids.add(configuration.configuration_id)
     if (!CATALOG_STATUSES.includes(configuration.status)) {
       throw new Error(
-        `Configuration ${configuration.configuration_id}: catalog status must be one of ${CATALOG_STATUSES.join(", ")}; qualified is recorded per role under admission.roles`,
+        `Configuration ${configuration.configuration_id}: status must be one of ${CATALOG_STATUSES.join(", ")}`,
       )
     }
     requireEnum(configuration.constraints?.max_risk, Object.keys(RISK_RANK), "max_risk")
@@ -68,16 +77,10 @@ export function validateRegistry(registry) {
         `Configuration ${configuration.configuration_id} must use its provider as model prefix`,
       )
     }
-    for (const [role, entry] of Object.entries(configuration.admission?.roles ?? {})) {
-      if (!ROLES.includes(role)) {
-        throw new Error(`Configuration ${configuration.configuration_id} admits unknown role: ${role}`)
-      }
-      requireEnum(entry?.status, Object.keys(STATUS_RANK), `${configuration.configuration_id} ${role} status`)
-      if (entry.status === "qualified" && (!entry.certified_at || !entry.evidence?.run_id)) {
-        throw new Error(
-          `Configuration ${configuration.configuration_id} is qualified as ${role} without certification evidence`,
-        )
-      }
+    if (configuration.admission?.roles) {
+      throw new Error(
+        `Configuration ${configuration.configuration_id} carries admission.roles; admission is route membership plus the metalog since 2026-09-08, not a certified role entry`,
+      )
     }
   }
 
@@ -102,19 +105,11 @@ export function validateRegistry(registry) {
     if (!ROLES.includes(policyName)) {
       throw new Error(`Runner policy ${policyName} is not a registry role`)
     }
-    if (!Array.isArray(policy.providers) || policy.providers.length === 0 || !Array.isArray(policy.configuration_ids) || policy.configuration_ids.length === 0) {
-      throw new Error(`${policyName} policy must define providers and configuration_ids`)
+    if (!Array.isArray(policy.providers) || policy.providers.length === 0) {
+      throw new Error(`${policyName} policy must define providers in tier order`)
     }
-    for (const configurationId of policy.configuration_ids) {
-      const configuration = registry.configurations.find(
-        (candidate) => candidate.configuration_id === configurationId,
-      )
-      if (!configuration) {
-        throw new Error(`${policyName} policy references an unknown configuration: ${configurationId}`)
-      }
-      if (!policy.providers.includes(configuration.provider)) {
-        throw new Error(`${policyName} configuration ${configurationId} has provider ${configuration.provider}`)
-      }
+    if (policy.configuration_ids) {
+      throw new Error(`${policyName} policy carries configuration_ids; the order is computed from price since 2026-09-08, never written by hand`)
     }
   }
 }
@@ -125,16 +120,15 @@ export function eligibleConfigurations(registry, request) {
   const workClass = request.workClass
   const role = request.role
   const risk = request.risk ?? "low"
-  const minimumStatus = request.minimumStatus ?? "qualified"
   const requiredContext = request.requiredContext ?? 0
   const requiresTools = request.requiresTools ?? true
   const requiresCodeEditing = request.requiresCodeEditing ?? false
   const excludeFamily = request.excludeFamily ?? null
   const configurationId = request.configurationId ?? null
+  const metalog = request.metalog?.configurations ?? {}
 
   requireEnum(role, ROLES, "role")
   requireEnum(risk, Object.keys(RISK_RANK), "risk")
-  requireEnum(minimumStatus, MINIMUM_STATUSES, "minimumStatus")
   if (!Number.isInteger(requiredContext) || requiredContext < 0) {
     throw new Error("requiredContext must be a non-negative integer")
   }
@@ -143,6 +137,8 @@ export function eligibleConfigurations(registry, request) {
   if (!route) {
     throw new Error(`Unknown workClass: ${workClass}`)
   }
+  const policy = registry.runner_policies?.[role]
+  if (!policy) throw new Error(`Registry does not define a ${role} runner policy`)
 
   const byId = new Map(
     registry.configurations.map((configuration) => [configuration.configuration_id, configuration]),
@@ -153,12 +149,10 @@ export function eligibleConfigurations(registry, request) {
   for (const id of route) {
     const configuration = byId.get(id)
     const reasons = []
-    const status = roleStatus(configuration, role)
 
     if (!configuration.enabled) reasons.push("disabled")
-    if (STATUS_RANK[status] < STATUS_RANK[minimumStatus]) {
-      reasons.push(`admission:${role}:${status}`)
-    }
+    if (configuration.status !== "active") reasons.push(`status:${configuration.status}`)
+    if (!policy.providers.includes(configuration.provider)) reasons.push(`provider:${configuration.provider}`)
     if (RISK_RANK[configuration.constraints.max_risk] < RISK_RANK[risk]) {
       reasons.push(`risk-ceiling:${configuration.constraints.max_risk}`)
     }
@@ -177,6 +171,9 @@ export function eligibleConfigurations(registry, request) {
     if (configurationId && configuration.configuration_id !== configurationId) {
       reasons.push(`pinned:${configurationId}`)
     }
+    if (metalog[id]?.fit === "fail") {
+      reasons.push(`fit-failed:${metalog[id].fit_reason ?? "see metalog"}`)
+    }
 
     if (reasons.length > 0) {
       rejected.push({ configuration_id: id, reasons })
@@ -188,50 +185,85 @@ export function eligibleConfigurations(registry, request) {
   return { eligible, rejected }
 }
 
-export function selectionView(configuration, role = null) {
+// The order of a role's list: configurations the metalog demoted last (the
+// role's failures in a row reached the threshold), then the provider tier of
+// the role policy, then price, cheapest first; ties by cached price and id.
+export function orderConfigurations(registry, role, configurations, { metalog = null } = {}) {
+  const policy = registry.runner_policies?.[role]
+  if (!policy) throw new Error(`Registry does not define a ${role} runner policy`)
+  const threshold = demotionThreshold(registry)
+  const summary = metalog?.configurations ?? {}
+  const keyed = configurations.map((configuration) => {
+    const streak = summary[configuration.configuration_id]?.roles?.[role]?.consecutive_failures ?? 0
+    const cost = configurationCost(configuration)
+    return {
+      configuration,
+      demoted: streak >= threshold ? 1 : 0,
+      tier: policy.providers.indexOf(configuration.provider),
+      cost: cost.total,
+      cached: cost.cached,
+      id: configuration.configuration_id,
+    }
+  })
+  keyed.sort(
+    (a, b) =>
+      a.demoted - b.demoted ||
+      a.tier - b.tier ||
+      a.cost - b.cost ||
+      a.cached - b.cached ||
+      a.id.localeCompare(b.id),
+  )
+  return keyed.map((item) => item.configuration)
+}
+
+export function selectionView(configuration, { rank = null, role = null, metalog = null } = {}) {
+  const item = metalog?.configurations?.[configuration.configuration_id]
   return {
     configuration_id: configuration.configuration_id,
     model: configuration.opencode_model,
     provider: configuration.provider,
     family: configuration.family,
-    admission_status: role ? roleStatus(configuration, role) : configuration.status,
+    rank,
+    cost_per_million: configurationCost(configuration).total,
     context_tokens: configuration.capabilities?.context_tokens ?? null,
+    consecutive_failures: role ? (item?.roles?.[role]?.consecutive_failures ?? 0) : null,
     availability: "not-checked",
   }
 }
 
+// The ordered list for a request, with the primary and its rank in the list
+// before any escalation exclusion.
 export function selectModel(registry, request) {
   const workClass = request.workClass
   const role = request.role
-  const minimumStatus = request.minimumStatus ?? "qualified"
+  const metalog = request.metalog ?? null
+  const excluded = request.excludeConfigurations ?? []
   const { eligible, rejected } = eligibleConfigurations(registry, request)
+  const ordered = orderConfigurations(registry, role, eligible, { metalog })
+  const ladder = ordered.map((configuration, index) => selectionView(configuration, { rank: index + 1, role, metalog }))
+  const primary = ladder.find((item) => !excluded.includes(item.configuration_id)) ?? null
+  const rejectedAll = [
+    ...rejected,
+    ...ladder.filter((item) => excluded.includes(item.configuration_id)).map((item) => ({ configuration_id: item.configuration_id, reasons: ["escalated-past"] })),
+  ]
 
-  if (eligible.length === 0) {
+  if (!primary) {
     return {
       status: "NO_MATCH",
       work_class: workClass,
       role,
-      minimum_status: minimumStatus,
-      rejected,
+      ladder,
+      rejected: rejectedAll,
     }
   }
 
-  const selected = eligible[0]
-  const alternate = eligible[1] ?? null
   return {
     status: "SELECTED",
     work_class: workClass,
     role,
-    selection: {
-      ...selectionView(selected, role),
-    },
-    alternate: alternate ? selectionView(alternate, role) : null,
-    warnings: [
-      "The Runner must verify live provider and endpoint availability before execution.",
-      ...(roleStatus(selected, role) !== "qualified"
-        ? [`Selected configuration is not certified as ${role}; this selection is valid only for harness maintenance.`]
-        : []),
-    ],
-    rejected,
+    selection: primary,
+    ladder,
+    warnings: ["The Runner must verify live provider and endpoint availability before execution."],
+    rejected: rejectedAll,
   }
 }

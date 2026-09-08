@@ -2,5 +2,6 @@
 .opencode/package-lock.json
 .opencode/bun.lock
 .opencode/codegen/runs/
+.opencode/codegen/metalog.jsonl
 .opencode/.codegen-install.json
 .opencode/.codegen-server.json

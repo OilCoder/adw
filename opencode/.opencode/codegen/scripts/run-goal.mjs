@@ -4,7 +4,7 @@ import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { runExecutionPlan, selectExecutionPlan } from "../lib/builder-runner.mjs"
+import { runExecutionPlan } from "../lib/builder-runner.mjs"
 import {
   exists,
   loadRegistry,
@@ -12,7 +12,6 @@ import {
   parseArguments,
   requireGitHead,
   resolveInsideProject,
-  resolveMinimumStatus,
   resolvePinnedConfiguration,
   runsDirectory,
 } from "../lib/cli.mjs"
@@ -21,6 +20,7 @@ import { routeGoal } from "../lib/goal-routing.mjs"
 import { renderGoalMarkdown, sealApprovedGoal, validateGoal } from "../lib/goal.mjs"
 import { validateDecision } from "../lib/opinions.mjs"
 import { resolveDisplay, runAgentProcess } from "../lib/agent-run.mjs"
+import { recordCall, selectConfiguration } from "../lib/select-configuration.mjs"
 import { runProcess } from "../lib/process.mjs"
 import { reportAnswers, unverifiedFindings, validateResearchReport } from "../lib/research-report.mjs"
 
@@ -97,23 +97,29 @@ async function loadDecisions(directory, list, goal) {
 // One Goal Manager call. `mode` is "draft" (new Goal from intent) or "revise"
 // (fold evidence into the existing Goal). Only the user seals a Goal: a model
 // that returns SEALED without that approval is rejected here.
-async function callGoalManager({ directory, args, output, prompt, title, lines, runId, artifacts, minimumStatus, configurationId }) {
+async function callGoalManager({ directory, args, output, prompt, title, lines, runId, artifacts, configurationId, mode }) {
   const registry = await loadRegistry(systemRoot)
-  const plan = selectExecutionPlan(registry, "goal-manager", {
-    workClass: "complex-engineering-plan",
-    risk: args.risk ?? "medium",
-    minimumStatus,
-    configurationId,
-    requiredContext: Number(args["required-context"] ?? 0),
-    requiresTools: true,
-    requiresCodeEditing: false,
+  const display = resolveDisplay(args)
+  const plan = await selectConfiguration({
+    systemRoot,
+    registry,
+    role: "goal-manager",
+    args,
+    display,
+    request: {
+      workClass: "complex-engineering-plan",
+      risk: args.risk ?? "medium",
+      configurationId,
+      requiredContext: Number(args["required-context"] ?? 0),
+      requiresTools: true,
+      requiresCodeEditing: false,
+    },
   })
   if (plan.status !== "READY") {
     process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`)
     process.exitCode = 2
     return null
   }
-  const display = resolveDisplay(args)
   const execution = await runExecutionPlan({
     plan,
     execute: async (configuration) => {
@@ -160,10 +166,22 @@ async function callGoalManager({ directory, args, output, prompt, title, lines, 
       result = "GOAL_INVALID"
     }
   }
-  return { result, validation, routing, markdown: markdown ? path.relative(directory, markdown) : null, execution, goal, lines }
+  await recordCall({
+    systemRoot,
+    role: "goal-manager",
+    plan,
+    result,
+    success: Boolean(validation?.valid) && result !== "SEALED_WITHOUT_APPROVAL",
+    runId,
+    execution,
+    reason: validation && !validation.valid ? validation.errors.slice(0, 3).join("; ") : null,
+    context: { mode },
+  })
+  const selection = { configuration_id: plan.primary.configuration_id, model: plan.primary.model, rank: plan.primary.rank, ladder: plan.ladder, fits: plan.fits }
+  return { result, validation, routing, markdown: markdown ? path.relative(directory, markdown) : null, execution, goal, selection, lines }
 }
 
-async function draft(directory, args, minimumStatus, configurationId) {
+async function draft(directory, args, configurationId) {
   const output = resolveInsideProject(directory, args.output ?? ".codegen-goal/goal.json", "Goal output")
   if (await exists(output.absolute)) throw new Error(`Goal output already exists: ${output.relative}`)
   const reports = await loadReports(directory, args.reports)
@@ -181,12 +199,13 @@ async function draft(directory, args, minimumStatus, configurationId) {
       ? "The user has explicitly approved sealing this Goal if nothing blocks it."
       : "Leave status DRAFT, RESEARCHING, or DECIDED; the user has not approved sealing. Do not plan implementation or write product code.",
   ].join("\n")
-  const call = await callGoalManager({ directory, args, output, prompt, title: `goal-manager · ${output.relative}`, runId, artifacts, minimumStatus, configurationId })
+  const call = await callGoalManager({ directory, args, output, prompt, title: `goal-manager · ${output.relative}`, runId, artifacts, configurationId, mode: "draft" })
   if (!call) return
   const summary = {
     result: call.result,
     operation: "draft",
     output: output.relative,
+    selection: call.selection,
     markdown: call.markdown,
     research_reports: reports,
     user_action: call.execution.user_action,
@@ -204,7 +223,7 @@ async function draft(directory, args, minimumStatus, configurationId) {
 // Revision: the existing Goal is rewritten in place with research reports,
 // proposed decisions from deliberation, and optional user guidance. The
 // previous version is kept next to it.
-async function revise(directory, args, minimumStatus, configurationId) {
+async function revise(directory, args, configurationId) {
   const output = resolveInsideProject(directory, args.revise, "Goal")
   if (!(await exists(output.absolute))) throw new Error(`Goal does not exist: ${output.relative}`)
   const before = JSON.parse(await readFile(output.absolute, "utf8"))
@@ -238,12 +257,13 @@ async function revise(directory, args, minimumStatus, configurationId) {
     ...(args.intent ? [`User guidance for this revision: ${args.intent}`, "Record the user's answers as decisions and resolve the open questions they answer."] : []),
     "Do not add research questions or blocking questions unless the evidence makes one unavoidable. Leave status DECIDED, or RESEARCHING if required research is still pending; never SEALED. Do not plan implementation or write product code.",
   ].join("\n")
-  const call = await callGoalManager({ directory, args, output, prompt, title: `goal-manager · revise ${output.relative}`, runId, artifacts, minimumStatus, configurationId })
+  const call = await callGoalManager({ directory, args, output, prompt, title: `goal-manager · revise ${output.relative}`, runId, artifacts, configurationId, mode: "revise" })
   if (!call) return
   const summary = {
     result: call.result,
     operation: "revise",
     output: output.relative,
+    selection: call.selection,
     backup: path.relative(directory, backup),
     markdown: call.markdown,
     research_reports: reports,
@@ -266,10 +286,9 @@ async function main() {
   await requireGitHead(directory)
   if (args.approve) return approve(directory, args.approve)
   if (!args.intent && !args.revise) throw new Error(USAGE)
-  const minimumStatus = await resolveMinimumStatus(args, systemRoot)
   const configurationId = await resolvePinnedConfiguration(args, systemRoot)
-  if (args.revise) return revise(directory, args, minimumStatus, configurationId)
-  return draft(directory, args, minimumStatus, configurationId)
+  if (args.revise) return revise(directory, args, configurationId)
+  return draft(directory, args, configurationId)
 }
 
 main().catch((error) => {

@@ -7,7 +7,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { loadRegistry, newRunId, parseArguments, requireGitHead, resolveInsideProject, resolveMinimumStatus, resolveSourceVerification, runsDirectory, exists } from "../lib/cli.mjs"
+import { loadRegistry, newRunId, parseArguments, requireGitHead, resolveInsideProject, resolveSourceVerification, runsDirectory, exists } from "../lib/cli.mjs"
+import { resolveFitCheck } from "../lib/fit-check.mjs"
 import { deliberationPlan, readyForApproval, verifyRevision } from "../lib/deliberation.mjs"
 import { validateGoal } from "../lib/goal.mjs"
 import { validateDecision } from "../lib/opinions.mjs"
@@ -49,7 +50,7 @@ async function main() {
   const args = parseArguments(process.argv.slice(2))
   const directory = path.resolve(args.directory ?? process.cwd())
   await requireGitHead(directory)
-  const minimumStatus = await resolveMinimumStatus(args, systemRoot)
+  const fitCheck = await resolveFitCheck(args, systemRoot)
   const sourceVerification = await resolveSourceVerification(args, systemRoot)
   await loadRegistry(systemRoot)
   const goalFile = resolveInsideProject(directory, args.goal ?? ".codegen-goal/goal.json", "Goal")
@@ -96,7 +97,7 @@ async function main() {
 
   // 1. Research, one runner per required pending question.
   for (const questionId of plan.research) {
-    const run = await spawnRunner("run-researcher.mjs", { question: questionId, goal: goalFile.relative, "minimum-status": minimumStatus, "source-verification": sourceVerification, timeout, display }, directory)
+    const run = await spawnRunner("run-researcher.mjs", { question: questionId, goal: goalFile.relative, "source-verification": sourceVerification, "fit-check": fitCheck, timeout, display }, directory)
     summary.research.push({ question_id: questionId, result: run.result, output: run.output ?? null, answers: run.answers ?? false, unverified_findings: run.unverified_findings ?? [], fabricated: run.verification?.fabricated ?? [], user_action: run.user_action ?? null })
     if (run.user_action) {
       summary.user_action = run.user_action
@@ -111,7 +112,7 @@ async function main() {
 
   // 2. Opinions and reconciliation, one runner per blocking question.
   for (const questionId of plan.opinions) {
-    const run = await spawnRunner("run-opinions.mjs", { question: questionId, goal: goalFile.relative, "minimum-status": minimumStatus, advisors: args.advisors ?? null, timeout, display }, directory)
+    const run = await spawnRunner("run-opinions.mjs", { question: questionId, goal: goalFile.relative, advisors: args.advisors ?? null, "fit-check": fitCheck, timeout, display }, directory)
     summary.opinions.push({ question_id: questionId, result: run.result, decision: run.decision ?? null, user_action: run.user_action ?? null })
     if (run.user_action) {
       summary.user_action = run.user_action
@@ -128,7 +129,7 @@ async function main() {
   //    against the evidence, never taken from the model's summary.
   const revision = await spawnRunner(
     "run-goal.mjs",
-    { revise: goalFile.relative, reports: reports.map((r) => r.path).join(","), decisions: decisions.map((d) => d.path).join(","), "minimum-status": minimumStatus, timeout, display },
+    { revise: goalFile.relative, reports: reports.map((r) => r.path).join(","), decisions: decisions.map((d) => d.path).join(","), "fit-check": fitCheck, timeout, display },
     directory,
   )
   summary.revision = { result: revision.result, backup: revision.backup ?? null, user_action: revision.user_action ?? null, validation: revision.validation ?? null }

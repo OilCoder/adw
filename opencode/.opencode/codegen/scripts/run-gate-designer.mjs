@@ -4,19 +4,19 @@ import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { runExecutionPlan, selectExecutionPlan } from "../lib/builder-runner.mjs"
+import { runExecutionPlan } from "../lib/builder-runner.mjs"
 import {
   loadRegistry,
   newRunId,
   parseArguments,
   requireGitHead,
-  resolveMinimumStatus,
   resolvePinnedConfiguration,
   runsDirectory,
 } from "../lib/cli.mjs"
 import { contractChecks, contractRequirements } from "../lib/contract.mjs"
 import { CHECKS_DIRECTORY, checkGateReadiness } from "../lib/gate.mjs"
 import { resolveDisplay, runAgentProcess } from "../lib/agent-run.mjs"
+import { recordCall, selectConfiguration } from "../lib/select-configuration.mjs"
 import { changedFilesSince, revision } from "../lib/worktrees.mjs"
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url))
@@ -58,7 +58,6 @@ async function main() {
   }
   const directory = path.resolve(args.directory ?? process.cwd())
   await requireGitHead(directory)
-  const minimumStatus = await resolveMinimumStatus(args, systemRoot)
   const configurationId = await resolvePinnedConfiguration(args, systemRoot)
   const contractPath = path.resolve(directory, args.contract)
   const contract = JSON.parse(await readFile(contractPath, "utf8"))
@@ -76,15 +75,22 @@ async function main() {
   }
 
   const registry = await loadRegistry(systemRoot)
-  const plan = selectExecutionPlan(registry, "gate-designer", {
-    workClass: args["work-class"],
-    risk: args.risk ?? "low",
-    minimumStatus,
-    configurationId,
-    requiredContext: Number(args["required-context"] ?? 0),
-    requiresTools: true,
-    requiresCodeEditing: true,
-    excludeFamily: args["exclude-family"] ?? null,
+  const display = resolveDisplay(args)
+  const plan = await selectConfiguration({
+    systemRoot,
+    registry,
+    role: "gate-designer",
+    args,
+    display,
+    request: {
+      workClass: args["work-class"],
+      risk: args.risk ?? "low",
+      configurationId,
+      requiredContext: Number(args["required-context"] ?? 0),
+      requiresTools: true,
+      requiresCodeEditing: true,
+      excludeFamily: args["exclude-family"] ?? null,
+    },
   })
   if (plan.status !== "READY") {
     process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`)
@@ -95,7 +101,6 @@ async function main() {
   const runId = newRunId()
   const artifacts = runsDirectory(systemRoot, "gate-designer", runId)
   await mkdir(artifacts, { recursive: true })
-  const display = resolveDisplay(args)
   const baseline = await revision(directory)
   const prompt = [
     `Prepare the Gate for the sealed contract at ${path.relative(directory, contractPath)}.`,
@@ -143,8 +148,21 @@ async function main() {
     }
   }
 
+  await recordCall({
+    systemRoot,
+    role: "gate-designer",
+    plan,
+    result,
+    success: result === "GATE_READY",
+    runId,
+    execution,
+    reason: result === "GATE_NOT_READY" ? (after?.reasons ?? []).join(", ") : result === "SCOPE_FAIL" ? `outside scope: ${outsideScope.join(", ")}` : null,
+    context: { contract_id: contract.contract_id ?? null },
+  })
+
   const summary = {
     result,
+    selection: { configuration_id: plan.primary.configuration_id, model: plan.primary.model, rank: plan.primary.rank, ladder: plan.ladder, fits: plan.fits },
     contract: path.relative(directory, contractPath),
     readiness_before: before,
     readiness_after: after,

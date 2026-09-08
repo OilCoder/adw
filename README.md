@@ -59,11 +59,13 @@ node opencode/install.mjs /ruta/al/proyecto --dry-run
 node opencode/install.mjs /ruta/al/proyecto
 ```
 
-El instalador solo entrega un sistema certificado: cada rol (Goal Manager,
+El instalador solo entrega un sistema completo: cada rol (Goal Manager,
 Planner, Gate Designer, Builder, Researcher, Advisors, Reconciler) debe tener
-una configuración `qualified` certificada aquí con `npm run certify` (ver
-`opencode/README.md`). Si la ruta no está completa, la instalación falla antes
-de copiar nada. El proyecto destino arranca en el agente `supervisor`, que no
+al menos una configuración admitida en su ruta del registro (`npm run
+release:check`; ver `opencode/README.md`). Si falta alguna, la instalación
+falla antes de copiar nada. Dentro de cada proyecto, la primera vez que se usa
+una configuración se comprueba su encaje en segundos, y un metalog registra
+cada llamada para que el selector baje sola a la que falla repetidamente. El proyecto destino arranca en el agente `supervisor`, que no
 edita archivos: todo cambio de código pasa por Goal → aprobación → Planner →
 Gate → Builder.
 

@@ -4,24 +4,22 @@ import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-import {
-  runExecutionPlan,
-  selectExecutionPlan,
-} from "../lib/builder-runner.mjs"
+import { runExecutionPlan } from "../lib/builder-runner.mjs"
 import { renderPlanMarkdown } from "../lib/coverage.mjs"
 import { validatePlan } from "../lib/plan-validation.mjs"
 import {
   exists,
+  listArgument,
   loadRegistry,
   loadRiskFloors,
   newRunId,
   parseArguments,
   requireGitHead,
-  resolveMinimumStatus,
   resolvePinnedConfiguration,
   runsDirectory,
 } from "../lib/cli.mjs"
 import { resolveDisplay, runAgentProcess } from "../lib/agent-run.mjs"
+import { recordCall, selectConfiguration } from "../lib/select-configuration.mjs"
 import { runProcess } from "../lib/process.mjs"
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url))
@@ -48,13 +46,12 @@ async function main() {
   const args = parseArguments(process.argv.slice(2))
   if (!args.objective) {
     throw new Error(
-      "usage: run-planner.mjs --objective <text> [--goal <path>] [--output .codegen-plan/plan.json] [--route direct|planned] [--evidence <rejected-plan-evidence.json>]",
+      "usage: run-planner.mjs --objective <text> [--goal <path>] [--output .codegen-plan/plan.json] [--route direct|planned] [--evidence <rejected-plan-evidence.json>] [--exclude-configurations a,b] [--fit-check run|off]",
     )
   }
   if (args.route !== undefined && !["direct", "planned"].includes(args.route)) throw new Error("route must be direct or planned")
   const directory = path.resolve(args.directory ?? process.cwd())
   await requireGitHead(directory)
-  const minimumStatus = await resolveMinimumStatus(args, systemRoot)
   const configurationId = await resolvePinnedConfiguration(args, systemRoot)
   const outputPath = path.resolve(directory, args.output ?? ".codegen-plan/plan.json")
   const relativeOutput = path.relative(directory, outputPath)
@@ -65,14 +62,22 @@ async function main() {
   await mkdir(path.dirname(outputPath), { recursive: true })
 
   const registry = await loadRegistry(systemRoot)
-  const plan = selectExecutionPlan(registry, "planner", {
-    workClass: "complex-engineering-plan",
-    risk: args.risk ?? "medium",
-    minimumStatus,
-    configurationId,
-    requiredContext: Number(args["required-context"] ?? 0),
-    requiresTools: true,
-    requiresCodeEditing: false,
+  const display = resolveDisplay(args)
+  const plan = await selectConfiguration({
+    systemRoot,
+    registry,
+    role: "planner",
+    args,
+    display,
+    request: {
+      workClass: "complex-engineering-plan",
+      risk: args.risk ?? "medium",
+      configurationId,
+      requiredContext: Number(args["required-context"] ?? 0),
+      excludeConfigurations: listArgument(args["exclude-configurations"]),
+      requiresTools: true,
+      requiresCodeEditing: false,
+    },
   })
   if (plan.status !== "READY") {
     process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`)
@@ -83,7 +88,6 @@ async function main() {
   const runId = newRunId()
   const artifacts = runsDirectory(systemRoot, "planner", runId)
   await mkdir(artifacts, { recursive: true })
-  const display = resolveDisplay(args)
   const route = args.route ?? null
   const riskFloors = await loadRiskFloors(systemRoot)
   const goal = args.goal ? JSON.parse(await readFile(path.resolve(directory, args.goal), "utf8")) : null
@@ -170,9 +174,22 @@ async function main() {
     }
   }
 
+  await recordCall({
+    systemRoot,
+    role: "planner",
+    plan,
+    result,
+    success: result === "PASS",
+    runId,
+    execution,
+    reason: validation && !validation.valid ? validation.errors.slice(0, 3).join("; ") : null,
+    context: { route },
+  })
+
   const report = {
     result,
     output: relativeOutput,
+    selection: { configuration_id: plan.primary.configuration_id, model: plan.primary.model, rank: plan.primary.rank, ladder: plan.ladder, fits: plan.fits },
     markdown: markdown ? path.relative(directory, markdown) : null,
     user_action: execution.user_action,
     attempts: execution.attempts,

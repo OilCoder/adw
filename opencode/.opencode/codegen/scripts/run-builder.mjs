@@ -7,19 +7,19 @@ import { fileURLToPath } from "node:url"
 
 import {
   runBuilderExecution,
-  selectBuilderExecutionPlan,
 } from "../lib/builder-runner.mjs"
 import {
   loadRegistry,
   newRunId,
   parseArguments,
   requireGitHead,
-  resolveMinimumStatus,
+  listArgument,
   resolvePinnedConfiguration,
   runsDirectory,
 } from "../lib/cli.mjs"
 import { contractChecks } from "../lib/contract.mjs"
 import { resolveDisplay, runAgentProcess } from "../lib/agent-run.mjs"
+import { recordCall, selectConfiguration } from "../lib/select-configuration.mjs"
 import { runProcess } from "../lib/process.mjs"
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url))
@@ -69,22 +69,31 @@ async function main() {
   const contractPath = path.resolve(directory, args.contract ?? "")
   if (!args.contract || !args["work-class"]) {
     throw new Error(
-      "usage: run-builder.mjs --contract <path> --work-class <class> [--risk <risk>] [--evidence <path>] [--exclude-family <family>]",
+      "usage: run-builder.mjs --contract <path> --work-class <class> [--risk <risk>] [--evidence <path>] [--exclude-family <family>] [--exclude-configurations a,b] [--fit-check run|off]",
     )
   }
 
   await requireGitHead(directory)
-  const minimumStatus = await resolveMinimumStatus(args, systemRoot)
   const configurationId = await resolvePinnedConfiguration(args, systemRoot)
   const registry = await loadRegistry(systemRoot)
   const contract = JSON.parse(await readFile(contractPath, "utf8"))
-  const plan = selectBuilderExecutionPlan(registry, {
-    workClass: args["work-class"],
-    risk: args.risk ?? "low",
-    minimumStatus,
-    configurationId,
-    requiredContext: Number(args["required-context"] ?? 0),
-    excludeFamily: args["exclude-family"] ?? null,
+  const display = resolveDisplay(args)
+  const plan = await selectConfiguration({
+    systemRoot,
+    registry,
+    role: "builder",
+    args,
+    display,
+    request: {
+      workClass: args["work-class"],
+      risk: args.risk ?? "low",
+      configurationId,
+      requiredContext: Number(args["required-context"] ?? 0),
+      excludeFamily: args["exclude-family"] ?? null,
+      excludeConfigurations: listArgument(args["exclude-configurations"]),
+      requiresTools: true,
+      requiresCodeEditing: true,
+    },
   })
   const evidencePath = args.evidence ? path.resolve(directory, args.evidence) : null
   if (evidencePath) await readFile(evidencePath, "utf8")
@@ -97,7 +106,6 @@ async function main() {
   const runId = newRunId()
   const artifacts = runsDirectory(systemRoot, "builder", runId)
   await mkdir(artifacts, { recursive: true })
-  const display = resolveDisplay(args)
   const baseline = await snapshot(directory)
   const prompt = [
     `Execute the sealed contract at ${path.relative(directory, contractPath)}.`,
@@ -180,9 +188,23 @@ async function main() {
   }
   if (result === "SUCCESS") result = "PASS"
 
+  const failing = verification.filter((check) => check.exit_code !== 0).map((check) => check.check_id)
+  await recordCall({
+    systemRoot,
+    role: "builder",
+    plan,
+    result,
+    success: result === "PASS",
+    runId,
+    execution,
+    reason: result === "GATE_FAIL" ? `failing checks: ${failing.join(", ")}` : result === "SCOPE_FAIL" ? `outside scope: ${outsideScope.join(", ")}` : null,
+    context: { contract_id: contract.contract_id ?? null },
+  })
+
   const report = {
     result,
     work_class: args["work-class"],
+    selection: { configuration_id: plan.primary.configuration_id, model: plan.primary.model, rank: plan.primary.rank, ladder: plan.ladder, fits: plan.fits },
     user_action: execution.user_action,
     attempts: execution.attempts,
     outside_scope: outsideScope,

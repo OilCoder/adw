@@ -86,9 +86,9 @@ async function project({ openQuestions = [], goalOverrides = {} } = {}) {
 }
 
 function run(script, args, { directory, bin }, env = {}) {
-  return execFile(process.execPath, [path.join(systemRoot, ".opencode/codegen/scripts", script), "--minimum-status", "candidate", "--source-verification", "offline", ...args], {
+  return execFile(process.execPath, [path.join(systemRoot, ".opencode/codegen/scripts", script), "--source-verification", "offline", ...args], {
     cwd: directory,
-    env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, FAKE_LOG: path.join(directory, "fake.log"), FAKE_REPORT: path.join(fixtures, "goal-research/report.json"), ...env },
+    env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, FAKE_LOG: path.join(directory, "fake.log"), CODEGEN_METALOG: path.join(directory, "metalog.jsonl"), FAKE_REPORT: path.join(fixtures, "goal-research/report.json"), ...env },
     maxBuffer: 16 * 1024 * 1024,
   }).then(
     (result) => ({ code: 0, ...result }),
@@ -138,7 +138,7 @@ test("deliberate: research, unanimous opinions, and a verified revision leave th
 test("deliberate: divergent advisors go to the reconciler before the revision", async () => {
   const tree = await project({ openQuestions: [blockingWithOptions] })
   try {
-    const result = await run("deliberate.mjs", [], tree, { FAKE_POSITIONS: JSON.stringify({ default: "database-constraint", zai: "application-check", deepseek: "application-check", openai: "application-check" }) })
+    const result = await run("deliberate.mjs", [], tree, { FAKE_POSITIONS: JSON.stringify({ default: "database-constraint", mimo: "application-check" }) })
     const summary = JSON.parse(result.stdout)
     assert.equal(summary.result, "DECIDED", result.stderr)
     const called = await agents(tree)

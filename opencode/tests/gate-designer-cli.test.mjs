@@ -58,8 +58,8 @@ async function project() {
 function run(tree, env = {}) {
   return execFile(
     process.execPath,
-    [path.join(systemRoot, ".opencode/codegen/scripts/run-gate-designer.mjs"), "--contract", ".codegen-contract/contract.json", "--work-class", "localized-low-risk-code-change", "--minimum-status", "candidate", "--exclude-family", "qwen"],
-    { cwd: tree.directory, env: { ...process.env, PATH: `${tree.bin}${path.delimiter}${process.env.PATH}`, PYTHONDONTWRITEBYTECODE: "1", ...env } },
+    [path.join(systemRoot, ".opencode/codegen/scripts/run-gate-designer.mjs"), "--contract", ".codegen-contract/contract.json", "--work-class", "localized-low-risk-code-change", "--exclude-family", "qwen"],
+    { cwd: tree.directory, env: { ...process.env, PATH: `${tree.bin}${path.delimiter}${process.env.PATH}`, PYTHONDONTWRITEBYTECODE: "1", CODEGEN_METALOG: path.join(tree.directory, "metalog.jsonl"), ...env } },
   ).then(
     (result) => ({ code: 0, ...result }),
     (error) => ({ code: error.code, stdout: error.stdout, stderr: error.stderr }),
@@ -77,7 +77,7 @@ test("gate designer turns a trivial check into one that fails on the baseline", 
     assert.equal(summary.readiness_after.ready, true)
     assert.deepEqual(summary.readiness_after.baseline.map((item) => [item.check_id, item.expected, item.exit_code !== 0]), [["C1", "fail", true]])
     assert.deepEqual(summary.changed_files, [".codegen-contract/checks/C1.sh", ".codegen-contract/checks/test_alpha_contract.py"])
-    assert.equal(summary.attempts[0].configuration.family, "minimax")
+    assert.equal(summary.attempts[0].configuration.family, "glm")
     assert.ok((await readFile(path.join(tree.directory, "lib/alpha.py"), "utf8")).includes("NotImplementedError"))
     // The wrapper is untouched and reports the check by id.
     const gate = await execFile("bash", [".codegen-contract/gate.sh"], { cwd: tree.directory }).catch((error) => error)

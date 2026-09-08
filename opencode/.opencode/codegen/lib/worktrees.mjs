@@ -128,6 +128,13 @@ export async function commitPaths(directory, paths, message, { force = false } =
   return revision(directory)
 }
 
+// Back to the sealed contract before another configuration takes over:
+// every uncommitted change and every untracked file goes.
+export async function resetWorktree(directory, rev = "HEAD") {
+  await git(directory, ["reset", "--hard", rev])
+  await git(directory, ["clean", "-fdq"])
+}
+
 export async function restorePaths(directory, paths) {
   if (paths.length === 0) return
   await git(directory, ["checkout", "--", ...paths], { allowFailure: true })

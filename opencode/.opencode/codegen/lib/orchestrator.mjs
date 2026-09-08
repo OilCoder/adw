@@ -6,6 +6,7 @@ import { runFinalGate } from "./final-gate.mjs"
 import { checkGateReadiness, materializeGate } from "./gate.mjs"
 import { routeGoal } from "./goal-routing.mjs"
 import { validateGoal } from "./goal.mjs"
+import { stopEntry } from "./metalog.mjs"
 import { validatePlan } from "./plan-validation.mjs"
 import {
   cherryPick,
@@ -14,6 +15,7 @@ import {
   ensureExcluded,
   linkOpenCodeLayer,
   removeWorktree,
+  resetWorktree,
   restorePaths,
   revision,
 } from "./worktrees.mjs"
@@ -86,7 +88,7 @@ export async function orchestrate({
   runId,
   concurrency = 2,
   keepWorktrees = false,
-  minimumStatus = "qualified",
+  metalog = null,
   gateTimeoutSeconds = 300,
   log = () => {},
 }) {
@@ -115,6 +117,7 @@ export async function orchestrate({
     final_gate: null,
     goal_coverage: null,
     derived_work: [],
+    escalations: [],
     planner_calls: 0,
     gate_designer_calls: 0,
     user_action: null,
@@ -169,43 +172,63 @@ export async function orchestrate({
   } else {
     // A plan the validator rejects is re-requested with the errors as
     // evidence while the errors change. A plan that reproduces the errors of
-    // an earlier attempt would be re-requested with the same evidence, so
-    // the run stops there (no progress). Any other failure stops at once.
-    const errorSets = []
+    // an earlier attempt would be re-requested with the same evidence: no
+    // progress for that configuration, so the orchestrator climbs one rung
+    // of the Planner's list (the next configuration gets the evidence) and
+    // stops only when the list is exhausted. Any other failure stops at once.
+    const excluded = []
+    let errorSets = []
     let evidence = null
     let output = null
     while (true) {
       state.planner_calls += 1
       output = `.codegen-plan/${runId}${state.planner_calls > 1 ? `-${state.planner_calls}` : ""}.json`
-      await emit("PLAN_REQUESTED", { output, route: routing.route, attempt: state.planner_calls, evidence })
+      await emit("PLAN_REQUESTED", { output, route: routing.route, attempt: state.planner_calls, evidence, excluded: [...excluded] })
       const summary = await runners.planner({
         directory,
         objective: goal.objective,
         goal: goalPath,
         output,
-        minimumStatus,
         route: routing.route,
         evidence,
+        excludeConfigurations: [...excluded],
       })
-      await emit("PLAN_GENERATED", { result: summary.result, output, attempt: state.planner_calls, markdown: summary.markdown ?? null })
+      const selection = summary.selection ?? null
+      await emit("PLAN_GENERATED", { result: summary.result ?? summary.status, output, attempt: state.planner_calls, markdown: summary.markdown ?? null, configuration_id: selection?.configuration_id ?? null, rank: selection?.rank ?? null })
       if (summary.result === "PASS") {
         state.plan_markdown = summary.markdown ?? null
         break
+      }
+      if (summary.status === "NO_MATCH") {
+        return stop("PLAN_FAILED", `no planner admitted${excluded.length > 0 ? ` after escalating past ${excluded.join(", ")}` : ""}`, { rejected: summary.rejected ?? null, attempts: state.planner_calls })
       }
       if (summary.result !== "PLAN_INVALID") return stop("PLAN_FAILED", summary.result, { validation: summary.validation ?? null, attempts: state.planner_calls })
       const errors = [...(summary.validation?.errors ?? [])].sort()
       const repeats = errorSets.findIndex((item) => item.length === errors.length && item.every((error, index) => error === errors[index]))
       errorSets.push(errors)
-      if (repeats !== -1) {
-        return stop("PLAN_FAILED", `no progress: attempt ${state.planner_calls} reproduced the validation errors of attempt ${repeats + 1}`, { validation: summary.validation ?? null, attempts: state.planner_calls })
-      }
       evidence = `.codegen-plan/${runId}-${state.planner_calls}.evidence.json`
       await mkdir(path.dirname(path.resolve(directory, evidence)), { recursive: true })
       await writeFile(
         path.resolve(directory, evidence),
-        `${JSON.stringify({ attempt: state.planner_calls, rejected_plan: output, errors: summary.validation?.errors ?? [] }, null, 2)}\n`,
+        `${JSON.stringify({ attempt: state.planner_calls, rejected_plan: output, errors: summary.validation?.errors ?? [], ...(repeats !== -1 ? { escalated_from: selection?.configuration_id ?? null } : {}) }, null, 2)}\n`,
       )
-      await emit("PLAN_RETRY", { attempt: state.planner_calls, evidence, errors: summary.validation?.errors ?? [] })
+      if (repeats === -1) {
+        await emit("PLAN_RETRY", { attempt: state.planner_calls, evidence, errors: summary.validation?.errors ?? [] })
+        continue
+      }
+      const reason = `no progress: attempt ${state.planner_calls} reproduced the validation errors of attempt ${repeats + 1}`
+      if (selection?.configuration_id) {
+        await metalog?.append?.(stopEntry({ role: "planner", selection, reason, runId, context: { attempt: state.planner_calls } }))
+      }
+      const next = selection ? ((selection.ladder ?? []).find((id) => id !== selection.configuration_id && !excluded.includes(id)) ?? null) : null
+      if (!next) {
+        return stop("PLAN_FAILED", `${reason}; no other planner admitted`, { validation: summary.validation ?? null, attempts: state.planner_calls })
+      }
+      excluded.push(selection.configuration_id)
+      errorSets = []
+      const escalation = { role: "planner", from: selection.configuration_id, to: next, reason, evidence }
+      state.escalations.push(escalation)
+      await emit("ESCALATED", escalation)
     }
     plan = JSON.parse(await readFile(path.resolve(directory, output), "utf8"))
     state.plan_path = output
@@ -295,6 +318,8 @@ export async function orchestrate({
         risk_effective: riskEffective,
         gate_readiness: null,
         attempts: [],
+        escalations: [],
+        sealed_commit: null,
         result_commit: null,
         stop: null,
       }
@@ -321,7 +346,6 @@ export async function orchestrate({
           contract: ".codegen-contract/contract.json",
           workClass: contract.work_class,
           risk: riskEffective,
-          minimumStatus,
         })
         await emit("GATE_DESIGNED", { contract_id: contract.contract_id, result: design.result })
         if (design.result === "GATE_READY") {
@@ -338,35 +362,43 @@ export async function orchestrate({
         return stop("GATE_NOT_READY", `${contract.contract_id}: ${readiness.reasons.join(", ")}`)
       }
       await emit("GATE_READY", { contract_id: contract.contract_id, baseline: readiness.baseline })
+      record.sealed_commit = await revision(worktree)
       prepared.push({ contract, record, sealed })
     }
     await persist()
 
     // 4b. Build contracts of the wave concurrently.
     await pool(prepared, concurrency, async ({ contract, record }) => {
-      const signatures = []
+      // Attempts run while each one brings new evidence. When a configuration
+      // reproduces an earlier attempt (no progress) the orchestrator climbs
+      // one rung: the worktree goes back to the sealed contract and the next
+      // configuration of the Builder's list gets the accumulated evidence.
+      // The contract fails only when the list is exhausted.
+      const excluded = []
+      let signatures = []
       let evidence = null
       for (let attempt = 1; ; attempt += 1) {
-        await emit("BUILDER_DISPATCHED", { contract_id: contract.contract_id, attempt, evidence })
+        await emit("BUILDER_DISPATCHED", { contract_id: contract.contract_id, attempt, evidence, excluded: [...excluded] })
         const summary = await runners.builder({
           directory: record.worktree,
           contract: ".codegen-contract/contract.json",
           workClass: contract.work_class,
           risk: record.risk_effective,
-          minimumStatus,
           evidence,
+          excludeConfigurations: [...excluded],
         })
+        const selection = summary.selection ?? null
         // A runner that could not select a configuration reports status
         // NO_MATCH instead of a result; that is a blocking stop with the
         // admission reasons, not an unknown result.
         const result = summary.result ?? (summary.status === "NO_MATCH" ? "NO_BUILDER_ADMITTED" : summary.status)
         const signature = attemptSignature(result, summary)
-        const repeats = signatures.includes(signature) ? signatures.indexOf(signature) + 1 : null
-        signatures.push(signature)
-        record.attempts.push({ attempt, result, evidence, repeats, summary })
+        const repeats = signatures.find((item) => item.signature === signature)?.attempt ?? null
+        signatures.push({ attempt, signature })
+        record.attempts.push({ attempt, rung: excluded.length + 1, configuration_id: selection?.configuration_id ?? null, result, evidence, repeats, summary })
         const outcome = classifyBuilderOutcome(result, { attempt, repeats })
         if (result === "NO_BUILDER_ADMITTED") {
-          outcome.reason = `no builder admitted for ${contract.work_class} at risk ${record.risk_effective}: ${(summary.rejected ?? []).slice(0, 4).map((r) => `${r.configuration_id} (${(r.reasons ?? []).join(", ")})`).join("; ")}`
+          outcome.reason = `no builder admitted for ${contract.work_class} at risk ${record.risk_effective}${excluded.length > 0 ? ` after escalating past ${excluded.join(", ")}` : ""}: ${(summary.rejected ?? []).slice(0, 4).map((r) => `${r.configuration_id} (${(r.reasons ?? []).join(", ")})`).join("; ")}`
         }
         if (outcome.disposition === "ACCEPT") {
           record.result_commit = await commitPaths(
@@ -387,6 +419,34 @@ export async function orchestrate({
           )
           await emit("RETRY", { contract_id: contract.contract_id, attempt, reason: outcome.reason, evidence })
           continue
+        }
+        if (outcome.status === "BUILD_FAILED" && selection?.configuration_id) {
+          await metalog?.append?.(stopEntry({ role: "builder", selection, reason: outcome.reason, runId, context: { contract_id: contract.contract_id, attempt } }))
+          const next = (selection.ladder ?? []).find((id) => id !== selection.configuration_id && !excluded.includes(id)) ?? null
+          if (next) {
+            excluded.push(selection.configuration_id)
+            await resetWorktree(record.worktree, record.sealed_commit)
+            evidence = `.codegen-contract/evidence-rung-${excluded.length + 1}.json`
+            await writeFile(
+              path.join(record.worktree, evidence),
+              `${JSON.stringify(
+                {
+                  escalated_from: selection.configuration_id,
+                  reason: outcome.reason,
+                  attempts: record.attempts.map((item) => ({ attempt: item.attempt, configuration_id: item.configuration_id, result: item.result, outside_scope: item.summary?.outside_scope, verification: item.summary?.verification })),
+                },
+                null,
+                2,
+              )}\n`,
+            )
+            signatures = []
+            const escalation = { role: "builder", contract_id: contract.contract_id, from: selection.configuration_id, to: next, reason: outcome.reason, evidence }
+            record.escalations.push(escalation)
+            state.escalations.push(escalation)
+            await emit("ESCALATED", escalation)
+            continue
+          }
+          outcome.reason = `${outcome.reason}; no other builder admitted`
         }
         record.status = outcome.status
         record.stop = summary.user_action ?? outcome.reason

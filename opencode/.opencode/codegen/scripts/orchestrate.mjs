@@ -3,9 +3,11 @@
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { builderFamily } from "../lib/certification.mjs"
-import { loadRegistry, loadRiskFloors, newRunId, parseArguments, requireGitHead, resolveMinimumStatus } from "../lib/cli.mjs"
+import { loadRegistry, loadRiskFloors, newRunId, parseArguments, requireGitHead } from "../lib/cli.mjs"
+import { resolveFitCheck } from "../lib/fit-check.mjs"
+import { appendMetalog, loadMetalogSummary } from "../lib/metalog.mjs"
 import { orchestrate } from "../lib/orchestrator.mjs"
+import { builderFamily } from "../lib/release.mjs"
 import { runProcess } from "../lib/process.mjs"
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url))
@@ -30,14 +32,15 @@ async function main() {
   const args = parseArguments(process.argv.slice(2))
   const directory = path.resolve(args.directory ?? process.cwd())
   await requireGitHead(directory)
-  const minimumStatus = await resolveMinimumStatus(args, systemRoot)
+  const fitCheck = await resolveFitCheck(args, systemRoot)
   const registry = await loadRegistry(systemRoot)
   const runId = args["run-id"] ?? newRunId()
   const timeout = args.timeout ?? null
   const display = args.display ?? process.env.CODEGEN_DISPLAY ?? null
   // Keep the Gate independent from the implementation: exclude the family of
-  // the Builder configuration admitted for this admission level.
-  const excludedFamily = builderFamily(registry, minimumStatus)
+  // the Builder configuration first in line for this project.
+  const excludedFamily = builderFamily(registry, { metalog: await loadMetalogSummary(systemRoot) })
+  const list = (items) => (items?.length ? items.join(",") : null)
 
   const state = await orchestrate({
     directory,
@@ -48,28 +51,28 @@ async function main() {
     runId,
     concurrency: Number(args.concurrency ?? 2),
     keepWorktrees: args["keep-worktrees"] === "true",
-    minimumStatus,
+    metalog: { append: (entry) => appendMetalog(systemRoot, entry) },
     gateTimeoutSeconds: Number(args["gate-timeout"] ?? 300),
     log: (record) => process.stderr.write(
       `[${record.at}] ${record.event}${record.contract_id ? ` ${record.contract_id}` : ""}${record.event === "RUN_STOPPED" && record.reason ? `: ${record.reason}` : ""}\n`,
     ),
     runners: {
-      planner: ({ directory: cwd, objective, goal, output, route, evidence }) =>
+      planner: ({ directory: cwd, objective, goal, output, route, evidence, excludeConfigurations }) =>
         spawnRunner(
           "run-planner.mjs",
-          { objective, goal, output, "minimum-status": minimumStatus, route, evidence, timeout, display },
+          { objective, goal, output, route, evidence, "exclude-configurations": list(excludeConfigurations), "fit-check": fitCheck, timeout, display },
           cwd,
         ),
       gateDesigner: ({ directory: cwd, contract, workClass, risk }) =>
         spawnRunner(
           "run-gate-designer.mjs",
-          { contract, "work-class": workClass, risk, "minimum-status": minimumStatus, "exclude-family": excludedFamily, timeout, display },
+          { contract, "work-class": workClass, risk, "exclude-family": excludedFamily, "fit-check": fitCheck, timeout, display },
           cwd,
         ),
-      builder: ({ directory: cwd, contract, workClass, risk, evidence }) =>
+      builder: ({ directory: cwd, contract, workClass, risk, evidence, excludeConfigurations }) =>
         spawnRunner(
           "run-builder.mjs",
-          { contract, "work-class": workClass, risk, "minimum-status": minimumStatus, evidence, timeout, display },
+          { contract, "work-class": workClass, risk, evidence, "exclude-configurations": list(excludeConfigurations), "fit-check": fitCheck, timeout, display },
           cwd,
         ),
     },
