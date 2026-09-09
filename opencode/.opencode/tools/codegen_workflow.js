@@ -71,7 +71,7 @@ export default tool({
       scriptArgs = ["--goal", goal, "--display", choice.display, ...(args.plan ? ["--plan", args.plan] : []), ...(args.run ? ["--resume", args.run] : [])]
     }
 
-    const env = { ...process.env, CODEGEN_DISPLAY: choice.display, ...(choice.url ? { CODEGEN_ATTACH: choice.url } : {}) }
+    const env = { ...process.env, CODEGEN_DISPLAY: choice.display, ...(choice.url ? { CODEGEN_ATTACH: choice.url, CODEGEN_PARENT_SESSION: context.sessionID } : {}) }
     try {
       const result = await executeFile(nodeBinary, [path.join(codegen, script), ...scriptArgs], {
         cwd: context.directory,

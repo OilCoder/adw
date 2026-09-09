@@ -67,6 +67,36 @@ export async function resolveAttachUrl(projectRoot) {
   return { url: (await serverAlive(server)) ? server.url : null, published: server?.url ?? null }
 }
 
+// With CODEGEN_PARENT_SESSION (the supervisor's session id, set by the
+// codegen_workflow tool) the agent runs in a child session of the supervisor,
+// so the TUI reaches it with the child-session keys (leader+down, left/right,
+// up to return), and the TUI is asked to show it as it starts unless
+// CODEGEN_TUI_FOLLOW=off. Any failure falls back to a plain titled session.
+async function openChildSession(url, directory, title) {
+  const parentID = process.env.CODEGEN_PARENT_SESSION
+  if (!parentID) return null
+  try {
+    const response = await fetch(new URL("session", url), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ parentID, ...(title ? { title } : {}) }),
+    })
+    if (!response.ok) return null
+    const session = await response.json()
+    if (typeof session?.id !== "string") return null
+    if (process.env.CODEGEN_TUI_FOLLOW !== "off") {
+      await fetch(new URL("tui/select-session", url), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sessionID: session.id }),
+      }).catch(() => null)
+    }
+    return session.id
+  } catch {
+    return null
+  }
+}
+
 // Runs `opencode run ...` for one agent. `args` starts with "run"; the tui
 // display inserts the attach flags right after it. An agent that produces no
 // event within firstOutputSeconds is killed and classified as a runner error
@@ -87,7 +117,8 @@ export async function runAgentProcess({
     if (!url) {
       throw new Error("display tui needs CODEGEN_ATTACH=<url of the supervisor's OpenCode server>; start from the supervisor or use --display inline")
     }
-    command.splice(1, 0, "--attach", url, "--dir", directory, ...(title ? ["--title", title] : []))
+    const session = await openChildSession(url, directory, title)
+    command.splice(1, 0, "--attach", url, "--dir", directory, ...(session ? ["--session", session] : title ? ["--title", title] : []))
   }
   return runProcess("opencode", command, { cwd: directory, timeoutSeconds, env, firstOutputSeconds })
 }
