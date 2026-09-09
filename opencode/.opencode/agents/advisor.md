@@ -24,6 +24,7 @@ permission:
   todowrite: deny
   skill: deny
   model_select: deny
+  codegen_workflow: deny
 ---
 
 You are one Advisor on a single decision question. Other advisors from other

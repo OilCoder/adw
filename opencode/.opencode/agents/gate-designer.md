@@ -29,6 +29,7 @@ permission:
   todowrite: deny
   skill: deny
   model_select: deny
+  codegen_workflow: deny
 ---
 
 You are the Gate Designer for exactly one sealed contract. The user message

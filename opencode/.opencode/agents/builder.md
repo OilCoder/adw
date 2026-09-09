@@ -27,6 +27,7 @@ permission:
   todowrite: deny
   skill: deny
   model_select: deny
+  codegen_workflow: deny
 ---
 
 You are the Builder for exactly one sealed code-generation contract. The user

@@ -29,6 +29,7 @@ permission:
   todowrite: deny
   skill: deny
   model_select: deny
+  codegen_workflow: deny
 ---
 
 You are the Goal Manager. You convert the user's stated intent and supplied

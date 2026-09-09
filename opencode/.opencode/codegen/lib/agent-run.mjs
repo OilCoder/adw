@@ -84,17 +84,22 @@ async function openChildSession(url, directory, title) {
     if (!response.ok) return null
     const session = await response.json()
     if (typeof session?.id !== "string") return null
-    if (process.env.CODEGEN_TUI_FOLLOW !== "off") {
-      await fetch(new URL("tui/select-session", url), {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ sessionID: session.id }),
-      }).catch(() => null)
-    }
+    await selectSession(url, session.id)
     return session.id
   } catch {
     return null
   }
+}
+
+// The TUI shows the agent's session while it runs and the supervisor's again
+// when it ends. CODEGEN_TUI_FOLLOW=off leaves the TUI where the user is.
+async function selectSession(url, sessionID) {
+  if (process.env.CODEGEN_TUI_FOLLOW === "off" || !sessionID) return
+  await fetch(new URL("tui/select-session", url), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ sessionID }),
+  }).catch(() => null)
 }
 
 // Runs `opencode run ...` for one agent. `args` starts with "run"; the tui
@@ -119,6 +124,13 @@ export async function runAgentProcess({
     }
     const session = await openChildSession(url, directory, title)
     command.splice(1, 0, "--attach", url, "--dir", directory, ...(session ? ["--session", session] : title ? ["--title", title] : []))
+    if (session) {
+      try {
+        return await runProcess("opencode", command, { cwd: directory, timeoutSeconds, env, firstOutputSeconds })
+      } finally {
+        await selectSession(url, process.env.CODEGEN_PARENT_SESSION)
+      }
+    }
   }
   return runProcess("opencode", command, { cwd: directory, timeoutSeconds, env, firstOutputSeconds })
 }

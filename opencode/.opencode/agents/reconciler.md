@@ -21,6 +21,7 @@ permission:
   todowrite: deny
   skill: deny
   model_select: deny
+  codegen_workflow: deny
 ---
 
 You are the Reconciler for one decision question whose advisors disagreed.
