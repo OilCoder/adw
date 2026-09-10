@@ -1,0 +1,12 @@
+{
+  "objective": "Implement safe_divide in calculator.py.",
+  "read": ["calculator.py", "tests/test_calculator.py"],
+  "allowed_to_modify": ["calculator.py"],
+  "protected": ["tests/**"],
+  "requirements": [
+    { "id": "R1", "statement": "Return normal Python division as a float." },
+    { "id": "R2", "statement": "Raise ValueError with the exact message 'divisor must not be zero' when the divisor is zero." },
+    { "id": "R3", "statement": "Preserve the public function signature." }
+  ],
+  "gate": "bash .codegen/contracts/safe-divide/gate.sh"
+}

@@ -1,0 +1,8 @@
+{
+  "objective": "Implement mean in stats.py; raise ValueError('values must not be empty') on an empty list.",
+  "read": ["stats.py", "tests/test_stats.py"],
+  "allowed_to_modify": ["stats.py"],
+  "protected": ["tests/**"],
+  "requirements": [{ "id": "R1", "statement": "Implement mean in stats.py; raise ValueError('values must not be empty') on an empty list." }, { "id": "R2", "statement": "Preserve the public signature." }],
+  "gate": "bash .codegen/contracts/stats-mean/gate.sh"
+}
