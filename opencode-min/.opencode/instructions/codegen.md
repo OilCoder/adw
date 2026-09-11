@@ -57,7 +57,9 @@ cheap one keeps failing in a project, move it down in `models.json`.
   moves to the next model, merges passing contracts into the branch.
   The script wakes the supervisor by sending `[codegen] …` messages into
   its session through the local OpenCode server (`opencode --port`, default
-  4096, `OPENCODE_PORT` to change it) when a question ends without DONE, a
+  4096, `OPENCODE_PORT` to change it; the TUI must be started as
+  `OPENCODE_PORT=N opencode --port N` or nothing listens and the message is
+  lost: the journal and the board then say "no entregado" with the port) when a question ends without DONE, a
   contract fails for good, or a run ends. No server: no message, the board
   still shows it.
   Both commands detach from the shell at once and run on their own (a TUI

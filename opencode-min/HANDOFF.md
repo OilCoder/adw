@@ -329,3 +329,46 @@ prosa actualizado en ese proyecto; sin commit. Lección para el supervisor
 (ya en las reglas del prompt, falta pasarla a supervisor.md de
 opencode-min): un contrato de integración se prueba a través de `App` o
 navegador real, nunca importando el componente; `--list` no es gate.
+
+## Avisos "entregados" a nadie (2026-09-11 16:00)
+
+las-viewer-v5: el build terminó 0/14 y el supervisor no se enteró. Su TUI
+arrancó sin `--port`; el aviso fue al 4096 por defecto, donde nadie
+escucha, y el diario lo marcó `delivered: true` porque solo comprobaba que
+existiera una sesión de supervisor. Ahora `notify` abre el puerto
+(`/dev/tcp`) antes de enviar; sin oyente anota `delivered: false` con la
+razón y el comando para arrancar la TUI bien; el tablero lo muestra.
+Regla para el usuario: cada TUI con `OPENCODE_PORT=N opencode --port N`,
+puertos 4097 reservoir-sim, 4098 prodpipe, 4099 facies-ml, 4100
+voice-audit, 4101 las-viewer-v5 (nueva).
+
+## board.json y plantillas de modelos (2026-09-11 19:30)
+
+Para project-garden (nuevo proyecto, idea en `/home/pokinux/project-garden/wiki/idea/`,
+maqueta https://claude.ai/code/artifact/670d245c-18a9-4475-b2b2-bba6748f6d6a):
+- `board.mjs` parte `renderBoard` en `boardData` (hechos) + `renderBoard` (HTML)
+  + `boardJson` (los mismos hechos, planos). `writeBoard` escribe
+  `.codegen/board.json` junto al HTML en cada evento; `merged` sale de
+  `git merge-base --is-ancestor <integración> <rama usuario>`. Campos:
+  phase, alive, researchAlive, waiting, build{run,passed,total,failed,
+  gateBroken,pending,running,integration{branch,merged},closedBy},
+  research{total,done,partial,rejected,alive}, cost, supervisor{sessionId,
+  lastAt,lastKind}, lastNotify{at,text,delivered,port,reason}, updatedAt.
+  `.codegen/board.json` en `.gitignore` (install.sh y los seis proyectos).
+- `templates/models.pago.json` y `models.gratis.json`: escaleras de
+  referencia; Garden las copia al crear un proyecto (la tercera, experimental,
+  la genera Garden desde el catálogo de OpenCode: modelos nunca usados).
+- `install.sh` ya preservaba `models.json`; Garden lo usa para "Actualizar harness".
+Copiado a los seis proyectos. Sin commit. reservoir-sim ya está mezclado
+(`merged: true`), el usuario lo hizo desde su TUI.
+
+## El merge pedía un commit al usuario (2026-09-11 20:30)
+
+Síntoma repetido en cada proyecto: `merge` se negaba por "árbol sucio", el
+usuario commiteaba y el supervisor repetía (un turno de supervisor
+desperdiciado por proyecto). Causa: `.codegen/journal.jsonl` estaba en git
+(el sello lo commiteaba) y el script lo reescribe en cada evento. Ahora el
+diario está en `.gitignore` (install.sh y los seis proyectos, sacado del
+índice con `git rm --cached`), y ni la guarda de `merge` ni el sello lo miran;
+`board.json` igual. Pendiente en cada proyecto: commitear la salida del
+índice junto con el resto (lo hace el sello del próximo build).

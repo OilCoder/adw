@@ -23,7 +23,7 @@
 // Models come from .opencode/models.json, cheapest first, edited by hand: if a
 // model keeps failing you, move it down there.
 
-import { spawn, execFileSync } from "node:child_process"
+import { spawnSync, spawn, execFileSync } from "node:child_process"
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync, readdirSync, rmSync } from "node:fs"
 import path from "node:path"
 
@@ -155,9 +155,12 @@ function matches(file, pattern) {
 function notify(text) {
   let session = null
   try { session = supervisorActivity(ROOT)?.sessionId ?? null } catch {}
-  journal({ kind: "notify", text, delivered: Boolean(session) })
-  if (!session) return
   const port = process.env.OPENCODE_PORT ?? 4096
+  // Delivered only if a TUI actually listens on that port: a TUI started
+  // without --port (or on another port) would swallow the message silently.
+  const listening = session && spawnSync("bash", ["-c", `exec 3<>/dev/tcp/127.0.0.1/${port}`], { stdio: "ignore", timeout: 2000 }).status === 0
+  journal({ kind: "notify", text, delivered: Boolean(listening), port, reason: !session ? "no supervisor session" : !listening ? `nothing listens on ${port}; start the TUI with OPENCODE_PORT=${port} opencode --port ${port}` : undefined })
+  if (!listening) return
   const child = spawn("opencode", ["run", "--attach", `http://127.0.0.1:${port}`, "--session", session, `[codegen] ${text}`],
     { cwd: ROOT, detached: true, stdio: ["ignore", "ignore", "ignore"], env: { ...process.env, PWD: ROOT } })
   child.unref()
@@ -174,7 +177,7 @@ function detach(command) {
 // Sandboxes are exports of committed content: the harness and the plan must
 // be in git or the builder finds no agent and no contract.
 function sealAndCheckTracked() {
-  const dirty = git(["status", "--porcelain", "--", ".codegen", ".opencode", "opencode.json", ".gitignore"])
+  const dirty = git(["status", "--porcelain", "--", ".codegen", ".opencode", "opencode.json", ".gitignore", ":!.codegen/journal.jsonl"])
   if (dirty) {
     git(["add", ".codegen", ".opencode", "opencode.json", ".gitignore"])
     git(["commit", "-q", "-m", "codegen: seal plan and harness"])
@@ -200,7 +203,8 @@ async function writeBoard() {
   // runs for hours picks up a new board without a restart.
   const boardFile = path.join(ROOT, ".opencode", "board.mjs")
   let renderBoard
-  try { ({ renderBoard } = await import(`${pathToFileURL(boardFile).href}?v=${statSync(boardFile).mtimeMs}`)) } catch (e) { console.error(`board: ${e.message}`); return null }
+  let boardJson
+  try { ({ renderBoard, boardJson } = await import(`${pathToFileURL(boardFile).href}?v=${statSync(boardFile).mtimeMs}`)) } catch (e) { console.error(`board: ${e.message}`); return null }
   const plan = readJson(path.join(STATE, "plan.json"), { contracts: [] })
   const current = readJson(path.join(STATE, "runs", "current.json"), null)
   const report = current ? readJson(path.join(STATE, "runs", current.run, "report.json"), null) : null
@@ -211,7 +215,16 @@ async function writeBoard() {
   const journalFile = path.join(STATE, "journal.jsonl")
   const events = existsSync(journalFile) ? readFileSync(journalFile, "utf8").split("\n").filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean) : []
   const file = path.join(STATE, "board.html")
-  writeFileSync(file, renderBoard({ root: ROOT, sandboxes: SANDBOXES, plan, report, current, research, alive, researchRun, researchAlive, events, models: MODELS, ladders: { builder: ladderFor("builder"), researcher: ladderFor("researcher") } }))
+  const args = { root: ROOT, sandboxes: SANDBOXES, plan, report, current, research, alive, researchRun, researchAlive, events, models: MODELS, ladders: { builder: ladderFor("builder"), researcher: ladderFor("researcher") } }
+  writeFileSync(file, renderBoard(args))
+  // board.json next to the HTML: same facts, for project-garden and scripts.
+  // "merged" asks git whether the integration branch is already in the user's branch.
+  // Only meaningful once something landed on the integration branch: a fresh
+  // branch is trivially an ancestor of the user's branch.
+  let merged = null
+  const landed = Object.values(report?.contracts ?? {}).some((c) => c.status === "PASS")
+  if (landed && current?.integration && current?.user_branch) { try { execFileSync("git", ["merge-base", "--is-ancestor", current.integration, current.user_branch], { cwd: ROOT, stdio: "ignore" }); merged = true } catch { merged = false } }
+  if (boardJson) writeJson(path.join(STATE, "board.json"), boardJson({ ...args, merged }))
   return file
 }
 
@@ -671,7 +684,8 @@ async function merge(args) {
   if (pending.length && !args.partial) throw new Error(`not every contract passed: ${pending.join(", ")}. Fix and --resume, or merge --partial to take what passed.`)
   const branch = git(["rev-parse", "--abbrev-ref", "HEAD"])
   if (branch !== current.user_branch) throw new Error(`checkout ${current.user_branch} first (on ${branch})`)
-  if (git(["status", "--porcelain", "--", ".", ":!.codegen/board.html"])) throw new Error("working tree has uncommitted changes; commit or stash them first")
+  // The script's own outputs (journal, board) never block a merge: they change on every event.
+  if (git(["status", "--porcelain", "--", ".", ":!.codegen/board.html", ":!.codegen/board.json", ":!.codegen/journal.jsonl"])) throw new Error("working tree has uncommitted changes; commit or stash them first")
   const before = git(["rev-parse", "HEAD"])
   let how = "fast-forward"
   try { git(["merge", "--ff-only", current.integration]) }

@@ -21,7 +21,10 @@ const day = (t) => new Date(t).toLocaleDateString("es", { weekday: "short", day:
 const usd = (n) => `$${(n ?? 0).toFixed(2)}`
 const cut = (s, n) => { s = String(s ?? "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1) + "…" : s }
 
-export function renderBoard({ root, sandboxes, plan, report, current, research, alive, researchRun, researchAlive, events = [], models, ladders = {}, now = Date.now() }) {
+// The facts the board is made of, in one object: the HTML below and
+// board.json (read by project-garden) come from the same call, so they can
+// never disagree.
+export function boardData({ root, sandboxes, plan, report, current, research, alive, researchRun, researchAlive, events = [], now = Date.now() }) {
   const contracts = (plan?.contracts ?? []).map((c) => ({ ...c, deps: c.depends_on ?? [], s: report?.contracts?.[c.id] ?? { status: "PENDING" } }))
   const byId = Object.fromEntries(contracts.map((c) => [c.id, c]))
   const passed = contracts.filter((c) => c.s.status === "PASS").length
@@ -45,6 +48,35 @@ export function renderBoard({ root, sandboxes, plan, report, current, research, 
   // The supervisor only "waits" when nothing is running: a status report
   // written while a build or research is alive is not a question for the user.
   const waitingText = sup?.waiting && !alive && !researchAlive ? cut(sup.waiting, 220) : null
+  return { contracts, byId, passed, running, failed, sup, costs, researchResults, researchRunning, lastMerge, supAgo, phase, phaseCls, phaseSub, waitingText }
+}
+
+// board.json: the same facts, flat, for tools that read many projects at once.
+export function boardJson(args) {
+  const d = boardData(args)
+  const { current, alive, researchAlive, events = [], merged = null, now = Date.now() } = args
+  const pending = d.contracts.filter((c) => ["PENDING", "RUNNING"].includes(c.s.status)).length
+  const rr = Object.values(d.researchResults)
+  const lastNotify = [...events].reverse().find((e) => e.kind === "notify") ?? null
+  const gateBroken = d.failed.filter((c) => /GATE BROKEN/i.test(String(c.s.reason ?? ""))).map((c) => c.id)
+  const byModel = {}
+  for (const c of d.contracts) if (c.s.status === "PASS" && c.s.model) byModel[c.s.model] = (byModel[c.s.model] ?? 0) + 1
+  return {
+    updatedAt: new Date(now).toISOString(),
+    phase: d.phase, phaseCls: d.phaseCls, phaseSub: d.phaseSub, alive, researchAlive,
+    waiting: d.waitingText,
+    build: { run: current?.run ?? null, passed: d.passed, total: d.contracts.length, failed: d.failed.map((c) => c.id), gateBroken, pending, running: d.running.map((c) => c.id),
+      integration: current?.integration ? { branch: current.integration, merged } : null, closedBy: byModel },
+    research: { total: rr.length, done: rr.filter((r) => r.status === "DONE").length, partial: rr.filter((r) => r.status === "PARTIAL").length, rejected: rr.filter((r) => r.status === "REJECTED").length, alive: researchAlive },
+    cost: d.costs ? { total: d.costs.total, byRole: d.costs.byRole, byModel: d.costs.byModel } : null,
+    supervisor: d.sup?.last ? { sessionId: d.sup.sessionId ?? null, lastAt: new Date(d.sup.last.at).toISOString(), lastKind: d.sup.last.kind } : null,
+    lastNotify: lastNotify ? { at: lastNotify.at, text: lastNotify.text, delivered: Boolean(lastNotify.delivered), port: lastNotify.port ?? null, reason: lastNotify.reason ?? null } : null,
+  }
+}
+
+export function renderBoard(args) {
+  const { root, sandboxes, plan, report, current, research, alive, researchRun, researchAlive, events = [], models, ladders = {}, now = Date.now() } = args
+  const { contracts, byId, passed, running, failed, sup, costs, researchResults, researchRunning, lastMerge, supAgo, phase, phaseCls, phaseSub, waitingText } = boardData(args)
 
   const strip = `<div class="strip">
     <div><div class="k">Fase</div><div class="v ${phaseCls}">${phaseCls === "run" ? '<span class="pulse"></span>' : ""}${phase}</div><div class="sub">${esc(phaseSub)}</div></div>
@@ -71,7 +103,7 @@ export function renderBoard({ root, sandboxes, plan, report, current, research, 
     else if (e.kind === "research") entries.push({ at, shape: "sq", cls: cls(e.status), html: `<b>${esc(e.id)}</b> · researcher · ${esc((e.models ?? [e.model]).map(short).join(" › "))} · ${esc(cut(e.question, 120))} <span class="m">${esc(LABEL[e.status] ?? e.status)}, ${e.steps} pasos</span>` })
     else if (e.kind === "reject") entries.push({ at, shape: "sq", cls: "bad", html: `<b>${esc(e.id)}</b> · informe de ${esc(short(e.model))} rechazado por el supervisor, se relanza con el siguiente modelo` })
     else if (e.kind === "research-start") entries.push({ at, shape: "sq", cls: "run", html: `Research: ${e.questions.length} pregunta${e.questions.length > 1 ? "s" : ""} <span class="m">${esc(e.questions.map((q) => q.id).join(", "))}</span>` })
-    else if (e.kind === "notify") entries.push({ at, shape: "dia", cls: e.delivered ? "wait" : "bad", html: `<b>Aviso al supervisor${e.delivered ? "" : " (sin sesión, no entregado)"}:</b> ${esc(cut(e.text, 160))}` })
+    else if (e.kind === "notify") entries.push({ at, shape: "dia", cls: e.delivered ? "wait" : "bad", html: `<b>Aviso al supervisor${e.delivered ? "" : ` (no entregado: ${esc(e.reason ?? "sin sesión")})`}:</b> ${esc(cut(e.text, 160))}` })
     else if (e.kind === "seal") entries.push({ at, shape: "dot", cls: "wait", html: `Plan sellado: ${e.contracts} contratos` })
     else if (e.kind === "build-start") entries.push({ at, shape: "dot", cls: "run", html: `Build iniciado: ${e.contracts} contratos, paralelo ${e.parallel} <span class="m">${esc(e.run)}</span>` })
     else if (e.kind === "build-resume") entries.push({ at, shape: "dot", cls: "run", html: `Build reanudado${e.only ? ` (${esc(e.only.join(", "))})` : ""}, paralelo ${e.parallel}` })

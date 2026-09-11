@@ -1,0 +1,32 @@
+{
+  "_comment": "Paid OpenCode Go, cheapest first (models.dev price, input+output). Removed for measured failure 2026-09-11: qwen3.8-flash, muse-spark, ox-alpha-free. Edit by hand; status shows who closed each item.",
+  "researcher": [
+    "opencode-go/glm-5.3-flash",
+    "opencode-go/deepseek-v4-flash",
+    "opencode-go/mimo-v2.5",
+    "opencode-go/glm-5.3",
+    "opencode-go/qwen3.8-max",
+    "opencode-go/kimi-k3"
+  ],
+  "builder": [
+    "opencode-go/glm-5.3-flash",
+    "opencode-go/deepseek-v4-flash",
+    "opencode-go/mimo-v2.5",
+    "opencode-go/mimo-v2.5-pro",
+    "opencode-go/gpt-5.6-luna",
+    "opencode-go/minimax-m3",
+    "opencode-go/deepseek-v4-pro",
+    "opencode-go/kimi-k2.7-code",
+    "opencode-go/glm-5.3",
+    "opencode-go/qwen3.8-max",
+    "opencode-go/grok-4.6",
+    "opencode-go/kimi-k3"
+  ],
+  "max_models_per_item": 3,
+  "timeouts_seconds": {
+    "researcher": 600,
+    "builder": 900,
+    "gate": 300,
+    "install": 600
+  }
+}
