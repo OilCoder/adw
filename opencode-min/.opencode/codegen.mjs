@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // Minimal code-generation loop for OpenCode.
 //
-//   node .opencode/codegen.mjs research [--only q1,q2] [--reject q3,q4] [--background]
-//   node .opencode/codegen.mjs build [--parallel N (default 4)] [--only c1,c2] [--resume] [--background]
+//   node .opencode/codegen.mjs research [--only q1,q2] [--reject q3,q4] [--wait]
+//   node .opencode/codegen.mjs build [--parallel N (default 4)] [--only c1,c2] [--resume] [--wait]
+//   research and build detach from the terminal that launched them (a TUI shell
+//   kills long commands); --wait keeps them in the foreground.
 //   node .opencode/codegen.mjs status
 //   node .opencode/codegen.mjs structure          lists tracked files that break .codegen/structure.md
 //   node .opencode/codegen.mjs merge [--partial]     fast-forward the run's integration branch into the user's branch
@@ -18,14 +20,15 @@
 //   runs/<run>/               logs, attempts, report.json
 //   ../.<project>-codegen-sandboxes/<id>/  one fresh repo per contract while it builds
 //
-// Models come from .opencode/models.json, cheapest first, chosen by the user;
-// .codegen/models-state.json remembers, per project, which ones failed items that another model then passed.
+// Models come from .opencode/models.json, cheapest first, edited by hand: if a
+// model keeps failing you, move it down there.
 
 import { spawn, execFileSync } from "node:child_process"
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync, readdirSync, rmSync } from "node:fs"
 import path from "node:path"
 
 import { pathToFileURL } from "node:url"
+import { supervisorActivity } from "./opencode-db.mjs"
 import { statSync } from "node:fs"
 
 // node:sqlite (used by the board) is still flagged experimental in Node 22.
@@ -39,6 +42,8 @@ const STATE = path.join(ROOT, ".codegen")
 // independent project and nothing the builder does can reach the user's tree.
 const SANDBOXES = path.join(path.dirname(ROOT), `.${path.basename(ROOT)}-codegen-sandboxes`)
 const MODELS = JSON.parse(readFileSync(path.join(ROOT, ".opencode", "models.json"), "utf8"))
+// Step caps from the agents' front matter: a run that hit its cap did not finish.
+const STEP_CAP = Object.fromEntries(["researcher", "builder"].map((a) => [a, Number((readFileSync(path.join(ROOT, ".opencode", "agents", `${a}.md`), "utf8").match(/^steps:\s*(\d+)/m) ?? [])[1] ?? Infinity)]))
 const TIMEOUTS = MODELS.timeouts_seconds ?? {}
 
 // ---------- helpers ----------
@@ -85,11 +90,11 @@ function log(line) {
 }
 
 // Runs a command, captures stdout/stderr to files, kills it after timeoutSeconds.
-function run(cmd, args, { cwd, timeoutSeconds, stdoutFile, stderrFile }) {
+function run(cmd, args, { cwd, timeoutSeconds, stdoutFile, stderrFile, env = {} }) {
   return new Promise((resolve) => {
     // OpenCode resolves its project from $PWD, not from the real cwd; without
     // this override a builder edits the directory the script was started in.
-    const child = spawn(cmd, args, { cwd, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, PWD: cwd } })
+    const child = spawn(cmd, args, { cwd, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...env, PWD: cwd } })
     let out = "", err = ""
     child.stdout.on("data", (d) => { out += d })
     child.stderr.on("data", (d) => { err += d })
@@ -104,9 +109,9 @@ function run(cmd, args, { cwd, timeoutSeconds, stdoutFile, stderrFile }) {
 }
 
 // Runs one OpenCode agent with one model and returns its final text.
-async function runAgent({ agent, model, prompt, cwd, timeoutSeconds, logPrefix }) {
+async function runAgent({ agent, model, prompt, cwd, timeoutSeconds, logPrefix, env }) {
   const result = await run("opencode", ["run", "--format", "json", "--model", model, "--agent", agent, prompt], {
-    cwd, timeoutSeconds, stdoutFile: `${logPrefix}.events.jsonl`, stderrFile: `${logPrefix}.stderr.txt`,
+    cwd, timeoutSeconds, stdoutFile: `${logPrefix}.events.jsonl`, stderrFile: `${logPrefix}.stderr.txt`, env,
   })
   const texts = []
   let steps = 0
@@ -143,9 +148,24 @@ function matches(file, pattern) {
   return file === pattern
 }
 
+// Wakes the supervisor. The TUI is a chat turn: nobody is awake between
+// turns, so the script sends the news into the supervisor's session through
+// the local OpenCode server (the user's `opencode --port`). No server, no
+// session: nothing happens and the board still shows the state.
+function notify(text) {
+  let session = null
+  try { session = supervisorActivity(ROOT)?.sessionId ?? null } catch {}
+  journal({ kind: "notify", text, delivered: Boolean(session) })
+  if (!session) return
+  const port = process.env.OPENCODE_PORT ?? 4096
+  const child = spawn("opencode", ["run", "--attach", `http://127.0.0.1:${port}`, "--session", session, `[codegen] ${text}`],
+    { cwd: ROOT, detached: true, stdio: ["ignore", "ignore", "ignore"], env: { ...process.env, PWD: ROOT } })
+  child.unref()
+}
+
 // Re-runs this command detached so the TUI's bash tool returns at once.
 function detach(command) {
-  const child = spawn(process.execPath, [process.argv[1], command, ...process.argv.slice(3).filter((a) => a !== "--background")],
+  const child = spawn(process.execPath, [process.argv[1], command, ...process.argv.slice(3), "--wait"],
     { cwd: ROOT, detached: true, stdio: ["ignore", "ignore", "ignore"] })
   child.unref()
   console.log(`${command} started in background (pid ${child.pid}); follow with: node .opencode/codegen.mjs status`)
@@ -191,35 +211,16 @@ async function writeBoard() {
   const journalFile = path.join(STATE, "journal.jsonl")
   const events = existsSync(journalFile) ? readFileSync(journalFile, "utf8").split("\n").filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean) : []
   const file = path.join(STATE, "board.html")
-  writeFileSync(file, renderBoard({ root: ROOT, sandboxes: SANDBOXES, plan, report, current, research, alive, researchRun, researchAlive, events, models: MODELS, modelsState: modelsState(), ladders: { builder: ladderFor("builder"), researcher: ladderFor("researcher") } }))
+  writeFileSync(file, renderBoard({ root: ROOT, sandboxes: SANDBOXES, plan, report, current, research, alive, researchRun, researchAlive, events, models: MODELS, ladders: { builder: ladderFor("builder"), researcher: ladderFor("researcher") } }))
   return file
 }
 
-// ---------- model ladder with per-project memory ----------
+// ---------- model ladder ----------
 
-const MODELS_STATE = path.join(STATE, "models-state.json")
-function modelsState() { return readJson(MODELS_STATE, {}) }
-
-// The ladder for one item: every non-demoted model first, demoted ones last,
+// The ladder for one item: models.json in order, minus the ones excluded,
 // cut to max_models_per_item rungs.
 function ladderFor(role, exclude = []) {
-  const st = modelsState()[role] ?? {}
-  const all = (MODELS[role] ?? []).filter((m) => !exclude.includes(m))
-  const active = all.filter((m) => !st[m]?.demoted), demoted = all.filter((m) => st[m]?.demoted)
-  return [...active, ...demoted].slice(0, MODELS.max_models_per_item ?? 3)
-}
-
-// Called when `passedWith` passed an item that `exhausted` models had failed:
-// only then does a failure count against a model.
-function recordConfirmedFailures(role, exhausted, passedWith, item) {
-  if (!exhausted.length) return
-  const st = modelsState(); st[role] ??= {}
-  for (const m of exhausted) {
-    const e = (st[role][m] ??= { confirmed_failures: 0, demoted: false, items: [] })
-    e.confirmed_failures++; e.items.push(`${item} (passed with ${short(passedWith)})`)
-    if (!e.demoted && e.confirmed_failures >= (MODELS.demote_after_confirmed_failures ?? 2)) { e.demoted = true; log(`  ${m}: demoted for this project after ${e.confirmed_failures} confirmed failures`) }
-  }
-  writeJson(MODELS_STATE, st)
+  return (MODELS[role] ?? []).filter((m) => !exclude.includes(m)).slice(0, MODELS.max_models_per_item ?? 3)
 }
 const short = (m) => String(m).replace(/^[^/]+\//, "")
 
@@ -229,23 +230,29 @@ async function research(args) {
   const questions = readJson(path.join(STATE, "research", "questions.json"))
   const statusFile = path.join(STATE, "research", "status.json")
   const previous = readJson(statusFile, { results: {} }).results
-  // --reject: the supervisor judged these reports useless. Their model counts
-  // as failed for the question, the report is set aside, and the question
-  // reruns starting at the next rung.
+  const running = readJson(path.join(STATE, "runs", "current-research.json"), null)
+  if (running?.pid && pidAlive(running.pid)) throw new Error(`research ${running.run} is still running (pid ${running.pid}); wait for it or kill it first`)
   const reject = args.reject ? String(args.reject).split(",") : []
   for (const id of reject) {
     const r = previous[id]
     if (!r?.model) throw new Error(`cannot reject ${id}: no report recorded`)
-    const file = path.join(STATE, "research", `${id}.md`)
-    if (existsSync(file)) { const n = (r.rejected?.length ?? 0) + 1; execFileSync("mv", [file, path.join(STATE, "research", `${id}.rejected-${n}.md`)]) }
-    previous[id] = { ...r, status: "REJECTED", report: null, rejected: [...(r.rejected ?? []), r.model] }
-    journal({ kind: "reject", id, model: r.model })
+    if (r.status === "PARTIAL" || (r.rejected?.length ?? 0) >= 2) throw new Error(`cannot reject ${id}: ${r.status === "PARTIAL" ? "it is PARTIAL" : "already rejected twice"}; the question is too big for one sitting. Split it into new ids by what is missing and run those.`)
   }
-  if (reject.length) writeJson(statusFile, { run: readJson(statusFile, {}).run ?? null, results: previous })
   const only = args.only ? String(args.only).split(",") : reject.length ? reject : null
   const selected = questions.filter((q) => !only || only.includes(q.id))
   if (selected.length === 0) throw new Error("no questions selected")
-  if (args.background) return detach("research")
+  if (!args.wait) return detach("research")
+  // --reject: the supervisor judged these reports useless. Their model counts
+  // as failed for the question, the report is set aside, and the question
+  // reruns starting at the next rung.
+  for (const id of reject) {
+    const r = previous[id]
+    const file = path.join(STATE, "research", `${id}.md`)
+    if (existsSync(file)) { let n = (r.rejected?.length ?? 0) + 1; while (existsSync(path.join(STATE, "research", `${id}.rejected-${n}.md`))) n++; execFileSync("mv", [file, path.join(STATE, "research", `${id}.rejected-${n}.md`)]) }
+    previous[id] = { ...r, status: "REJECTED", report: null, rejected: [...new Set([...(r.rejected ?? []), r.model])] }
+    journal({ kind: "reject", id, model: r.model })
+  }
+  if (reject.length) writeJson(statusFile, { run: readJson(statusFile, {}).run ?? null, results: previous })
   const runId = `${stamp()}-research`
   const runDir = path.join(STATE, "runs", runId)
   mkdirSync(runDir, { recursive: true })
@@ -255,7 +262,7 @@ async function research(args) {
   journal({ kind: "research-start", run: runId, questions: selected.map((q) => ({ id: q.id, question: q.question })) })
   writeBoard()
 
-  log(`research ${runId}: ${selected.length} questions, ladder ${ladderFor("researcher").map(short).join(" > ")}${reject.length ? ` (rejected questions skip their previous models)` : ""}`)
+  log(`research ${runId}: ${selected.length} questions, ladder ${ladderFor("researcher").map(short).join(" > ")}${reject.length ? ` (questions skip models that already failed them)` : ""}`)
   const queue = [...selected]
   await pool(selected.length, () => {
     const q = queue.shift()
@@ -278,15 +285,24 @@ async function research(args) {
           agent: "researcher", model, prompt, cwd: ROOT,
           timeoutSeconds: TIMEOUTS.researcher ?? 600, logPrefix: path.join(runDir, `${q.id}.${attempt}`),
         })
-        const written = existsSync(outputAbs) && readFileSync(outputAbs, "utf8").trim().length > 200
-        const status = written ? (/^PARTIAL/m.test(r.finalText) ? "PARTIAL" : "DONE") : (r.timedOut ? "TIMEOUT" : "NO_REPORT")
-        results[q.id] = { status, model, attempt, steps: r.steps, report: written ? `.codegen/${output}` : null, final: r.finalText.slice(-400), run: runId, at: new Date().toISOString(), ...(rejected.length ? { rejected } : {}) }
+        const text = existsSync(outputAbs) ? readFileSync(outputAbs, "utf8") : ""
+        const written = text.trim().length > 200
+        // DONE only when the model closed with it, in time, within its step cap
+        // and with the summary the supervisor reads; anything else with a file
+        // is PARTIAL, for the supervisor to accept or split.
+        const closed = !r.timedOut && r.steps < STEP_CAP.researcher && /^## Summary for contracts/m.test(text) && /^DONE\b/.test(r.finalText.trim().split("\n").at(-1))
+        const status = written ? (closed ? "DONE" : "PARTIAL") : (r.timedOut ? "TIMEOUT" : "NO_REPORT")
+        results[q.id] = { status, model, attempt, steps: r.steps, report: written ? `.codegen/${output}` : null, final: r.finalText.slice(-400), run: runId, at: new Date().toISOString(), rejected: exhausted }
         log(`  ${q.id}: ${status} (${r.steps} steps)`)
-        if (written) { recordConfirmedFailures("researcher", exhausted, model, q.id); break }
+        if (written) break
         exhausted.push(model)
       }
+      // Models that failed without a report stay skipped for this question in later runs.
+      results[q.id] ??= { status: "NO_MODELS", model: null, attempt: 0, steps: 0, report: null, final: "", run: runId, at: new Date().toISOString(), rejected: exhausted }
+      if (results[q.id].status !== "DONE" && results[q.id].status !== "PARTIAL") { results[q.id].rejected = exhausted; log(`  ${q.id}: ${results[q.id].status}${exhausted.length ? ` (tried ${exhausted.map(short).join(", ")})` : ""}`) }
       const res = results[q.id]
-      journal({ kind: "research", id: q.id, question: q.question, status: res.status, model: res.model, models: exhausted.concat(res.status === "NO_REPORT" || res.status === "TIMEOUT" ? [] : [res.model]), steps: res.steps, report: res.report })
+      journal({ kind: "research", id: q.id, question: q.question, status: res.status, model: res.model, models: res.report ? exhausted.concat([res.model]) : exhausted, steps: res.steps, report: res.report })
+      if (res.status !== "DONE") notify(`research ${q.id}: ${res.status} with ${short(res.model) ?? "no model"}${res.report ? `, report at ${res.report}` : ", no report"}${res.final ? `. Last words: ${res.final.replace(/\s+/g, " ").trim().slice(-160)}` : ""}. Accept it or split it into new ids; the other questions keep running.`)
       writeBoard()
     }
   })
@@ -294,12 +310,17 @@ async function research(args) {
   writeJson(statusFile, { run: runId, results: { ...previous, ...results } })
   writeJson(path.join(STATE, "runs", "current-research.json"), { run: runId, pid: null, finished: new Date().toISOString() })
   writeBoard()
+  const tally = Object.values(results).reduce((t, r) => ((t[r.status] = (t[r.status] ?? 0) + 1), t), {})
+  notify(`research run ended: ${Object.entries(tally).map(([k, v]) => `${v} ${k}`).join(", ")}${Object.entries(results).filter(([, r]) => r.status !== "DONE").length ? `; not DONE: ${Object.entries(results).filter(([, r]) => r.status !== "DONE").map(([id, r]) => `${id} (${r.status})`).join(", ")}` : ""}. Judge the new reports and continue.`)
   printResearch(results)
 }
 
 function printResearch(results) {
   console.log("\nResearch summary")
-  for (const [id, r] of Object.entries(results)) console.log(`  ${r.status.padEnd(9)} ${id}  ${r.report ?? "(no report)"}  [${short(r.model)}]${r.rejected?.length ? `  rejected: ${r.rejected.map(short).join(", ")}` : ""}`)
+  for (const [id, r] of Object.entries(results)) {
+    console.log(`  ${r.status.padEnd(9)} ${id}  ${r.report ?? "(no report)"}  [${short(r.model)}]${r.rejected?.length ? `  skipped: ${r.rejected.map(short).join(", ")}` : ""}`)
+    if (r.status === "PARTIAL" && r.final) console.log(`            last words: ${r.final.replace(/\s+/g, " ").trim().slice(-300)}`)
+  }
 }
 
 // ---------- build ----------
@@ -318,6 +339,8 @@ function loadPlan(only) {
     c.contract = readJson(path.join(dir, "contract.json"))
     if (!existsSync(path.join(dir, "gate.sh"))) throw new Error(`plan: ${c.id} has no gate.sh`)
     if (!Array.isArray(c.contract.allowed_to_modify) || c.contract.allowed_to_modify.length === 0) throw new Error(`plan: ${c.id} has empty allowed_to_modify`)
+    const heavy = (c.contract.read ?? []).filter((p) => /\*\*|idea\.md$|\.codegen\/research\//.test(p))
+    if (heavy.length || (c.contract.read ?? []).length > 5) throw new Error(`plan: ${c.id} read list is too big for a cheap model (${heavy.join(", ") || `${c.contract.read.length} files`}): at most 5 concrete files, never a glob, the idea or a research report; quote what the builder needs in the contract instead`)
     if (map) for (const p of c.contract.allowed_to_modify) if (!inMap(p.replace(/\/\*\*$/, "/x"), map) && !inMap(p, map)) throw new Error(`plan: ${c.id} allows ${p}, which is outside .codegen/structure.md`)
   }
   return plan
@@ -326,7 +349,7 @@ function loadPlan(only) {
 function changedFiles(cwd) {
   const tracked = git(["diff", "--name-only", "HEAD", "--"], cwd)
   const untracked = git(["ls-files", "--others", "--exclude-standard"], cwd)
-  const junk = /(^|\/)(__pycache__|\.pytest_cache|node_modules|\.mypy_cache|\.ruff_cache)\/|\.pyc$/
+  const junk = /(^|\/)(__pycache__|\.pytest_cache|node_modules|\.venv|\.mypy_cache|\.ruff_cache)\/|\.pyc$|\.egg-info\//
   return [...new Set(`${tracked}\n${untracked}`.split("\n").filter((f) => f && !junk.test(f)))].sort()
 }
 
@@ -379,9 +402,9 @@ function checkStructure(map, files, cwd, before = new Set()) {
   return problems
 }
 
-async function runGate(id, cwd, logFile) {
+async function runGate(id, cwd, logFile, env) {
   const r = await run("bash", [path.join(".codegen", "contracts", id, "gate.sh")], {
-    cwd, timeoutSeconds: TIMEOUTS.gate ?? 300, stdoutFile: logFile, stderrFile: logFile + ".stderr",
+    cwd, timeoutSeconds: TIMEOUTS.gate ?? 300, stdoutFile: logFile, stderrFile: logFile + ".stderr", env,
   })
   return { pass: r.code === 0 && !r.timedOut, output: (r.stdout + "\n" + r.stderr).slice(-3000), timedOut: r.timedOut }
 }
@@ -390,7 +413,9 @@ async function build(args) {
   const only = args.only ? String(args.only).split(",") : null
   const parallel = Number(args.parallel ?? 4)
   const plan = loadPlan(null)
-  if (args.background) return detach("build")
+  const live = readJson(path.join(STATE, "runs", "current.json"), null)
+  if (live?.pid && pidAlive(live.pid)) throw new Error(`build ${live.run} is still running (pid ${live.pid}); wait for it or kill it first`)
+  if (!args.wait) return detach("build")
   // --resume continues the current run on its integration branch: contracts
   // that already passed stay passed, and the user's new commits (fixed gates,
   // harness updates) are merged into that branch first.
@@ -451,6 +476,8 @@ async function build(args) {
   rmSync(integrationDir, { recursive: true, force: true })
   const cur = readJson(path.join(STATE, "runs", "current.json"), {}); writeJson(path.join(STATE, "runs", "current.json"), { ...cur, finished: new Date().toISOString(), pid: null })
   journal({ kind: "build-end", run: runId, passed: Object.values(state).filter((c) => c.status === "PASS").length, total: Object.keys(state).length })
+  const allPassed = Object.values(state).every((c) => c.status === "PASS")
+  notify(`build ended: ${buildLine(state)}. ${allPassed ? "Tell the user it is ready to merge." : "Diagnose the failed ones, fix their contracts or gates, then build --resume."}`)
   const touched = git(["status", "--porcelain", "--", ".", ":!.codegen"])
   if (touched) log(`WARNING: the user's working tree changed during the build:\n${touched}`)
   report()
@@ -475,13 +502,27 @@ async function buildOne(entry, { runDir, integration, integrationDir, state, rep
 
   // Dependencies are not in git: install them before the baseline gate so a
   // missing node_modules never masquerades as a legitimate gate failure.
+  let env
   if (existsSync(path.join(wt, "package-lock.json"))) {
     const install = await run("npm", ["ci", "--no-audit", "--no-fund", "--prefer-offline"], { cwd: wt, timeoutSeconds: TIMEOUTS.install ?? 600, stdoutFile: path.join(logs, "npm-ci.txt"), stderrFile: path.join(logs, "npm-ci.stderr.txt") })
     if (install.code !== 0) { state[id] = { status: "INSTALL_FAILED", reason: install.stderr.slice(-800) }; log(`  ${id}: INSTALL_FAILED`); return }
   }
+  // Python: a venv per sandbox with uv (system python has no pytest), so
+  // `python3` in the gate and in the builder resolves to it.
+  const pyproject = existsSync(path.join(wt, "pyproject.toml")), reqs = existsSync(path.join(wt, "requirements.txt"))
+  if (pyproject || reqs) {
+    const uvLog = { cwd: wt, timeoutSeconds: TIMEOUTS.install ?? 600, stdoutFile: path.join(logs, "uv.txt"), stderrFile: path.join(logs, "uv.stderr.txt") }
+    const steps = [["venv", ".venv"], pyproject ? ["pip", "install", "-e", ".[dev]"] : ["pip", "install", "-r", "requirements.txt"], ["pip", "install", "pytest"]]
+    for (const args of steps) {
+      let r = await run("uv", args, uvLog)
+      if (r.code !== 0 && args[3] === ".[dev]") r = await run("uv", ["pip", "install", "-e", "."], uvLog)
+      if (r.code !== 0) { state[id] = { status: "INSTALL_FAILED", reason: `uv ${args.join(" ")}: ${r.stderr.slice(-800)}` }; log(`  ${id}: INSTALL_FAILED (uv ${args.join(" ")})`); return }
+    }
+    env = { VIRTUAL_ENV: path.join(wt, ".venv"), PATH: `${path.join(wt, ".venv", "bin")}:${process.env.PATH}` }
+  }
 
   // The gate must fail before anyone builds; otherwise it proves nothing.
-  const baseline = await runGate(id, wt, path.join(logs, "gate-baseline.txt"))
+  const baseline = await runGate(id, wt, path.join(logs, "gate-baseline.txt"), env)
   if (baseline.pass) {
     state[id] = { status: "GATE_TRIVIAL", reason: "gate passes on the untouched repository" }
     journal({ kind: "contract", id, status: "GATE_TRIVIAL", title: entry.title, objective: contract.objective, attempts: 0 })
@@ -491,9 +532,19 @@ async function buildOne(entry, { runDir, integration, integrationDir, state, rep
   }
 
   const attempts = []
-  const exhausted = []
-  let evidence = "", structure = []
+  let evidence = "", structure = [], broken = false
   const map = loadStructure()
+  // A gate that only reports errors in files the builder may not touch (its
+  // own test file, another domain, missing types elsewhere) cannot be fixed
+  // by any builder: stop at the first attempt and hand it to the supervisor.
+  const gateBroken = (out) => {
+    // (a) the gate's own test file does not parse or compile;
+    // (b) a type checker reports errors, and every one is in a file outside scope.
+    if (/\.codegen\/\S+:\d+(?::\d+)?:? *(?:ERROR|error|SyntaxError)/.test(out) || /Transform failed[\s\S]{0,300}\.codegen\//.test(out)) return true
+    const ts = [...new Set([...out.matchAll(/(?:^|[\s'"(])(\/?(?:\.?[\w.@-]+\/)*[\w.@-]+\.[a-zA-Z]{1,5})\(\d+,\d+\): error TS\d+/gm)].map((m) => m[1]))]
+      .map((f) => f.startsWith(wt + "/") ? f.slice(wt.length + 1) : f.replace(/^\.\//, ""))
+    return ts.length > 0 && ts.every((f) => !contract.allowed_to_modify.some((p) => matches(f, p)))
+  }
   const baseFiles = new Set(git(["ls-files"], wt).split("\n"))
   outer: for (const model of ladderFor("builder")) {
     git(["reset", "-q", "--hard", base], wt); git(["clean", "-qfd"], wt)
@@ -507,7 +558,7 @@ async function buildOne(entry, { runDir, integration, integrationDir, state, rep
         evidence ? `Previous attempt failed the independent gate. Evidence:\n${evidence}` : "",
         "Implement it now and finish with the four status lines.",
       ].filter(Boolean).join("\n\n")
-      const r = await runAgent({ agent: "builder", model, prompt, cwd: wt, timeoutSeconds: TIMEOUTS.builder ?? 900, logPrefix: path.join(logs, `attempt-${attempt}`) })
+      const r = await runAgent({ agent: "builder", model, prompt, cwd: wt, timeoutSeconds: TIMEOUTS.builder ?? 900, logPrefix: path.join(logs, `attempt-${attempt}`), env })
       const files = changedFiles(wt)
       const scope = checkScope(contract, files)
       let verdict, detail
@@ -516,17 +567,17 @@ async function buildOne(entry, { runDir, integration, integrationDir, state, rep
       else if ((structure = checkStructure(map, files, wt, baseFiles)).length) { verdict = "STRUCTURE"; detail = structure.join("\n") }
       else if (files.length === 0) { verdict = r.timedOut ? "TIMEOUT" : "NO_CHANGES"; detail = r.finalText.slice(0, 500) }
       else {
-        const gate = await runGate(id, wt, path.join(logs, `gate-${attempt}.txt`))
+        const gate = await runGate(id, wt, path.join(logs, `gate-${attempt}.txt`), env)
         verdict = gate.pass ? "PASS" : "GATE_FAIL"
         detail = gate.pass ? "" : gate.output
       }
       attempts.push({ attempt, model, verdict, steps: r.steps, files, detail: detail.slice(-1500) })
       log(`  ${id}: ${verdict} (${r.steps} steps, ${files.length} files)`)
-      if (verdict === "PASS") { recordConfirmedFailures("builder", exhausted, model, id); break outer }
+      if (verdict === "PASS") break outer
+      if (verdict === "GATE_FAIL" && gateBroken(detail)) { broken = true; log(`  ${id}: the gate fails only in files outside the contract's scope; no builder can fix that, stopping`); break outer }
       evidence = `${verdict}: ${detail}`.slice(-3000)
       if (verdict === "PROTECTED_TOUCHED" || verdict === "OUT_OF_SCOPE" || verdict === "STRUCTURE") { git(["reset", "-q", "--hard", base], wt); git(["clean", "-qfd"], wt) }
     }
-    exhausted.push(model)
   }
 
   const last = attempts.at(-1)
@@ -558,16 +609,24 @@ async function buildOne(entry, { runDir, integration, integrationDir, state, rep
       return
     }
   } else {
-    state[id] = { status: "FAIL", attempts, reason: last ? `${last.verdict}: ${last.detail.slice(-600)}` : "no attempts" }
+    state[id] = { status: "FAIL", attempts, reason: `${broken ? "GATE BROKEN: it fails only in files outside the contract's scope; fix the gate or the contract, not the builder. " : ""}${last ? `${last.verdict}: ${last.detail.slice(-600)}` : "no attempts"}` }
     journal({ kind: "contract", id, status: "FAIL", title: entry.title, objective: contract.objective, models: [...new Set(attempts.map((a) => a.model))], attempts: attempts.length, verdict: last?.verdict, detail: (last?.detail ?? "").split("\n").filter(Boolean).slice(-1)[0]?.slice(0, 160) })
     log(`  ${id}: FAIL after ${attempts.length} attempts`)
+    notify(`contract ${id} FAILED after ${attempts.length} attempts${broken ? " (GATE BROKEN: fails only outside the contract's scope)" : ""}; last verdict ${last?.verdict}: ${(last?.detail ?? "").split("\n").filter(Boolean).slice(-1)[0]?.slice(0, 160) ?? ""}. Build so far: ${buildLine(state)}. The run continues. Diagnose it now (tail .codegen/runs/${path.basename(runDir)}/${id}/gate-${attempts.length}.txt) and leave its contract or gate fixed and committed; launch nothing while the run is alive.`)
     return
   }
   rmSync(wt, { recursive: true, force: true })
 }
 
+// One line of build state, the same for status and for the supervisor notices.
+function buildLine(contracts) {
+  const by = (st) => Object.entries(contracts).filter(([, c]) => c.status === st).map(([id]) => id)
+  const failed = Object.entries(contracts).filter(([, c]) => !["PASS", "SKIPPED", "NOT_SELECTED", "PENDING", "RUNNING"].includes(c.status)).map(([id, c]) => `${id} (${c.status})`)
+  return `${by("PASS").length}/${Object.keys(contracts).length} PASS` + (by("RUNNING").length ? `; running: ${by("RUNNING").join(", ")}` : "") + (failed.length ? `; failed: ${failed.join(", ")}` : "") + (by("PENDING").length ? `; pending: ${by("PENDING").length}` : "") + (by("SKIPPED").length ? `; skipped: ${by("SKIPPED").length}` : "")
+}
+
 function printBuild(r) {
-  console.log(`\nBuild ${r.run} on branch ${r.integration}`)
+  console.log(`\nBuild ${r.run} on branch ${r.integration}: ${buildLine(r.contracts)}`)
   for (const [id, c] of Object.entries(r.contracts)) {
     const extra = c.status === "RUNNING" ? ` [${short(c.model ?? "?")}, attempt ${c.attempt ?? 1}]` : c.model ? ` [${short(c.model)}, ${c.attempts?.length ?? 0} attempt(s)]` : c.reason ? `  ${String(c.reason).split("\n")[0].slice(0, 120)}` : ""
     console.log(`  ${c.status.padEnd(15)} ${id}${extra}`)
@@ -592,20 +651,9 @@ async function status() {
   const running = Object.values(r.contracts).some((c) => c.status === "RUNNING")
   console.log(alive ? `build process ${current.pid} is running` : running ? "build process is NOT running: it was stopped or crashed; contracts marked RUNNING are stale. Relaunch with --only." : "build finished")
   printBuild(r)
-  const logFile = path.join(STATE, "runs", current.run, "log.txt")
-  if (existsSync(logFile)) {
-    const lines = readFileSync(logFile, "utf8").trim().split("\n")
-    console.log(`\nLast log lines (${path.relative(ROOT, logFile)}):`)
-    for (const l of lines.slice(-8)) console.log("  " + l)
-  }
   }
   const research = path.join(STATE, "research", "status.json")
   if (existsSync(research)) printResearch(readJson(research).results)
-  const ms = modelsState()
-  for (const role of ["builder", "researcher"]) {
-    const entries = Object.entries(ms[role] ?? {})
-    if (entries.length) console.log(`\n${role} ladder now: ${ladderFor(role).map(short).join(" > ")}` + entries.map(([m, e]) => `\n  ${short(m)}: ${e.confirmed_failures} confirmed failure(s)${e.demoted ? ", demoted" : ""}: ${e.items.join("; ")}`).join(""))
-  }
 }
 
 // ---------- merge ----------
@@ -623,7 +671,7 @@ async function merge(args) {
   if (pending.length && !args.partial) throw new Error(`not every contract passed: ${pending.join(", ")}. Fix and --resume, or merge --partial to take what passed.`)
   const branch = git(["rev-parse", "--abbrev-ref", "HEAD"])
   if (branch !== current.user_branch) throw new Error(`checkout ${current.user_branch} first (on ${branch})`)
-  if (git(["status", "--porcelain", "--", ".", ":!.codegen/board.html", ":!.codegen/models-state.json"])) throw new Error("working tree has uncommitted changes; commit or stash them first")
+  if (git(["status", "--porcelain", "--", ".", ":!.codegen/board.html"])) throw new Error("working tree has uncommitted changes; commit or stash them first")
   const before = git(["rev-parse", "HEAD"])
   let how = "fast-forward"
   try { git(["merge", "--ff-only", current.integration]) }
@@ -670,7 +718,7 @@ try {
     }
   }
   else {
-    console.log("usage: node .opencode/codegen.mjs research [--only ids] [--reject ids] [--background] | build [--parallel N] [--only ids] [--resume] [--background] | status | structure | board [--watch] | merge [--partial]")
+    console.log("usage: node .opencode/codegen.mjs research [--only ids] [--reject ids] [--wait] | build [--parallel N] [--only ids] [--resume] [--wait] | status | structure | board [--watch] | merge [--partial]")
     process.exit(2)
   }
 } catch (e) {

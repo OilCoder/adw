@@ -10,4 +10,4 @@ if [[ -n "${1:-}" ]]; then
   node -e 'const f=process.argv[1],m=JSON.parse(require("fs").readFileSync(f));m.builder=[process.argv[2]];require("fs").writeFileSync(f,JSON.stringify(m,null,2))' "$work/.opencode/models.json" "$1"
 fi
 git -C "$work" init -q && git -C "$work" add -A && git -C "$work" -c user.name=smoke -c user.email=smoke@localhost commit -qm "fixture"
-cd "$work" && node .opencode/codegen.mjs ${CMD:-build --parallel 1}
+cd "$work" && node .opencode/codegen.mjs ${CMD:-build --parallel 1} --wait

@@ -1,5 +1,5 @@
 {
-  "_comment": "Cheapest first (OpenCode Go price, input+output per million). Each contract or question starts at the first non-demoted model and climbs at most max_models_per_item rungs. A model is demoted for this project after two confirmed failures: it exhausted its attempts and a later model passed the same item. Demoted models move to the end of the ladder; delete .codegen/models-state.json to reset. Edit by hand. Researcher failures are confirmed by the supervisor: `research --reject <id>` counts the report's model as failed and reruns the question with the next rung.",
+  "_comment": "Cheapest first (OpenCode Go price, input+output per million). Each contract or question starts at the first model and climbs at most max_models_per_item rungs, two attempts per rung. Edit by hand: if a model keeps failing you in a project, move it down or remove it here. `research --reject <id>` sets a report aside and reruns the question with the next rung.",
   "researcher": [
     "opencode-go/glm-5.3-flash",
     "opencode-go/qwen3.8-flash",
@@ -23,7 +23,6 @@
     "opencode-go/kimi-k3"
   ],
   "max_models_per_item": 3,
-  "demote_after_confirmed_failures": 2,
   "timeouts_seconds": {
     "researcher": 600,
     "builder": 900,

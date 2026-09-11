@@ -5,10 +5,12 @@ Everything the system needs lives in `.codegen/` and is driven by one script,
 the agents. Models for scripted agents come from `.opencode/models.json`
 (OpenCode Go, cheapest first, edited by hand). The TUI runs on the user's
 model. Each contract or question starts at the cheapest model and climbs at
-most `max_models_per_item` rungs, two attempts per rung. A model that
-exhausted its attempts on an item another model then passed gets a confirmed
-failure; after `demote_after_confirmed_failures` it moves to the end of the
-ladder for this project (`.codegen/models-state.json`, shown by `status`).
+most `max_models_per_item` rungs, two attempts per rung. If a gate
+fails only in files outside `allowed_to_modify` (its own test file, another
+domain, missing types elsewhere), the contract stops at that attempt with
+GATE BROKEN: fix the gate or the contract, no model can. There is no
+automatic demotion: `status` shows which model closed each item; if the
+cheap one keeps failing in a project, move it down in `models.json`.
 
 ## Files the supervisor writes
 
@@ -37,17 +39,30 @@ ladder for this project (`.codegen/models-state.json`, shown by `status`).
 
 ## Commands
 
-- `node .opencode/codegen.mjs research [--only id,id] [--reject id,id] [--background]`: runs every
-  question, writes `.codegen/research/<id>.md`, prints DONE / PARTIAL /
-  NO_REPORT. `--reject` sets a report aside (`<id>.rejected-N.md`), counts
-  its model as failed for that question and reruns it from the next rung;
-  the supervisor is the judge of research quality, the gate is for code.
-- `node .opencode/codegen.mjs build [--parallel N, default 4] [--only id,id] [--resume] [--background]`:
+- `node .opencode/codegen.mjs research [--only id,id] [--reject id,id]`: runs every
+  question, writes `.codegen/research/<id>.md`, records DONE (the model said
+  so in time), PARTIAL (a report exists but was cut or left unfinished),
+  TIMEOUT / NO_REPORT (nothing usable; that model is skipped for the
+  question from then on) or NO_MODELS. `--reject` sets a report aside
+  (`<id>.rejected-N.md`) and reruns the question from the next rung; the
+  supervisor is the judge of research quality, the gate is for code. It
+  refuses to reject a PARTIAL or to reject the same question a third time:
+  split it into new ids instead. It refuses to start while a research run
+  is alive; so does `build`. `build` also refuses a contract whose `read`
+  has a glob, the idea, a research report or more than 5 files.
+- `node .opencode/codegen.mjs build [--parallel N, default 4] [--only id,id] [--resume]`:
   commits `.codegen/` (seal), creates branch `codegen/<run>`, builds each
   contract in its own worktree, checks scope and protected paths, reruns the
   gate independently, retries once with the gate output as evidence, then
   moves to the next model, merges passing contracts into the branch.
-  `--background` returns immediately; use `status` to follow.
+  The script wakes the supervisor by sending `[codegen] …` messages into
+  its session through the local OpenCode server (`opencode --port`, default
+  4096, `OPENCODE_PORT` to change it) when a question ends without DONE, a
+  contract fails for good, or a run ends. No server: no message, the board
+  still shows it.
+  Both commands detach from the shell at once and run on their own (a TUI
+  shell kills long commands); follow them with `status`. `--wait` keeps
+  them in the foreground, for scripts.
   `--resume` continues the current run on its integration branch: contracts
   that already passed stay passed, the user's new commits (fixed gates,
   harness updates) are merged into that branch first, and `--only` limits

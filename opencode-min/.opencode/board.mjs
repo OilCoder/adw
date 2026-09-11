@@ -9,7 +9,7 @@ const CLASS = { PASS: "ok", RUNNING: "run", PENDING: "wait", NOT_SELECTED: "wait
 const LABEL = {
   PASS: "pasó", RUNNING: "construyendo", PENDING: "esperando", NOT_SELECTED: "no seleccionado", FAIL: "falló",
   GATE_FAIL: "gate falló", OUT_OF_SCOPE: "fuera de alcance", PROTECTED_TOUCHED: "tocó protegidos", STRUCTURE: "rompe el mapa", NO_CHANGES: "sin cambios",
-  TIMEOUT: "timeout", GATE_TRIVIAL: "gate trivial", MERGE_CONFLICT: "conflicto de merge", SKIPPED: "omitido", INSTALL_FAILED: "npm ci falló",
+  TIMEOUT: "timeout", NO_MODELS: "sin modelos", GATE_TRIVIAL: "gate trivial", MERGE_CONFLICT: "conflicto de merge", SKIPPED: "omitido", INSTALL_FAILED: "npm ci falló",
   STOPPED: "detenido", ERROR: "error", DONE: "informe completo", PARTIAL: "informe parcial", NO_REPORT: "sin informe", REJECTED: "rechazado",
 }
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]))
@@ -21,7 +21,7 @@ const day = (t) => new Date(t).toLocaleDateString("es", { weekday: "short", day:
 const usd = (n) => `$${(n ?? 0).toFixed(2)}`
 const cut = (s, n) => { s = String(s ?? "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1) + "…" : s }
 
-export function renderBoard({ root, sandboxes, plan, report, current, research, alive, researchRun, researchAlive, events = [], models, modelsState = {}, ladders = {}, now = Date.now() }) {
+export function renderBoard({ root, sandboxes, plan, report, current, research, alive, researchRun, researchAlive, events = [], models, ladders = {}, now = Date.now() }) {
   const contracts = (plan?.contracts ?? []).map((c) => ({ ...c, deps: c.depends_on ?? [], s: report?.contracts?.[c.id] ?? { status: "PENDING" } }))
   const byId = Object.fromEntries(contracts.map((c) => [c.id, c]))
   const passed = contracts.filter((c) => c.s.status === "PASS").length
@@ -71,6 +71,7 @@ export function renderBoard({ root, sandboxes, plan, report, current, research, 
     else if (e.kind === "research") entries.push({ at, shape: "sq", cls: cls(e.status), html: `<b>${esc(e.id)}</b> · researcher · ${esc((e.models ?? [e.model]).map(short).join(" › "))} · ${esc(cut(e.question, 120))} <span class="m">${esc(LABEL[e.status] ?? e.status)}, ${e.steps} pasos</span>` })
     else if (e.kind === "reject") entries.push({ at, shape: "sq", cls: "bad", html: `<b>${esc(e.id)}</b> · informe de ${esc(short(e.model))} rechazado por el supervisor, se relanza con el siguiente modelo` })
     else if (e.kind === "research-start") entries.push({ at, shape: "sq", cls: "run", html: `Research: ${e.questions.length} pregunta${e.questions.length > 1 ? "s" : ""} <span class="m">${esc(e.questions.map((q) => q.id).join(", "))}</span>` })
+    else if (e.kind === "notify") entries.push({ at, shape: "dia", cls: e.delivered ? "wait" : "bad", html: `<b>Aviso al supervisor${e.delivered ? "" : " (sin sesión, no entregado)"}:</b> ${esc(cut(e.text, 160))}` })
     else if (e.kind === "seal") entries.push({ at, shape: "dot", cls: "wait", html: `Plan sellado: ${e.contracts} contratos` })
     else if (e.kind === "build-start") entries.push({ at, shape: "dot", cls: "run", html: `Build iniciado: ${e.contracts} contratos, paralelo ${e.parallel} <span class="m">${esc(e.run)}</span>` })
     else if (e.kind === "build-resume") entries.push({ at, shape: "dot", cls: "run", html: `Build reanudado${e.only ? ` (${esc(e.only.join(", "))})` : ""}, paralelo ${e.parallel}` })
@@ -122,16 +123,18 @@ export function renderBoard({ root, sandboxes, plan, report, current, research, 
   for (const s of starts) for (const q of s.questions) questionText[q.id] = q.question
   const runsOf = {}
   for (const [id, r] of Object.entries(researchResults)) (runsOf[r.run ?? research?.run ?? "?"] ??= []).push([id, r])
-  const researchTab = Object.keys(researchResults).length ? Object.entries(runsOf).sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([run, rows]) => `<div class="group">TANDA ${esc(run)}</div><table><tr><th>Pregunta</th><th>Estado</th><th>Modelo</th><th>Pasos</th><th>Informe</th></tr>${rows.map(([id, r]) => `<tr><td class="mono"><b>${esc(id)}</b><div class="q">${esc(cut(questionText[id] ?? "", 140))}</div></td><td><span class="pill ${cls(r.status)}">${esc(r.status)}</span>${r.rejected?.length ? `<div class="q">rechazado: ${esc(r.rejected.map(short).join(", "))}</div>` : ""}</td><td class="mono">${esc(short(r.model))}</td><td class="num">${r.steps ?? ""}</td><td class="mono">${esc(r.report ?? "")}</td></tr>`).join("")}</table>`).join("") : `<div class="empty">Sin research todavía.</div>`
+  const researchTab = Object.keys(researchResults).length ? Object.entries(runsOf).sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([run, rows]) => `<tr class="grp"><td colspan="5">TANDA ${esc(run)}</td></tr>${rows.map(([id, r]) => `<tr><td class="mono"><b>${esc(id)}</b><div class="q">${esc(cut(questionText[id] ?? "", 140))}</div></td><td><span class="pill ${cls(r.status)}">${esc(r.status)}</span>${r.rejected?.length ? `<div class="q">sin informe con: ${esc(r.rejected.map(short).join(", "))}</div>` : ""}</td><td class="mono">${esc(short(r.model))}</td><td class="num">${r.steps ?? ""}</td><td class="mono">${esc(r.report ?? "")}</td></tr>`).join("")}`).join("") : null
+  const researchTable = researchTab ? `<table class="rs"><colgroup><col style="width:44%"><col style="width:20%"><col style="width:12%"><col style="width:6%"><col style="width:18%"></colgroup><tr><th>Pregunta</th><th>Estado</th><th>Modelo</th><th>Pasos</th><th>Informe</th></tr>${researchTab}</table>` : `<div class="empty">Sin research todavía.</div>`
 
   // ---- models tab ----
-  const perModel = {}
-  for (const c of contracts) for (const a of c.s.attempts ?? []) { const m = (perModel[a.model] ??= { attempts: 0, passed: 0, items: new Set() }); m.attempts++; m.items.add(c.id); if (a.verdict === "PASS") m.passed++ }
-  for (const r of Object.values(researchResults)) { const m = (perModel[r.model] ??= { attempts: 0, passed: 0, items: new Set() }); m.attempts += r.attempt ?? 1; m.items.add("research"); if (r.status === "DONE") m.passed++ }
-  const modelRows = Object.entries(perModel).map(([m, v]) => { const st = modelsState.builder?.[m] ?? modelsState.researcher?.[m]; const cost = costs?.byModel?.[short(m)]; return `<tr><td class="mono">${esc(short(m))}</td><td class="num">${v.attempts}</td><td class="num">${v.passed}</td><td class="num">${v.attempts ? Math.round(100 * v.passed / v.attempts) : 0} %</td><td class="num">${cost ? usd(cost.cost) : "–"}</td><td class="num">${cost ? cost.sessions : "–"}</td><td>${st ? `${st.confirmed_failures} confirmado${st.confirmed_failures !== 1 ? "s" : ""}${st.demoted ? ' <span class="pill bad">degradado</span>' : ""}<div class="q">${esc(st.items.join("; "))}</div>` : "0"}</td></tr>` }).join("")
-  const modelsTab = `<div class="strip s3"><div><div class="k">Escalera builder</div><div class="v sm">${esc((ladders.builder ?? []).map(short).join(" › "))}</div></div><div><div class="k">Escalera researcher</div><div class="v sm">${esc((ladders.researcher ?? []).map(short).join(" › "))}</div></div><div><div class="k">Regla</div><div class="v sm">2 intentos por peldaño · degradado tras ${models?.demote_after_confirmed_failures ?? 2} fallos confirmados</div></div></div>
-    <table><tr><th>Modelo</th><th>Intentos</th><th>Pasó</th><th>Tasa</th><th>Coste</th><th>Sesiones</th><th>Fallos confirmados</th></tr>${modelRows || `<tr><td colspan="7" class="empty">Sin datos todavía.</td></tr>`}</table>
-    <div class="q" style="padding:8px 16px 12px">Intentos y tasa salen de report.json; coste y sesiones de la base de datos de OpenCode (solo lectura, sin llamadas a modelos). Los fallos confirmados solo cuentan cuando otro modelo pasó después el mismo ítem.</div>`
+  const perRole = { builder: {}, researcher: {} }
+  for (const c of contracts) for (const a of c.s.attempts ?? []) { const m = (perRole.builder[a.model] ??= { attempts: 0, passed: 0 }); m.attempts++; if (a.verdict === "PASS") m.passed++ }
+  for (const r of Object.values(researchResults)) { if (!r.model) continue; const m = (perRole.researcher[r.model] ??= { attempts: 0, passed: 0 }); m.attempts += r.attempt ?? 1; if (r.status === "DONE") m.passed++ }
+  const modelTable = (role, title) => { const rows = Object.entries(perRole[role]).map(([m, v]) => { const cost = costs?.byModel?.[role]?.[short(m)]; return `<tr><td class="mono">${esc(short(m))}</td><td class="num">${v.attempts}</td><td class="num">${v.passed}</td><td class="num">${v.attempts ? Math.round(100 * v.passed / v.attempts) : 0} %</td><td class="num">${cost ? usd(cost.cost) : "–"}</td><td class="num">${cost ? cost.sessions : "–"}</td><td class="num">${cost?.ms ? mins(cost.ms) : "–"}</td><td class="num">${cost?.ms && cost.sessions ? mins(cost.ms / cost.sessions) : "–"}</td></tr>` }).join(""); return `<div class="group">${title}</div><table><tr><th>Modelo</th><th class="num">Intentos</th><th class="num">Pasó</th><th class="num">Tasa</th><th class="num">Coste</th><th class="num">Sesiones</th><th class="num">Tiempo</th><th class="num">Por sesión</th></tr>${rows || `<tr><td colspan="8" class="empty">Sin datos todavía.</td></tr>`}</table>` }
+  const modelsTab = `<div class="strip s3"><div><div class="k">Escalera builder</div><div class="v sm">${esc((ladders.builder ?? []).map(short).join(" › "))}</div></div><div><div class="k">Escalera researcher</div><div class="v sm">${esc((ladders.researcher ?? []).map(short).join(" › "))}</div></div><div><div class="k">Regla</div><div class="v sm">2 intentos por peldaño · ${models?.max_models_per_item ?? 3} peldaños por ítem · si un modelo te falla seguido, bájalo en models.json</div></div></div>
+    ${modelTable("builder", "BUILDERS · contratos")}
+    ${modelTable("researcher", "RESEARCHERS · preguntas")}
+    <div class="q" style="padding:8px 16px 12px">Intentos y tasa salen de report.json; coste, sesiones y tiempo (inicio a fin de cada sesión) de la base de datos de OpenCode (solo lectura, sin llamadas a modelos).</div>`
 
   const tabBadge = (n, k = "") => `<span class="n ${k}">${n}</span>`
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -143,7 +146,7 @@ export function renderBoard({ root, sandboxes, plan, report, current, research, 
 @media (prefers-color-scheme:dark){:root{--bg:#141A21;--surface:#1C242E;--ink:#E8ECEF;--ink-2:#B4BCC6;--ink-3:#7F8A96;--line:#2E3946;--line-2:#26303B;--accent:#7FB0DE;--accent-soft:#213547;
 --ok:#5CBF86;--ok-soft:#1E3A2B;--run:#E6A23C;--run-soft:#3F2F14;--bad:#E0715E;--bad-soft:#42221C;--wait:#6B7681;--wait-soft:#232B34;--you:#A992E6;--you-soft:#2D2545}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5}
-.wrap{max-width:1180px;margin:0 auto;padding:18px 20px 60px}
+.wrap{max-width:none;margin:0 auto;padding:18px 24px 60px}
 h1{font-size:19px;font-weight:600;margin:0}.subt{color:var(--ink-3);font-family:var(--mono);font-size:12px;margin:2px 0 12px}
 .strip{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr .8fr;border:1px solid var(--line);border-radius:6px;background:var(--surface);margin-bottom:14px}
 .strip.s3{grid-template-columns:1fr 1fr 1fr;border:0;border-bottom:1px solid var(--line-2);border-radius:0;margin:0}
@@ -183,8 +186,8 @@ svg .node{stroke-width:2}svg .node.ok{fill:var(--ok-soft);stroke:var(--ok)}svg .
 .col-h{display:flex;justify-content:space-between;margin-bottom:8px}.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}.n{font-family:var(--mono);font-size:12px;color:var(--ink-3)}
 table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:7px 14px;border-top:1px solid var(--line-2);vertical-align:top}
 th{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:500;border-top:0}
-td.mono,.mono{font-family:var(--mono);font-size:12px}td.num{font-variant-numeric:tabular-nums;text-align:right}.q{font-family:var(--sans);font-size:12px;color:var(--ink-3);margin-top:2px}
-.group{padding:10px 14px 4px;font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--ink-3)}.empty{padding:14px;color:var(--ink-3)}
+td.mono,.mono{font-family:var(--mono);font-size:12px}td.num,th.num{font-variant-numeric:tabular-nums;text-align:right}.q{font-family:var(--sans);font-size:12px;color:var(--ink-3);margin-top:2px}
+table.rs{table-layout:fixed;width:100%}table.rs td{word-break:break-word}tr.grp td{padding:12px 14px 4px;font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--ink-3);border-bottom:0}.group{padding:10px 14px 4px;font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--ink-3)}.empty{padding:14px;color:var(--ink-3)}
 .pill{display:inline-block;padding:1px 7px;border-radius:10px;font-family:var(--mono);font-size:11px}.pill.ok{background:var(--ok-soft);color:var(--ok)}.pill.run{background:var(--run-soft);color:var(--run)}.pill.bad{background:var(--bad-soft);color:var(--bad)}.pill.wait{background:var(--wait-soft);color:var(--ink-2)}
 @media (max-width:900px){.strip{grid-template-columns:repeat(2,1fr)}.board,.cards{grid-template-columns:repeat(2,1fr)}.col:nth-child(2){border-right:0}}
 </style></head><body><div class="wrap">
@@ -195,17 +198,19 @@ ${strip}
 <div class="tabs"><label for="t1">Ahora ${phaseCls === "run" ? tabBadge(phase, "run") : phaseCls === "you" ? tabBadge("te espera", "bad") : ""}</label><label for="t2">Contratos ${tabBadge(`${passed}/${contracts.length}`, passed === contracts.length && contracts.length ? "ok" : "")}</label><label for="t3">Research ${tabBadge(`${Object.values(researchResults).filter((r) => r.status === "DONE").length}/${Object.keys(researchResults).length}`, researchAlive ? "run" : "")}</label><label for="t4">Modelos y coste</label></div>
 <div class="pane p1">${runningPanel}<div class="panel"><div class="panel-h"><span>Diario</span><span>${entries.length} entradas · ● contrato ■ research ◆ tú</span></div><div class="journal">${journal || '<div class="empty">Sin eventos todavía.</div>'}</div></div></div>
 <div class="pane p2"><div class="panel"><div class="panel-h"><span>Dependencias · qué frena qué</span><span>${contracts.length} contratos</span></div><div class="graph"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Grafo de dependencias">${svg}</svg></div><div class="legend"><span style="--c:var(--ok)">pasó</span><span style="--c:var(--run)">construyendo</span><span style="--c:var(--bad)">falló</span><span style="--c:var(--wait)">esperando</span><span style="--c:var(--accent)">camino crítico</span></div></div><div class="panel"><div class="panel-h"><span>Contratos por estado</span></div><div class="board">${board}</div></div></div>
-<div class="pane p3">${researchTab}</div>
+<div class="pane p3">${researchTable}</div>
 <div class="pane p4">${modelsTab}</div>
 </div>
 <script>
 // The page reloads itself; keep the chosen tab (in the URL hash) and the scroll position.
 (function(){
   try {
-    var m = (location.hash || "").match(/^#(t[1-4])$/); if (m) { var r = document.getElementById(m[1]); if (r) r.checked = true }
-    document.querySelectorAll('input[name="tb"]').forEach(function (r) { r.addEventListener("change", function () { history.replaceState(null, "", "#" + r.id); sessionStorage.setItem("board-scroll", "0") }) })
+    var m = (location.hash || "#" + (sessionStorage.getItem("board-tab") || "")).match(/^#(t[1-4])$/); if (m) { var r = document.getElementById(m[1]); if (r) r.checked = true }
+    document.querySelectorAll('input[name="tb"]').forEach(function (r) { r.addEventListener("change", function () { history.replaceState(null, "", "#" + r.id); sessionStorage.setItem("board-tab", r.id); sessionStorage.setItem("board-scroll", "0") }) })
     var y = Number(sessionStorage.getItem("board-scroll") || 0); if (y) window.scrollTo(0, y)
     window.addEventListener("scroll", function () { sessionStorage.setItem("board-scroll", String(window.scrollY)) }, { passive: true })
+    // Horizontal scroll of the dependency graph survives reloads too.
+    document.querySelectorAll(".graph").forEach(function (g, i) { var k = "board-graph-x-" + i; var x = Number(sessionStorage.getItem(k) || 0); if (x) g.scrollLeft = x; g.addEventListener("scroll", function () { sessionStorage.setItem(k, String(g.scrollLeft)) }, { passive: true }) })
   } catch (e) {}
 })()
 </script>

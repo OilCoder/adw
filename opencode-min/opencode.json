@@ -3,6 +3,9 @@
   "share": "disabled",
   "default_agent": "supervisor",
   "model": "openai/gpt-5.6-sol",
+  "compaction": {
+    "prune": true
+  },
   "instructions": [
     ".opencode/instructions/codegen.md",
     ".opencode/instructions/structure.md"

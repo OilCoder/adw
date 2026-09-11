@@ -122,3 +122,210 @@ cd /home/pokinux/las-viewer-v4 && node .opencode/codegen.mjs status
 ```
 
 Y en la TUI de OpenCode, al supervisor: "resume el estado y dime qué falta".
+
+## Research: bucle de relanzamientos corregido (2026-09-10 16:00)
+
+Síntoma en las-viewer-v5: `net-pay` dio tres vueltas idénticas. El supervisor
+lanzaba `research` en primer plano; el shell de la TUI mata el comando a los
+15 min, justo cuando el segundo modelo (kimi-k3) llevaba 5 min; al relanzar,
+el script no recordaba el TIMEOUT de qwen3.8-max y empezaba por él otra vez.
+Los rechazos del supervisor eran correctos (fórmula mal, informe truncado).
+
+Cambios (unas 30 líneas netas, sin archivos nuevos):
+- `research` y `build` se desacoplan del shell por defecto; `--wait` los deja
+  en primer plano (smoke.sh lo usa). `--background` desaparece.
+- `research` se niega a arrancar si hay una corrida viva (misma guarda que merge).
+- TIMEOUT / NO_REPORT se guardan en `rejected` del status: esos modelos se
+  saltan para esa pregunta en corridas posteriores. Escalera vacía = `NO_MODELS`.
+- DONE solo si el modelo cerró con `DONE <path>` dentro del tiempo; archivo
+  cortado o sin cierre = PARTIAL (antes se daba por DONE, p. ej. `CONTINUA-2`).
+- Fallos confirmados: un ítem cuenta una vez por modelo; rechazar un informe
+  deshace las confirmaciones que ese pass había dado. `models-state.json` de
+  v5 borrado (estaba inflado: 7 fallos con 4 preguntas).
+- Researcher: cada sección con su propio edit, nunca el informe entero en una
+  escritura. Supervisor: PARTIAL/TIMEOUT → aceptar o dividir la pregunta en
+  ids nuevos en paralelo; nunca repetirla igual con un modelo más caro.
+Probado con un `opencode` stub (timeout, parcial, reject/undo, escalera
+vacía, guarda de concurrencia). Sin commit; el usuario decide.
+
+## Revisión a tres lentes y recorte (2026-09-10 17:00)
+
+Tres agentes (agrupar estados / quitar / dónde vive cada regla) sobre el
+harness y las corridas reales de v4 y v5. Conclusión común: ni colapsar
+estados ni cortar por cortar; la palanca es la señal que el script da al
+supervisor y las reglas de flujo que solo eran texto (se ignoraron siempre).
+Aplicado, neto ~45 líneas menos:
+- DONE solo si el researcher cerró con `DONE` en la última línea, en tiempo
+  y por debajo de su tope de pasos (`steps:` del front matter). Antes tres
+  informes de v5 cortados a 30 pasos pasaron por DONE.
+- `status` imprime las últimas palabras de cada PARTIAL (qué faltó).
+- Negativas nuevas del script: `--reject` de un PARTIAL o tercer rechazo →
+  "divide la pregunta en ids nuevos"; `build` con corrida viva; contrato con
+  `read` de glob, idea, informe de research o más de 5 archivos.
+- Memoria de modelos eliminada (`models-state.json`, degradación, undo,
+  columna del tablero, párrafo de status, `demote_after_confirmed_failures`).
+  Su única acción real fue un falso positivo (degradó a glm-5.3-flash por dos
+  PARTIAL de qwen). Sustituto: `models.json` a mano; `status` muestra quién
+  cerró cada ítem.
+- Regla de crecimiento (README y principio 9 de structure.md): nada nuevo sin
+  un fallo concreto que lo pida ni sin quitar algo; aplica a los proyectos.
+Descartado: cortar el tablero (es el control del usuario); colapsar estados
+(10 líneas de ganancia). Pendiente para después: partir `buildOne` en
+preparar / intentar / aterrizar; fixture de eventos `--format json` congelado
+como prueba de regresión (runAgent y opencode-db.mjs dependen de superficies
+privadas de OpenCode que fallarían en silencio).
+
+## Avisos al supervisor + gate roto (2026-09-10 19:30)
+
+- El supervisor es un turno de chat: entre turnos nadie está despierto y el
+  usuario era quien notaba cada parada. Ahora el script le escribe con
+  `opencode run --attach http://127.0.0.1:$OPENCODE_PORT --session <id>`
+  (puerto 4096 por defecto, la sesión sale de la BD como en el tablero) en
+  cuatro momentos: pregunta que termina sin DONE, fin de research, contrato
+  con FAIL definitivo, fin de build. Mensajes `[codegen] …`; diario y
+  tablero los muestran (◆ "Aviso al supervisor"); sin servidor o sin sesión
+  se anota "no entregado" y nada más. Probado extremo a extremo con un
+  servidor en 4097: el supervisor recibió el PARTIAL, dividió la pregunta y
+  relanzó solo.
+- Gate roto: si el propio test del gate no compila (error localizado bajo
+  `.codegen/`), el contrato para al primer intento con "GATE BROKEN". Sobre
+  las 31 fallas de gate de v4+v5 marca solo las 6 de c11 (habría ahorrado 5
+  intentos, ~70 min). Descartado el corte "misma aserción con dos modelos":
+  habría cortado c12, que deepseek pasó al 5º intento.
+- Tablero: ancho completo, pestaña recordada entre recargas de Live Preview,
+  research en una sola tabla, modelos separados builder/researcher, coste
+  por modelo arreglado (OpenCode guarda `{"id":…}`, no `modelID`).
+- Reglas al supervisor: mientras la corrida vive, vigilar status y dejar
+  corregido el contrato fallado; nunca cerrar un turno anunciando trabajo;
+  los mensajes `[codegen]` son del script y se actúa sobre ellos.
+
+## Contexto del supervisor (2026-09-10 20:00)
+
+Medición de la sesión de v5: pico 281k tokens, compactación automática ya
+disparada (OpenCode compacta a 252k con gpt-5.6 por suscripción: ventana
+400k − 20k reservados; no es un porcentaje, y el 50-55 % de la TUI no se
+confirmó en el código). 75 % del gasto: informes de research leídos enteros
+y residentes 60 turnos; logs de 12k leídos enteros porque el prompt pedía
+`tail` y los permisos solo dejaban `cat`. Ajustes:
+1. `opencode.json`: `compaction.prune: true` (OpenCode borra salidas viejas
+   de herramientas del contexto). Cero código.
+2. Informe con `## Summary for contracts` obligatorio (≤40 líneas, primero);
+   sin él es PARTIAL. El supervisor juzga el cuerpo una vez al llegar y
+   después trabaja solo con el resumen y `grep`.
+3. Permisos del supervisor: `head`, `tail`, `sed -n`, `grep`.
+4. Los avisos `[codegen]` llevan la línea de estado (`buildLine`) y ya no
+   dicen "ejecuta status"; `status` empieza con esa línea y perdió las 8
+   líneas de log (están en el tablero).
+Descartado: supervisor por fases con sesión nueva y archivo de traspaso; no
+hay fallo que lo pida. Medir el pico en el próximo proyecto.
+Regla de higiene: todo comando que un prompt cite debe estar en los permisos
+del agente, y al revés; si se contradicen, el modelo improvisa en silencio.
+
+## Sandboxes Python (2026-09-10 21:35)
+
+reservoir-sim: c01 falló 6 veces con "No module named pytest". El sandbox
+solo instalaba dependencias de Node (`npm ci`); el python del sistema no
+tiene pytest ni scipy. Ahora, si hay `pyproject.toml` o `requirements.txt`,
+el sandbox crea `.venv` con `uv` (`pip install -e .[dev]`, o `-r
+requirements.txt`, más pytest) y gate y builder reciben `PATH` con ese venv
+primero. Probado sobre una copia de reservoir-sim: uv en 3 s, gate base falla
+por la razón correcta, el builder ve pytest 9.1. `.venv` y `.egg-info` van
+al filtro de basura de `changedFiles`. Lección repetida del día 1: sin
+dependencias el gate base falla "por la razón equivocada".
+
+## Gate roto, generalizado (2026-09-10 21:45)
+
+v5: el supervisor partió c24 en tres contratos de typecheck por dominio, pero
+el sandbox no tiene `@types/react` (no está en el lock) y `tsc` da 936
+errores en `src/app` y `src/design`; 18 intentos con el mismo fallo fuera
+de alcance. El detector ahora cubre dos formas: (a) el test del gate no
+compila (error bajo `.codegen/`); (b) un type checker reporta errores y
+todos están fuera de `allowed_to_modify`. Se descartó "cualquier ruta fuera
+de alcance": un "Cannot find module X imported from <test>" señala el test
+pero se arregla creando X (c12 y c47 pasaron así). Replay sobre 42 fallas de
+gate de v4+v5: marca solo los 18 de typecheck, ninguno que luego pasó.
+
+## Punto de recuperación (2026-09-10 22:35, antes de compact)
+
+### Harness (sin commit en claude-project-base; el usuario decide)
+`codegen.mjs` 705 líneas. Cambios del día ya descritos arriba, más:
+- Sandboxes Python: venv con `uv` (`pip install -e .[dev]` o `requirements.txt`, más pytest); gate y builder ven el venv primero en PATH.
+- Gate roto generalizado: (a) test del gate no compila bajo `.codegen/`; (b) type checker con todos los errores fuera de `allowed_to_modify` → FAIL al primer intento "GATE BROKEN". Replay 42 fallas v4+v5: solo los 18 de typecheck.
+- Supervisor: **no vigila**; termina el turno y espera los `[codegen]` (fallo definitivo, fin de research/build, pregunta sin DONE); `status` solo si el usuario lo pide o pasa una hora. Motivo: 15 polls × 200k contexto = 3M tokens; el usuario agotó la cuota de OpenAI con tres supervisores.
+- Tablero: pestaña y scroll horizontal del grafo sobreviven a recargas; research en una tabla; modelos separados builder/researcher; coste por modelo arreglado (`{"id":…}`).
+- Regla de crecimiento (README, `structure.md` principio 9, supervisor y builder).
+- Verificación en las ideas = **referencias recomendadas**, sin listas de tests: el supervisor deriva los tests contrato por contrato.
+
+### Proveedores y modelos (medido hoy)
+- OpenCode Go es **suscripción con cuota** (semanal 103 %, mensual 81 % al final del día) y luego saldo: el usuario cargó 20 USD y gastó 11. Los precios del tablero son reales solo cuando la cuota está agotada.
+- `ox-alpha-free` (Go): muerto, error de servidor siempre. `muse-spark-1.3-contributor` (Go y Zen): requiere opt-in en https://opencode.ai/workspace/wrk_01M1J0CSDBSWV9MA2GEYFCM46D/go; el usuario lo activó y responde.
+- **mimo-v2.5** (Go, 0,14/0,28): 19 de 28 intentos cerrados en prodpipe vs 15/28 de glm-5.3-flash; código limpio (revisado un módulo). Puesto de primer peldaño en reservoir-sim y prodpipe.
+- Zen gratis, con la credencial ya existente en la cuenta: responden mimo-v2.5-free, big-pickle, nemotron-3.5-lightning-free, muse-spark-1.3-contributor-free; no responden en 90 s nemotron-3-ultra-free, ling-3.0-flash-fin-free. Sin datos de calidad todavía.
+- Cambiar de proveedor son dos archivos del proyecto (`models.json`, `opencode.json`); el harness no distingue.
+
+### Proyectos (todos con harness idéntico a opencode-min)
+| Proyecto | Estado | Modelos | Siguiente |
+|---|---|---|---|
+| las-viewer-v5 | 39/40, falla `29-release-root` | Go | supervisor lee el aviso, diagnostica, `--resume` |
+| reservoir-sim | 10/18, fallan c08 BL, c09 five-spot, c09 gravedad; 5 detrás | Go, mimo primero | ídem; fallos numéricos, los interesantes |
+| prodpipe | 49/50, falla `50-product-verification` | Go (muse, mimo, hy3, deepseek-v4.1, qwen3.5-plus, longcat) | ídem |
+| facies-ml | sin arrancar; idea y datos listos (Parquet 99 MB versionados) | Zen gratis ×4 | prompt de arranque (idea.md como índice, decisiones cerradas, research solo "por confirmar", plan antes de construir) |
+Ideas en `wiki/idea/` (idea, modelo, verificacion, requisitos, datos, decisiones, glosario); `project/` ya no se usa.
+Puertos: cada TUI con `OPENCODE_PORT=N opencode --port N`; los avisos van al puerto de la variable. 4097 y 4098 ocupados por TUIs anteriores.
+
+### Pendiente
+- Commit de opencode-min en claude-project-base.
+- Medir el pico de contexto del supervisor en el próximo proyecto (antes 281k) y el ciclo fallo → resume.
+- Revisión de calidad mimo vs glm sobre prodpipe cuando cierre.
+- Después, no ahora: partir `buildOne` (preparar/intentar/aterrizar), unificar el bucle de escalera duplicado, fixture de eventos `--format json` congelado.
+
+## Idea, auditorías y cambios (2026-09-11)
+
+Investigación con dos agentes sobre herramientas spec-driven (spec-kit,
+OpenSpec, Kiro, BMAD, Tessl, 13 en total): ninguna se adopta. La evidencia
+independiente (Scott Logic, Instil, Böckeler) mide 10× más lento y varios
+múltiplos de coste por los artefactos generados; el único valor medido es
+la fase de interrogatorio. La idea de siete archivos ya cubre más que
+cualquiera (datos verificados y glosario no existen en ninguna). Préstamo
+de OpenSpec sin OpenSpec: delta sobre la idea viva. Solo prosa, sin código:
+- `instructions/idea.md` nuevo: qué va en cada uno de los siete archivos,
+  qué se congela, quién lo llena.
+- `structure.md`: `wiki/` con tres subcarpetas fijas `idea/`, `audits/`,
+  `changes/`.
+- Supervisor: fase idea antes de research (pregunta solo decisiones de
+  producto; los hechos van a research); bucle de cambios (audit notes o
+  petición → `wiki/changes/<name>/{proposal,delta}.md` → ciclo normal →
+  tras `merge` aplica el delta a `wiki/idea/` y archiva). Absorbe la frase
+  suelta de "change request" del paso 2 (regla de crecimiento). Permiso
+  `edit` ampliado a `wiki/**`: sin él las instrucciones eran texto muerto.
+  `project/idea.md` → `wiki/idea/**`.
+- `install.sh`: ignora `wiki/audits/*/audio.*` (los sandboxes son
+  `git archive` del árbol entero).
+Solo en opencode-min; las copias de facies-ml, reservoir-sim, prodpipe y
+las-viewer-v5 no se tocaron (tres con corridas vivas). Nuevo proyecto
+`/home/pokinux/voice-audit` (Windows, faster-whisper large-v3, capturas
+insertadas en el texto, salida en `wiki/audits/` del proyecto auditado):
+`idea.md` y `decisiones.md` escritos; faltan los otros cinco.
+
+## Tiempo por modelo en el tablero (2026-09-11)
+
+Pedido del usuario: comparar modelos también por duración, no solo coste
+(en Zen gratis el coste es 0). La BD de OpenCode ya guarda `time_created` y
+`time_updated` por sesión: `agentCosts` suma `ms` por rol y modelo y la
+tabla de modelos añade "Tiempo" (total) y "Por sesión" (media). Sin estado
+nuevo. Copiado a voice-audit; pendiente en los demás proyectos.
+
+## las-viewer-v5: cambio `wire-analysis-and-tracks` (2026-09-11)
+
+Revisión del usuario: la app es importador + visor de una pista + export.
+Dos agentes confirmaron: `AnalysisWorkspace.tsx` (2 161 líneas, cinco
+paneles) huérfano; sin presets de pistas (la pista por defecto es DEPT
+contra DEPT); readout sin formatear en el flex de la pista → salta el
+layout; cinco gates Playwright con `--list`; CI e2e en `main` con repo en
+`master`; sin iconos. Escrito `wiki/changes/wire-analysis-and-tracks/`
+(proposal, delta, prompt con 11 contratos: 4 de orden, 1 de e2e real, 6
+de funcionalidad incl. `lucide-react` + color por dominio). Harness de
+prosa actualizado en ese proyecto; sin commit. Lección para el supervisor
+(ya en las reglas del prompt, falta pasarla a supervisor.md de
+opencode-min): un contrato de integración se prueba a través de `App` o
+navegador real, nunca importando el componente; `--list` no es gate.

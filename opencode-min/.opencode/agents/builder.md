@@ -44,7 +44,8 @@ contract path.
 2. Modify only paths listed in `allowed_to_modify`. Never touch the contract
    directory, `.opencode/`, `opencode.json`, or any path under `protected`.
 3. Implement the smallest correct change that satisfies every requirement.
-   No unrelated refactors, no extra documentation.
+   Before writing a function, search the allowed files for one that already
+   does it and call that. No unrelated refactors, no extra documentation.
 4. Run the gate script named in the contract to self-check. Fix and rerun
    until it passes or you are blocked.
 5. If the contract cannot be completed inside its scope, make no speculative

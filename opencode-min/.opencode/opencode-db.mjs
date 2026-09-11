@@ -63,23 +63,25 @@ export function supervisorActivity(root) {
 }
 
 // Cost and tokens of the agent sessions the script launched for this
+// project, by role and model (byModel[role][model]), plus wall time per
+// session (time_updated - time_created): how long each model takes per task.
 // project: builders run in sandboxes named after the contract, researchers
 // run in the project root.
 export function agentCosts(root, sandboxes) {
   const db = open()
   if (!db) return null
   try {
-    const rows = db.prepare("select directory, agent, model, cost, tokens_input, tokens_output, time_created from session where (directory = ? and agent in ('researcher','builder')) or directory like ?").all(root, `${sandboxes}/%`)
+    const rows = db.prepare("select directory, agent, model, cost, tokens_input, tokens_output, time_created, time_updated from session where (directory = ? and agent in ('researcher','builder')) or directory like ?").all(root, `${sandboxes}/%`)
     const byContract = {}, byModel = {}, byRole = {}
     let total = 0
     for (const r of rows) {
-      const m = parse(r.model); const model = m.modelID ?? String(r.model ?? "?")
+      const m = parse(r.model); const model = m.modelID ?? m.id ?? String(r.model ?? "?")
       const cost = r.cost ?? 0
       total += cost
       const role = r.agent ?? "?"
       byRole[role] = (byRole[role] ?? 0) + cost
-      const bm = (byModel[model] ??= { sessions: 0, cost: 0, input: 0, output: 0 })
-      bm.sessions++; bm.cost += cost; bm.input += r.tokens_input ?? 0; bm.output += r.tokens_output ?? 0
+      const bm = ((byModel[role] ??= {})[model] ??= { sessions: 0, cost: 0, input: 0, output: 0, ms: 0 })
+      bm.sessions++; bm.cost += cost; bm.input += r.tokens_input ?? 0; bm.output += r.tokens_output ?? 0; bm.ms += Math.max(0, (r.time_updated ?? 0) - (r.time_created ?? 0))
       if (r.directory.startsWith(sandboxes)) { const id = path.basename(r.directory); byContract[id] = (byContract[id] ?? 0) + cost }
     }
     return { total, byContract, byModel, byRole }

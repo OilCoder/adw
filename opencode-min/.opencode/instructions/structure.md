@@ -8,7 +8,12 @@ not optional and is not decided per task: the supervisor fixes it once in
 
 - `.opencode/`, `.codegen/`: the code-generation system. Never product code.
 - `docs/`: the project website deployed with GitHub Pages. Never product code.
-- `wiki/`: the project documentation for people (guides, decisions, references).
+- `wiki/`: the project documentation for people and agents. Three fixed
+  subfolders: `wiki/idea/` (the idea, seven files, rules in
+  `.opencode/instructions/idea.md`), `wiki/audits/<stamp>/` (sessions
+  recorded while testing the app: `notes.md` and `img/`), and
+  `wiki/changes/<name>/` (change proposals and their delta on the idea;
+  `wiki/changes/archive/` once landed).
 - `data/`: input data, when the project has any.
 - Everything else is declared in the map before it exists.
 
@@ -31,6 +36,10 @@ not optional and is not decided per task: the supervisor fixes it once in
    commented-out blocks, or two files with the same name in different folders.
 8. **Smallest change that meets the contract.** Reuse what exists; do not add
    a dependency the map does not list; do not build for imagined futures.
+9. **Growth is paid for.** A new module, state, option, flag or abstraction
+   enters only when a concrete failure or requirement asks for it, and the
+   contract names what it replaces or why nothing existing serves. Two
+   places doing the same thing become one before a third appears.
 
 ## The map (`.codegen/structure.md`, written by the supervisor, approved by the user)
 

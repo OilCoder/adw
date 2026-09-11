@@ -8,7 +8,7 @@ cp -r "$src/.opencode/agents" "$src/.opencode/instructions" "$src/.opencode/code
 [[ -f "$target/.opencode/models.json" ]] || cp "$src/.opencode/models.json" "$target/.opencode/"
 [[ -f "$target/opencode.json" ]] || cp "$src/opencode.json" "$target/"
 touch "$target/.gitignore"
-for line in ".codegen/runs/" ".codegen/board.html" "__pycache__/" ".pytest_cache/" "node_modules/"; do
+for line in ".codegen/runs/" ".codegen/board.html" "wiki/audits/*/audio.*" "__pycache__/" ".pytest_cache/" "node_modules/"; do
   grep -qxF "$line" "$target/.gitignore" || printf '%s\n' "$line" >> "$target/.gitignore"
 done
 git -C "$target" rev-parse HEAD >/dev/null 2>&1 || echo "note: $target has no commits yet; commit before running build"
