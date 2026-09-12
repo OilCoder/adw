@@ -94,6 +94,15 @@ light its whole path. Supervisor activity, your messages and costs come from
 OpenCode's own database, read-only, no model calls. The design spec is
 `new-style/board/proposal.html`.
 
+## Auditing a built project
+
+A change request can arrive as a spoken audit: `wiki/audits/<stamp>/notes.md`
+with `[HH:MM:SS]` paragraphs, the screenshots inline and the text the user
+copied with Ctrl+C as fenced blocks, which is what the supervisor's
+change-request loop reads first. Those sessions are recorded by
+`voice-audit-wsl` (a separate repo, `~/voice-audit-wsl`: Whisper on the GPU,
+web page served from WSL; Garden's "Auditar" opens it on the project).
+
 ## Safety
 
 - A sandbox gets its dependencies before anything runs: `npm ci` when there is a
