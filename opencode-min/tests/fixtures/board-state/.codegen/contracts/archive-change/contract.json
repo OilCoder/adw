@@ -1,0 +1,1 @@
+{ "objective": "Move the landed change wire-analysis-and-tracks to wiki/changes/archive/.", "read": ["wiki/changes/wire-analysis-and-tracks/delta.md"], "allowed_to_modify": ["wiki/changes/**"], "protected": ["wiki/idea/**"], "requirements": [{ "id": "R1", "statement": "Archive without changing content." }], "gate": "bash .codegen/contracts/archive-change/gate.sh" }

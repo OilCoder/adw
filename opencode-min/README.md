@@ -81,11 +81,18 @@ resume and merge each have a scenario whose normalized outputs live in `tests/go
 
 `node .opencode/codegen.mjs board --watch` keeps `.codegen/board.html` fresh
 every 10 s (builds and research also rewrite it on every state change). Open
-it in VS Code with the Live Preview extension or in a browser. Tabs: **Ahora**
-(phase, what is running, the journal with ● contracts, ■ research, ◆ your
-messages), **Contratos** (dependency graph + board), **Research**, **Modelos
-y coste**. Supervisor activity, your messages and costs come from OpenCode's
-own database, read-only, no model calls.
+it in VS Code with the Live Preview extension or in a browser. Header: the
+supervisor's session title and slug, as the TUI's session list shows them.
+Strip: phase, supervisor, contracts, what waits for you, cost (API-equivalent).
+Then the OpenCode Go quota (5 hours, week, month; one HTTP call, cached five
+minutes, "sin datos" offline). Tabs in workflow order: **Ahora** (running
+now, the journal), **Research** (one table by run), **Contratos** (dependency
+graph and a board by state), **Modelos y coste** (ladders, one table per
+role). Click a contract, in the journal or on a card, for its detail in a
+modal; click a research entry for the report rendered; click a graph node to
+light its whole path. Supervisor activity, your messages and costs come from
+OpenCode's own database, read-only, no model calls. The design spec is
+`new-style/board/proposal.html`.
 
 ## Safety
 

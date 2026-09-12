@@ -389,3 +389,16 @@ Ver README "Files" y "Behaviour freeze". Resumen:
 - Pendiente: reestructurar `supervisor.md` (ronda aparte), rediseño del tablero
   sobre `board-html.mjs`/`board.css` (regenerar golden con `--update`), y
   actualizar los seis proyectos de campo cuando el usuario lo decida.
+
+## Tablero v2 (2026-09-12, tarde)
+
+Rediseño aprobado en `new-style/board/proposal.html` (maqueta interactiva) a
+partir de cuatro mockups de Codex en la misma carpeta. Implementado en
+`board-html.mjs` + `board.css`; datos nuevos en `board.mjs` (cuota Go por
+HTTP con caché, Markdown de informes, fecha de tanda) y `opencode-db.mjs`
+(título y slug de la sesión del supervisor; los avisos `[codegen]` ya no
+cuentan como mensajes del usuario). `board.json` gana `supervisor.title`,
+`supervisor.slug` y `quota`. Golden del tablero regenerado; los golden de
+escenarios aíslan `HOME` (sin BD ni auth). Verificado en navegador sobre
+las-viewer-v5: cuatro pestañas, ventana emergente, informe renderizado,
+camino iluminado, cuota real.

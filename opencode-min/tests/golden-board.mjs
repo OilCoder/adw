@@ -30,14 +30,17 @@ const costs = {
     researcher: { "glm-5.3-flash": { sessions: 4, cost: 1.41, input: 500000, output: 90000, ms: 1200000 } },
   },
 }
-const supBusy = { sessionId: "ses_fixed", last: { at: T(1), kind: "tool", text: "bash: node .opencode/codegen.mjs status" }, waiting: null, userMessages: [{ id: "m1", at: T(30), text: "resume el estado y dime qué falta" }] }
-const supWaiting = { sessionId: "ses_fixed", last: { at: T(4), kind: "text", text: "El plan tiene 23 contratos en 4 capas. ¿Apruebas el build?" }, waiting: "El plan tiene 23 contratos en 4 capas. ¿Apruebas el build?", userMessages: [{ id: "m1", at: T(30), text: "resume el estado y dime qué falta" }] }
-const base = { root, sandboxes: "/home/user/.las-viewer-v5-codegen-sandboxes", plan: json("plan.json"), report: json("runs/20260911T153542Z-build/report.json"), current: json("runs/current.json"), research: json("research/status.json"), researchRun: json("runs/current-research.json"), events, models, ladders: { builder: ladder("builder"), researcher: ladder("researcher") }, now, costs }
+const supBusy = { sessionId: "ses_fixed", title: "Desarrollo profesional de visor de registros", slug: "quiet-knight", last: { at: T(1), kind: "tool", text: "bash: node .opencode/codegen.mjs status" }, waiting: null, userMessages: [{ id: "m1", at: T(30), text: "resume el estado y dime qué falta" }] }
+const supWaiting = { sessionId: "ses_fixed", title: "Desarrollo profesional de visor de registros", slug: "quiet-knight", last: { at: T(4), kind: "text", text: "El plan tiene 23 contratos en 4 capas. ¿Apruebas el build?" }, waiting: "El plan tiene 23 contratos en 4 capas. ¿Apruebas el build?", userMessages: [{ id: "m1", at: T(30), text: "resume el estado y dime qué falta" }] }
+const reports = Object.fromEntries(["web-stack", "las-standard"].map((id) => [id, readFileSync(path.join(F, "research", `${id}.md`), "utf8")]))
+const contractFiles = Object.fromEntries(["design-icons", "archive-change"].map((id) => [id, json(`contracts/${id}/contract.json`)]))
+const quota = { at: new Date(T(2)).toISOString(), rolling: { percent: 0, limited: false, resetsAt: new Date(T(-300)).toISOString() }, weekly: { percent: 100, limited: true, resetsAt: new Date(T(-2000)).toISOString() }, monthly: { percent: 81, limited: false, resetsAt: new Date(T(-28000)).toISOString() } }
+const base = { root, reports, contractFiles, quota, sandboxes: "/home/user/.las-viewer-v5-codegen-sandboxes", plan: json("plan.json"), report: json("runs/20260911T153542Z-build/report.json"), current: json("runs/current.json"), research: json("research/status.json"), researchRun: json("runs/current-research.json"), events, models, ladders: { builder: ladder("builder"), researcher: ladder("researcher") }, now, costs }
 const cases = {
   building: { ...base, alive: true, researchAlive: false, sup: supBusy, merged: false },
   waiting: { ...base, alive: false, researchAlive: false, sup: supWaiting, merged: false },
   researching: { ...base, alive: false, researchAlive: true, researchRun: { ...base.researchRun, pid: 1, started: new Date(T(12)).toISOString(), questions: ["net-pay-gaps", "web-stack"] }, sup: supBusy, merged: null },
-  nodb: { ...base, alive: false, researchAlive: false, sup: null, costs: null, merged: true },
+  nodb: { ...base, alive: false, researchAlive: false, sup: null, costs: null, quota: null, merged: true },
 }
 const golden = path.join(HERE, "golden", "board")
 mkdirSync(golden, { recursive: true })

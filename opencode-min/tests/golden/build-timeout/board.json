@@ -29,12 +29,9 @@
     "rejected": 0,
     "alive": false
   },
-  "cost": {
-    "total": 0,
-    "byRole": {},
-    "byModel": {}
-  },
+  "cost": null,
   "supervisor": null,
+  "quota": null,
   "lastNotify": {
     
     "text": "build ended: 0/1 PASS; failed: safe-divide (FAIL). Diagnose the failed ones, fix their contracts or gates, then build --resume.",

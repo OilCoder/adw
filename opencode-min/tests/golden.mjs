@@ -51,7 +51,8 @@ for (const name of scenarios) {
   sh(`git init -q && git add -A && git -c user.name=golden -c user.email=golden@localhost commit -qm fixture`, work)
   const scriptFile = path.join(tmp, "script.json")
   writeFileSync(scriptFile, JSON.stringify(sc.script ?? {}))
-  const env = { PATH: `${path.join(HERE, "fake-opencode")}:${process.env.PATH}`, FAKE_OPENCODE_SCRIPT: scriptFile, FAKE_OPENCODE_STATE: state, OPENCODE_PORT: "1", TZ: "UTC", GIT_AUTHOR_NAME: "golden", GIT_AUTHOR_EMAIL: "g@l", GIT_COMMITTER_NAME: "golden", GIT_COMMITTER_EMAIL: "g@l" }
+  // HOME points at the temp dir: no OpenCode database, no auth.json, so the board sees no supervisor, no cost and no quota.
+  const env = { HOME: tmp, PATH: `${path.join(HERE, "fake-opencode")}:${process.env.PATH}`, FAKE_OPENCODE_SCRIPT: scriptFile, FAKE_OPENCODE_STATE: state, OPENCODE_PORT: "1", TZ: "UTC", GIT_AUTHOR_NAME: "golden", GIT_AUTHOR_EMAIL: "g@l", GIT_COMMITTER_NAME: "golden", GIT_COMMITTER_EMAIL: "g@l" }
   const out = {}
   let runs = ""
   for (const run of sc.runs) {

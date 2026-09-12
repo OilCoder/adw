@@ -74,8 +74,28 @@
   },
   "supervisor": {
     "sessionId": "ses_fixed",
+    "title": "Desarrollo profesional de visor de registros",
+    "slug": "quiet-knight",
     "lastAt": "2026-09-12T17:01:00.000Z",
     "lastKind": "text"
+  },
+  "quota": {
+    "at": "2026-09-12T17:03:00.000Z",
+    "rolling": {
+      "percent": 0,
+      "limited": false,
+      "resetsAt": "2026-09-12T22:05:00.000Z"
+    },
+    "weekly": {
+      "percent": 100,
+      "limited": true,
+      "resetsAt": "2026-09-14T02:25:00.000Z"
+    },
+    "monthly": {
+      "percent": 81,
+      "limited": false,
+      "resetsAt": "2026-10-02T03:45:00.000Z"
+    }
   },
   "lastNotify": {
     "at": "2026-09-12T17:10:35.489Z",

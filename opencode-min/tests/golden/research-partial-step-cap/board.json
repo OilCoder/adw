@@ -24,12 +24,9 @@
     "rejected": 0,
     "alive": false
   },
-  "cost": {
-    "total": 0,
-    "byRole": {},
-    "byModel": {}
-  },
+  "cost": null,
   "supervisor": null,
+  "quota": null,
   "lastNotify": {
     
     "text": "research run ended: 1 PARTIAL; not DONE: las-null (PARTIAL). Judge the new reports and continue.",

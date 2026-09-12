@@ -4,7 +4,9 @@
 // scripts; renderBoard hands it to board-html.mjs, which only draws.
 // Redesigning the board means touching board-html.mjs and board.css, not this.
 
-import { statSync } from "node:fs"
+import { statSync, readFileSync, existsSync } from "node:fs"
+import os from "node:os"
+import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { supervisorActivity, agentCosts } from "./opencode-db.mjs"
 
@@ -23,6 +25,128 @@ export const cut = (s, n) => {
     .replace(/\s+/g, " ")
     .trim()
   return s.length > n ? s.slice(0, n - 1) + "…" : s
+}
+
+const esc = (s) =>
+  String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c])
+
+// ---------- OpenCode Go quota ----------
+
+// The three windows the TUI shows (5 hours, week, month), from Go's usage
+// endpoint with the key in auth.json. Cached five minutes, three seconds of
+// timeout, and null on any problem: the board must never wait on the network.
+let quotaCache = { at: 0, value: null }
+export async function goQuota() {
+  if (Date.now() - quotaCache.at < 5 * 60000) return quotaCache.value
+  quotaCache = { at: Date.now(), value: null }
+  try {
+    const authFile = path.join(os.homedir(), ".local", "share", "opencode", "auth.json")
+    if (!existsSync(authFile)) return null
+    const key = JSON.parse(readFileSync(authFile, "utf8"))["opencode-go"]?.key
+    if (!key) return null
+    const res = await fetch("https://opencode.ai/zen/go/v1/usage", {
+      headers: { authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(3000),
+    })
+    if (!res.ok) return null
+    const u = (await res.json()).usage
+    if (!u) return null
+    const win = (w) =>
+      w
+        ? {
+            percent: Number(w.percent ?? 0),
+            limited: w.status === "rate-limited",
+            resetsAt: w.resetsAt ?? null,
+          }
+        : null
+    quotaCache.value = {
+      at: new Date().toISOString(),
+      rolling: win(u.rolling),
+      weekly: win(u.weekly),
+      monthly: win(u.monthly),
+    }
+  } catch {
+    /* offline, no key, bad answer: the board says "sin datos" */
+  }
+  return quotaCache.value
+}
+
+// ---------- Markdown, enough for a research report ----------
+
+// Headings, paragraphs, bullet and numbered lists, fenced code, inline code,
+// bold, italics, links and pipe tables. Nothing else, no dependencies.
+export function renderMarkdown(md) {
+  const inline = (t) =>
+    esc(t)
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+      .replace(/(^|[^*\w])\*([^*\n]+)\*(?!\w)/g, "$1<i>$2</i>")
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+      .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>')
+  const out = []
+  const lines = md.replace(/\r/g, "").split("\n")
+  let i = 0
+  const flushPara = (buf) => {
+    if (buf.length) out.push(`<p>${inline(buf.join(" "))}</p>`)
+    buf.length = 0
+  }
+  const para = []
+  while (i < lines.length) {
+    const line = lines[i]
+    if (/^```/.test(line)) {
+      flushPara(para)
+      const code = []
+      i++
+      while (i < lines.length && !/^```/.test(lines[i])) code.push(lines[i++])
+      i++
+      out.push(`<pre>${esc(code.join("\n"))}</pre>`)
+      continue
+    }
+    const h = line.match(/^(#{1,6})\s+(.*)/)
+    if (h) {
+      flushPara(para)
+      out.push(`<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`)
+      i++
+      continue
+    }
+    if (/^\s*[-*+]\s+/.test(line) || /^\s*\d+[.)]\s+/.test(line)) {
+      flushPara(para)
+      const ordered = /^\s*\d+[.)]\s+/.test(line)
+      const items = []
+      while (i < lines.length && (/^\s*[-*+]\s+/.test(lines[i]) || /^\s*\d+[.)]\s+/.test(lines[i])))
+        items.push(lines[i++].replace(/^\s*(?:[-*+]|\d+[.)])\s+/, ""))
+      out.push(
+        `<${ordered ? "ol" : "ul"}>${items.map((x) => `<li>${inline(x)}</li>`).join("")}</${ordered ? "ol" : "ul"}>`,
+      )
+      continue
+    }
+    if (/^\s*\|.*\|\s*$/.test(line) && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i + 1] ?? "")) {
+      flushPara(para)
+      const cells = (l) =>
+        l
+          .trim()
+          .replace(/^\||\|$/g, "")
+          .split("|")
+          .map((c) => inline(c.trim()))
+      const head = cells(line)
+      i += 2
+      const rows = []
+      while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) rows.push(cells(lines[i++]))
+      out.push(
+        `<table><tr>${head.map((c) => `<th>${c}</th>`).join("")}</tr>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</table>`,
+      )
+      continue
+    }
+    if (!line.trim()) {
+      flushPara(para)
+      i++
+      continue
+    }
+    para.push(line.trim())
+    i++
+  }
+  flushPara(para)
+  return out.join("\n")
 }
 
 // ---------- facts ----------
@@ -121,7 +245,7 @@ export function boardData(args) {
   contracts.forEach((c) => d(c.id))
   const layers = []
   contracts.forEach((c) => (layers[depth[c.id]] ??= []).push(c))
-  const NW = 150,
+  const NW = 190,
     colW = NW + 40,
     rowH = 50,
     top = 40
@@ -151,6 +275,17 @@ export function boardData(args) {
   for (const [id, r] of Object.entries(researchResults))
     (runsOf[r.run ?? research?.run ?? "?"] ??= []).push([id, r])
   const researchRuns = Object.entries(runsOf).sort((a, b) => (a[0] < b[0] ? 1 : -1))
+  // A run id starts with its UTC stamp: 20260912T004212Z-research → a date.
+  const runDate = (run) => {
+    const m = String(run).match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/)
+    return m ? Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : null
+  }
+  // Research reports rendered once here so the page can show them in a modal.
+  const reportsHtml = Object.fromEntries(
+    Object.entries(args.reports ?? {}).map(([id, md]) => [id, renderMarkdown(md)]),
+  )
+  const contractFiles = args.contractFiles ?? {}
+  const quota = args.quota ?? null
 
   // ---- attempts and passes per model and role ----
   const perRole = { builder: {}, researcher: {} }
@@ -188,6 +323,10 @@ export function boardData(args) {
     graph,
     questionText,
     researchRuns,
+    runDate,
+    reportsHtml,
+    contractFiles,
+    quota,
     perRole,
   }
 }
@@ -233,10 +372,13 @@ export function boardJson(args) {
     supervisor: d.sup?.last
       ? {
           sessionId: d.sup.sessionId ?? null,
+          title: d.sup.title ?? null,
+          slug: d.sup.slug ?? null,
           lastAt: new Date(d.sup.last.at).toISOString(),
           lastKind: d.sup.last.kind,
         }
       : null,
+    quota: d.quota,
     lastNotify: lastNotify
       ? {
           at: lastNotify.at,

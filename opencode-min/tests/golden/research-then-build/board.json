@@ -29,12 +29,9 @@
     "rejected": 0,
     "alive": false
   },
-  "cost": {
-    "total": 0,
-    "byRole": {},
-    "byModel": {}
-  },
+  "cost": null,
   "supervisor": null,
+  "quota": null,
   "lastNotify": {
     
     "text": "build ended: 3/3 PASS. Tell the user it is ready to merge.",

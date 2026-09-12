@@ -28,7 +28,16 @@
 // contract's sandbox; board.mjs draws.
 
 import { spawnSync, spawn, execFileSync } from "node:child_process"
-import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync, rmSync, statSync } from "node:fs"
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  appendFileSync,
+  rmSync,
+  statSync,
+  readdirSync,
+} from "node:fs"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { supervisorActivity } from "./opencode-db.mjs"
@@ -213,8 +222,9 @@ async function writeBoard() {
   const boardFile = path.join(ROOT, ".opencode", "board.mjs")
   let renderBoard
   let boardJson
+  let goQuota
   try {
-    ;({ renderBoard, boardJson } = await import(
+    ;({ renderBoard, boardJson, goQuota } = await import(
       `${pathToFileURL(boardFile).href}?v=${statSync(boardFile).mtimeMs}`
     ))
   } catch (e) {
@@ -243,9 +253,27 @@ async function writeBoard() {
         .filter(Boolean)
     : []
   const file = path.join(STATE, "board.html")
+  // Research reports and contract files travel into the page (the board opens
+  // as a local file and cannot read them itself); the Go quota is one HTTP
+  // call with a cache, never fatal.
+  const reports = {}
+  const researchDir = path.join(STATE, "research")
+  if (existsSync(researchDir))
+    for (const f of readdirSync(researchDir))
+      if (f.endsWith(".md") && !f.includes(".rejected-"))
+        reports[f.slice(0, -3)] = readFileSync(path.join(researchDir, f), "utf8")
+  const contractFiles = Object.fromEntries(
+    plan.contracts
+      .map((c) => [c.id, readJson(path.join(STATE, "contracts", c.id, "contract.json"), null)])
+      .filter(([, v]) => v),
+  )
+  const quota = await goQuota()
   const args = {
     root: ROOT,
     sandboxes: SANDBOXES,
+    reports,
+    contractFiles,
+    quota,
     plan,
     report,
     current,

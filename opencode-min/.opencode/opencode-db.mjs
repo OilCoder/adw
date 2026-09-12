@@ -39,7 +39,7 @@ export function supervisorActivity(root) {
     // from all of them, the "last action" from the most recent one.
     const sessions = db
       .prepare(
-        "select id, time_updated from session where directory = ? and parent_id is null and (agent is null or agent not in ('researcher','builder')) order by time_updated",
+        "select id, slug, title, time_updated from session where directory = ? and parent_id is null and (agent is null or agent not in ('researcher','builder')) order by time_updated",
       )
       .all(root)
     if (!sessions.length) return null
@@ -89,9 +89,16 @@ export function supervisorActivity(root) {
     // OpenCode injects "Continue if you have next steps…" on its own; it is not the user's.
     return {
       sessionId: session.id,
+      // What the TUI's session list shows, so the user can find the supervisor among builders and researchers.
+      title: session.title ?? null,
+      slug: session.slug ?? null,
       last,
       waiting,
-      userMessages: userMessages.filter((u) => u.text && !/^Continue if you have next steps/i.test(u.text)),
+      // OpenCode injects "Continue if you have next steps…" on its own, and the
+      // script's [codegen] notices arrive as user messages: neither is the user.
+      userMessages: userMessages.filter(
+        (u) => u.text && !/^Continue if you have next steps/i.test(u.text) && !/^\[codegen\]/.test(u.text),
+      ),
     }
   } catch {
     return null
