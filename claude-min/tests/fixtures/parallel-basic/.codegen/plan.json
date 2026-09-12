@@ -1,0 +1,5 @@
+{ "contracts": [
+  { "id": "stats-mean", "title": "mean", "depends_on": [] },
+  { "id": "geometry-area", "title": "rect_area", "depends_on": [] },
+  { "id": "report", "title": "summary", "depends_on": ["stats-mean", "geometry-area"] }
+] }

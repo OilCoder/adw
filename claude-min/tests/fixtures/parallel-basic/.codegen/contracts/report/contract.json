@@ -1,0 +1,8 @@
+{
+  "objective": "Implement summary in report.py using stats.mean and geometry.rect_area, formatted exactly as 'mean=<mean> area=<area>'.",
+  "read": ["report.py", "tests/test_report.py"],
+  "allowed_to_modify": ["report.py"],
+  "protected": ["tests/**"],
+  "requirements": [{ "id": "R1", "statement": "Implement summary in report.py using stats.mean and geometry.rect_area, formatted exactly as 'mean=<mean> area=<area>'." }, { "id": "R2", "statement": "Preserve the public signature." }],
+  "gate": "bash .codegen/contracts/report/gate.sh"
+}

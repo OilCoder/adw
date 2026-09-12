@@ -1,0 +1,8 @@
+{
+  "objective": "Implement rect_area in geometry.py; raise ValueError('sides must not be negative') when a side is negative.",
+  "read": ["geometry.py", "tests/test_geometry.py"],
+  "allowed_to_modify": ["geometry.py"],
+  "protected": ["tests/**"],
+  "requirements": [{ "id": "R1", "statement": "Implement rect_area in geometry.py; raise ValueError('sides must not be negative') when a side is negative." }, { "id": "R2", "statement": "Preserve the public signature." }],
+  "gate": "bash .codegen/contracts/geometry-area/gate.sh"
+}
