@@ -1,8 +1,8 @@
 # Codegen (minimal)
 
 Everything the system needs lives in `.codegen/` and is driven by one script,
-`node .adw/codegen.mjs`. The supervisor writes the files; the script runs
-the agents. Models for scripted agents come from `.adw/models.json`
+`node .claude/codegen.mjs`. The supervisor writes the files; the script runs
+the agents. Models for scripted agents come from `.claude/models.json`
 (Claude models, cheapest first, edited by hand). The supervisor is the Claude Code session itself. Each contract or question starts at the cheapest model and climbs at
 most `max_models_per_item` rungs, two attempts per rung. If a gate
 fails only in files outside `allowed_to_modify` (its own test file, another
@@ -14,14 +14,14 @@ cheap one keeps failing in a project, move it down in `models.json`.
 ## Files the supervisor writes
 
 - `.codegen/structure.md`: the map, required before `build` (rules in
-  `.adw/instructions/structure.md`). Machine-readable part: under
+  `.claude/instructions/structure.md`). Machine-readable part: under
   `## Folders`, one bullet per folder starting with a backticked pattern
   (`- \`src/core/**\`: pure domain logic`, `- \`*\`: root config files`);
   under `## Repeated names allowed`, bullets like `- \`store.ts\`` for file
   names that may legitimately appear in several folders (`index.*`,
   `__init__.py`, `mod.rs`, `README.md` are always allowed). A builder that
   writes outside the map, leaves a provisional file, or duplicates a file
-  name gets the verdict `STRUCTURE`. `node .adw/codegen.mjs structure`
+  name gets the verdict `STRUCTURE`. `node .claude/codegen.mjs structure`
   audits the current tree against the map.
 - `.codegen/research/questions.json`: `[{ "id", "question", "context" }]`.
   One bounded question each; all run in parallel.
@@ -38,7 +38,7 @@ cheap one keeps failing in a project, move it down in `models.json`.
 
 ## Commands
 
-- `node .adw/codegen.mjs research [--only id,id] [--reject id,id]`: runs every
+- `node .claude/codegen.mjs research [--only id,id] [--reject id,id]`: runs every
   question, writes `.codegen/research/<id>.md`, records DONE (the model said
   so in time), PARTIAL (a report exists but was cut or left unfinished),
   TIMEOUT / NO_REPORT / RATE_LIMITED (nothing usable; that model is skipped
@@ -49,7 +49,7 @@ cheap one keeps failing in a project, move it down in `models.json`.
   split it into new ids instead. It refuses to start while a research run
   is alive; so does `build`. `build` also refuses a contract whose `read`
   has a glob, the idea, a research report or more than 5 files.
-- `node .adw/codegen.mjs build [--parallel N, default 4] [--only id,id] [--resume]`:
+- `node .claude/codegen.mjs build [--parallel N, default 4] [--only id,id] [--resume]`:
   commits `.codegen/` (seal), creates branch `codegen/<run>`, builds each
   contract in its own worktree, checks scope and protected paths, reruns the
   gate independently, retries once with the gate output as evidence, then
@@ -65,7 +65,7 @@ cheap one keeps failing in a project, move it down in `models.json`.
   which pending contracts run. Never start a fresh `build` to continue
   partial work: a fresh run starts from the user's branch, which does not
   contain the previous run's passed contracts until the user merges them.
-- `node .adw/codegen.mjs status`: report of the current run plus the
+- `node .claude/codegen.mjs status`: report of the current run plus the
   last log lines.
 
 ## Results
@@ -74,6 +74,6 @@ Per contract: `PASS`, `INSTALL_FAILED`, `GATE_FAIL`, `OUT_OF_SCOPE`, `PROTECTED_
 `NO_CHANGES`, `TIMEOUT`, `RATE_LIMITED` (the model answered nothing but retries; next rung at once), `GATE_TRIVIAL`, `MERGE_CONFLICT`, `SKIPPED`
 (a dependency failed), `NOT_SELECTED` (left out by `--only`). Logs and every attempt's events are under
 `.codegen/runs/<run>/<id>/`.
-- `node .adw/codegen.mjs merge [--partial]`: fast-forwards the run's
+- `node .claude/codegen.mjs merge [--partial]`: fast-forwards the run's
   integration branch into the user's branch. Refuses while a build runs,
   when contracts are pending (unless `--partial`), or when the tree is dirty.

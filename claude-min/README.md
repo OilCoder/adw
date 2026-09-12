@@ -32,11 +32,11 @@ retries is skipped at once (`RATE_LIMITED`), not after the timeout.
 ## Install into a project
 
 ```bash
-bash install.sh /path/to/project     # copies .adw/, CLAUDE.md, .claude/settings.json, .gitignore entries
+bash install.sh /path/to/project     # copies .claude/, CLAUDE.md, .claude/settings.json, .gitignore entries
 cd /path/to/project && claude        # you are the supervisor
 ```
 
-Edit `.adw/models.json` to choose models, cheapest first (default:
+Edit `.claude/models.json` to choose models, cheapest first (default:
 `claude-haiku-4-5` → `claude-sonnet-5` → `claude-opus-5`).
 
 ## Check it works
@@ -54,7 +54,7 @@ the script drops it for its own children).
 
 ## Agents
 
-`.adw/agents/<role>.md`: front matter with `steps` (max turns), `allow` and
+`.claude/roles/<role>.md`: front matter with `steps` (max turns), `allow` and
 `deny` (Claude Code permission rules, JSON arrays), then the system prompt.
 The script runs every agent with `--permission-mode default` and a settings
 file made from those two lists: an unlisted tool call is denied, never asked.
@@ -63,7 +63,7 @@ and the test commands, no web.
 
 ## Following a run
 
-`node .adw/codegen.mjs board --watch` keeps `.codegen/board.html` fresh.
+`node .claude/codegen.mjs board --watch` keeps `.codegen/board.html` fresh.
 `.codegen/board.json` carries the same facts for other tools.
 
 ## Safety

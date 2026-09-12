@@ -1,14 +1,14 @@
 // Minimal code-generation loop on Claude Code.
 // Minimal code-generation loop for OpenCode.
 //
-//   node .adw/codegen.mjs research [--only q1,q2] [--reject q3,q4]
-//   node .adw/codegen.mjs build [--parallel N (default 4)] [--only c1,c2] [--resume]
+//   node .claude/codegen.mjs research [--only q1,q2] [--reject q3,q4]
+//   node .claude/codegen.mjs build [--parallel N (default 4)] [--only c1,c2] [--resume]
 //   research and build run in the foreground; the supervisor's Bash tool
 //   backgrounds them and wakes the session when they exit.
-//   node .adw/codegen.mjs status
-//   node .adw/codegen.mjs structure          lists tracked files that break .codegen/structure.md
-//   node .adw/codegen.mjs merge [--partial]     fast-forward the run's integration branch into the user's branch
-//   node .adw/codegen.mjs board [--watch]     writes .codegen/board.html (also written on every state change)
+//   node .claude/codegen.mjs status
+//   node .claude/codegen.mjs structure          lists tracked files that break .codegen/structure.md
+//   node .claude/codegen.mjs merge [--partial]     fast-forward the run's integration branch into the user's branch
+//   node .claude/codegen.mjs board [--watch]     writes .codegen/board.html (also written on every state change)
 //
 // State lives in .codegen/ inside the project:
 //   research/questions.json   [{id, question, context?}]      written by the supervisor
@@ -20,7 +20,7 @@
 //   runs/<run>/               logs, attempts, report.json
 //   ../.<project>-codegen-sandboxes/<id>/  one fresh repo per contract while it builds
 //
-// Models come from .adw/models.json, cheapest first, edited by hand: if a
+// Models come from .claude/models.json, cheapest first, edited by hand: if a
 // model keeps failing you, move it down there.
 
 import { spawn, execFileSync } from "node:child_process"
@@ -40,12 +40,12 @@ const STATE = path.join(ROOT, ".codegen")
 // integration branch with its own fresh git history, so the builder sees an
 // independent project and nothing the builder does can reach the user's tree.
 const SANDBOXES = path.join(path.dirname(ROOT), `.${path.basename(ROOT)}-codegen-sandboxes`)
-const MODELS = JSON.parse(readFileSync(path.join(ROOT, ".adw", "models.json"), "utf8"))
+const MODELS = JSON.parse(readFileSync(path.join(ROOT, ".claude", "models.json"), "utf8"))
 // Agents are markdown files: front matter with `steps` (max turns), `allow`
 // and `deny` (Claude Code permission rules, JSON arrays), then the system
 // prompt. The same file is the only place a role is defined.
 function loadAgent(name) {
-  const text = readFileSync(path.join(ROOT, ".adw", "agents", `${name}.md`), "utf8")
+  const text = readFileSync(path.join(ROOT, ".claude", "roles", `${name}.md`), "utf8")
   const m = text.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/)
   if (!m) throw new Error(`agent ${name}: missing front matter`)
   const field = (k) => (m[1].match(new RegExp(`^${k}:\\s*(.+)$`, "m")) ?? [])[1]
@@ -189,9 +189,9 @@ function notify(text) {
 // Sandboxes are exports of committed content: the harness and the plan must
 // be in git or the builder finds no agent and no contract.
 function sealAndCheckTracked() {
-  const dirty = git(["status", "--porcelain", "--", ".codegen", ".adw", ".gitignore", ":!.codegen/journal.jsonl"])
+  const dirty = git(["status", "--porcelain", "--", ".codegen", ".claude", ".gitignore", ":!.codegen/journal.jsonl"])
   if (dirty) {
-    git(["add", ".codegen", ".adw", ".gitignore"])
+    git(["add", ".codegen", ".claude", ".gitignore"])
     git(["commit", "-q", "-m", "codegen: seal plan and harness"])
     journal({ kind: "seal", contracts: readJson(path.join(STATE, "plan.json"), { contracts: [] }).contracts.length })
     log("sealed .codegen and the harness into a commit")
@@ -213,7 +213,7 @@ function pidAlive(pid) {
 async function writeBoard() {
   // board.mjs is imported fresh whenever it changes on disk, so a build that
   // runs for hours picks up a new board without a restart.
-  const boardFile = path.join(ROOT, ".adw", "board.mjs")
+  const boardFile = path.join(ROOT, ".claude", "board.mjs")
   let renderBoard
   let boardJson
   try { ({ renderBoard, boardJson } = await import(`${pathToFileURL(boardFile).href}?v=${statSync(boardFile).mtimeMs}`)) } catch (e) { console.error(`board: ${e.message}`); return null }
@@ -358,7 +358,7 @@ function printResearch(results) {
 function loadPlan(only) {
   const plan = readJson(path.join(STATE, "plan.json"))
   const map = loadStructure()
-  if (!map) throw new Error("plan: write .codegen/structure.md first (see .adw/instructions/structure.md)")
+  if (!map) throw new Error("plan: write .codegen/structure.md first (see .claude/instructions/structure.md)")
   const ids = new Set()
   for (const c of plan.contracts) {
     if (!c.id || ids.has(c.id)) throw new Error(`plan: duplicate or missing id ${c.id}`)
@@ -384,7 +384,7 @@ function changedFiles(cwd) {
 }
 
 function checkScope(contract, files) {
-  const protectedPatterns = [".codegen/**", ".adw/**", ...(contract.protected ?? [])]
+  const protectedPatterns = [".codegen/**", ".claude/**", ...(contract.protected ?? [])]
   const outside = files.filter((f) => !contract.allowed_to_modify.some((p) => matches(f, p)))
   const touchedProtected = files.filter((f) => protectedPatterns.some((p) => matches(f, p)))
   return { outside, touchedProtected }
@@ -663,8 +663,8 @@ function printBuild(r) {
   }
   const passed = Object.values(r.contracts).filter((c) => c.status === "PASS").length
   console.log(`\n${passed}/${Object.keys(r.contracts).length} contracts passed their gate.`)
-  if (passed < Object.keys(r.contracts).length) console.log(`Continue this run after fixing contracts with: node .adw/codegen.mjs build --resume [--only ids]`)
-  if (passed) console.log(`Land it with: node .adw/codegen.mjs merge${passed < Object.keys(r.contracts).length ? " --partial" : ""}`)
+  if (passed < Object.keys(r.contracts).length) console.log(`Continue this run after fixing contracts with: node .claude/codegen.mjs build --resume [--only ids]`)
+  if (passed) console.log(`Land it with: node .claude/codegen.mjs merge${passed < Object.keys(r.contracts).length ? " --partial" : ""}`)
 }
 
 // ---------- status ----------
@@ -732,8 +732,8 @@ try {
   else if (command === "merge") await merge(args)
   else if (command === "structure") {
     const map = loadStructure()
-    if (!map) throw new Error("no .codegen/structure.md yet (see .adw/instructions/structure.md)")
-    const tree = git(["ls-files"]).split("\n").filter((f) => f && !/^(\.codegen|\.adw|docs|wiki|data)\//.test(f))
+    if (!map) throw new Error("no .codegen/structure.md yet (see .claude/instructions/structure.md)")
+    const tree = git(["ls-files"]).split("\n").filter((f) => f && !/^(\.codegen|\.claude|docs|wiki|data)\//.test(f))
     const problems = checkStructure(map, tree, ROOT)
     for (const p of problems) console.log(`  ${p}`)
     console.log(`\n${problems.length} of ${tree.length} files break .codegen/structure.md`)
@@ -749,7 +749,7 @@ try {
     }
   }
   else {
-    console.log("usage: node .adw/codegen.mjs research [--only ids] [--reject ids] | build [--parallel N] [--only ids] [--resume] | status | structure | board [--watch] | merge [--partial]")
+    console.log("usage: node .claude/codegen.mjs research [--only ids] [--reject ids] | build [--parallel N] [--only ids] [--resume] | status | structure | board [--watch] | merge [--partial]")
     process.exit(2)
   }
 } catch (e) {

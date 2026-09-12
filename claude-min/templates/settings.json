@@ -4,10 +4,10 @@
     "allow": [
       "Read", "Glob", "Grep", "WebSearch", "WebFetch",
       "Edit(.codegen/**)", "Write(.codegen/**)", "Edit(wiki/**)", "Write(wiki/**)",
-      "Bash(node .adw/codegen.mjs *)", "Bash(git status*)", "Bash(git log*)", "Bash(git diff*)", "Bash(git branch*)",
-      "Bash(git add .codegen*)", "Bash(git add .adw*)", "Bash(git add wiki*)", "Bash(git commit*)",
+      "Bash(node .claude/codegen.mjs *)", "Bash(git status*)", "Bash(git log*)", "Bash(git diff*)", "Bash(git branch*)",
+      "Bash(git add .codegen*)", "Bash(git add .claude*)", "Bash(git add wiki*)", "Bash(git commit*)",
       "Bash(ls*)", "Bash(cat .codegen/*)", "Bash(head *)", "Bash(tail *)", "Bash(sed -n *)", "Bash(grep *)", "Bash(bash .codegen/contracts/*)"
     ],
-    "deny": ["Edit(src/**)", "Write(src/**)", "Edit(.adw/**)", "Write(.adw/**)", "Bash(git merge*)", "Bash(git push*)", "Bash(rm *)"]
+    "deny": ["Edit(src/**)", "Write(src/**)", "Edit(.claude/**)", "Write(.claude/**)", "Bash(git merge*)", "Bash(git push*)", "Bash(rm *)"]
   }
 }

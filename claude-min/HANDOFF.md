@@ -7,7 +7,7 @@ baratos, todo con la suscripción (decisión del usuario: sin clave de API).
 
 ## Qué cambia respecto a opencode-min (y solo esto)
 
-- Carpeta del proyecto `.adw/` en vez de `.opencode/`; sin `opencode.json`;
+- Carpeta del proyecto `.claude/` en vez de `.opencode/`; sin `opencode.json`;
   sin `opencode-db.mjs`.
 - `runAgent`: `claude -p <prompt> --model <m> --output-format stream-json
   --verbose --max-turns <steps> --permission-mode default --settings <json>

@@ -7,7 +7,7 @@ work=$(mktemp -d "${TMPDIR:-/tmp}/codegen-min-smoke.XXXXXX")
 cp -a "$src/tests/fixtures/${FIXTURE:-builder-basic}/." "$work/"
 bash "$src/install.sh" "$work" >/dev/null
 if [[ -n "${1:-}" ]]; then
-  node -e 'const f=process.argv[1],m=JSON.parse(require("fs").readFileSync(f));m.builder=[process.argv[2]];require("fs").writeFileSync(f,JSON.stringify(m,null,2))' "$work/.adw/models.json" "$1"
+  node -e 'const f=process.argv[1],m=JSON.parse(require("fs").readFileSync(f));m.builder=[process.argv[2]];require("fs").writeFileSync(f,JSON.stringify(m,null,2))' "$work/.claude/models.json" "$1"
 fi
 git -C "$work" init -q && git -C "$work" add -A && git -C "$work" -c user.name=smoke -c user.email=smoke@localhost commit -qm "fixture"
-cd "$work" && node .adw/codegen.mjs ${CMD:-build --parallel 1}
+cd "$work" && node .claude/codegen.mjs ${CMD:-build --parallel 1}
