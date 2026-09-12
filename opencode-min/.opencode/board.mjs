@@ -8,45 +8,8 @@ import { statSync } from "node:fs"
 import { pathToFileURL } from "node:url"
 import { supervisorActivity, agentCosts } from "./opencode-db.mjs"
 
-// ---------- labels and formatting (shared with board-html.mjs) ----------
+// ---------- formatting used by the facts (board-html.mjs imports these; a change here needs a restart, unlike board-html.mjs and board.css) ----------
 
-export const CLASS = {
-  PASS: "ok",
-  RUNNING: "run",
-  PENDING: "wait",
-  NOT_SELECTED: "wait",
-  DONE: "ok",
-  PARTIAL: "run",
-  REJECTED: "bad",
-}
-export const LABEL = {
-  PASS: "pasó",
-  RUNNING: "construyendo",
-  PENDING: "esperando",
-  NOT_SELECTED: "no seleccionado",
-  FAIL: "falló",
-  GATE_FAIL: "gate falló",
-  OUT_OF_SCOPE: "fuera de alcance",
-  PROTECTED_TOUCHED: "tocó protegidos",
-  STRUCTURE: "rompe el mapa",
-  NO_CHANGES: "sin cambios",
-  TIMEOUT: "timeout",
-  NO_MODELS: "sin modelos",
-  GATE_TRIVIAL: "gate trivial",
-  MERGE_CONFLICT: "conflicto de merge",
-  SKIPPED: "omitido",
-  INSTALL_FAILED: "npm ci falló",
-  STOPPED: "detenido",
-  ERROR: "error",
-  DONE: "informe completo",
-  PARTIAL: "informe parcial",
-  NO_REPORT: "sin informe",
-  REJECTED: "rechazado",
-}
-export const esc = (s) =>
-  String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c])
-export const cls = (st) => CLASS[st] ?? "bad"
-export const short = (m) => String(m ?? "").replace(/^[^/]+\//, "")
 export const mins = (ms) =>
   ms < 60000
     ? `${Math.max(0, Math.round(ms / 1000))} s`
@@ -55,9 +18,6 @@ export const mins = (ms) =>
       : `${Math.floor(ms / 3600000)} h ${Math.round((ms % 3600000) / 60000)} min`
 export const hhmm = (t) =>
   new Date(t).toLocaleTimeString("es", { hour12: false, hour: "2-digit", minute: "2-digit" })
-export const day = (t) =>
-  new Date(t).toLocaleDateString("es", { weekday: "short", day: "2-digit", month: "short" })
-export const usd = (n) => `$${(n ?? 0).toFixed(2)}`
 export const cut = (s, n) => {
   s = String(s ?? "")
     .replace(/\s+/g, " ")

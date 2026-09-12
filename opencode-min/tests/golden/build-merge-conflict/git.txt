@@ -1,0 +1,11 @@
+codegen/STAMP-build
+codegen/STAMP-build-stats-mean
+master
+== codegen/STAMP-build
+codegen(geometry-area): Implement rect_area in geometry.py; raise ValueError('sides must not be negative') when a side is negative.
+fixture
+== codegen/STAMP-build-stats-mean
+codegen(stats-mean): Implement mean in stats.py; raise ValueError('values must not be empty') on an empty list.
+fixture
+== master
+fixture

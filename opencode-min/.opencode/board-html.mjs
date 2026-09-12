@@ -6,7 +6,49 @@
 // section needs a number, boardData provides it.
 
 import { readFileSync } from "node:fs"
-import { LABEL, esc, cls, short, mins, hhmm, day, usd, cut } from "./board.mjs"
+import { mins, hhmm, cut } from "./board.mjs"
+
+// ---- labels and formatting for the page ----
+export const CLASS = {
+  PASS: "ok",
+  RUNNING: "run",
+  PENDING: "wait",
+  NOT_SELECTED: "wait",
+  DONE: "ok",
+  PARTIAL: "run",
+  REJECTED: "bad",
+}
+export const LABEL = {
+  PASS: "pasó",
+  RUNNING: "construyendo",
+  PENDING: "esperando",
+  NOT_SELECTED: "no seleccionado",
+  FAIL: "falló",
+  GATE_FAIL: "gate falló",
+  OUT_OF_SCOPE: "fuera de alcance",
+  PROTECTED_TOUCHED: "tocó protegidos",
+  STRUCTURE: "rompe el mapa",
+  NO_CHANGES: "sin cambios",
+  TIMEOUT: "timeout",
+  NO_MODELS: "sin modelos",
+  GATE_TRIVIAL: "gate trivial",
+  MERGE_CONFLICT: "conflicto de merge",
+  SKIPPED: "omitido",
+  INSTALL_FAILED: "npm ci falló",
+  STOPPED: "detenido",
+  ERROR: "error",
+  DONE: "informe completo",
+  PARTIAL: "informe parcial",
+  NO_REPORT: "sin informe",
+  REJECTED: "rechazado",
+}
+export const esc = (s) =>
+  String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c])
+export const cls = (st) => CLASS[st] ?? "bad"
+export const short = (m) => String(m ?? "").replace(/^[^/]+\//, "")
+export const usd = (n) => `$${(n ?? 0).toFixed(2)}`
+export const day = (t) =>
+  new Date(t).toLocaleDateString("es", { weekday: "short", day: "2-digit", month: "short" })
 
 const css = () => readFileSync(new URL("./board.css", import.meta.url), "utf8")
 

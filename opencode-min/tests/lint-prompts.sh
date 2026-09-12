@@ -14,7 +14,7 @@ for (const f of readdirSync(".opencode/agents").filter((x) => x.endsWith(".md"))
   const bash = front.match(/^  bash:\n((?:    .*\n)*)/m)?.[1] ?? ""
   const rules = [...bash.matchAll(/^    "([^"]+)": (allow|deny|ask)/gm)].map((m) => ({ pat: m[1], action: m[2] }))
   const glob = (p) => new RegExp("^" + p.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$")
-  // last matching rule wins (OpenCode semantics)
+  // OpenCode semantics (src/util/wildcard.ts, v1.18.30): `*` is `.*` and crosses `/`; a trailing ` *` is optional, so `ls *` allows bare `ls`; last matching rule wins.
   const decide = (cmd) => rules.filter((r) => glob(r.pat).test(cmd)).at(-1)?.action ?? "ask"
   // commands cited in backticks: start with a known program name
   const cited = [...new Set([...body.matchAll(/`([^`\n]+)`/g)].map((m) => m[1]).filter((c) => /^(node |bash |git |cat |head |tail |sed |grep |ls |python3 |npm |npx |uv )/.test(c)))]

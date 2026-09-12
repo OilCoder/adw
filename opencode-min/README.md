@@ -71,10 +71,11 @@ bash tests/golden-board.sh --update   # after an intended change of the board's 
 ```
 
 `tests/fake-opencode/opencode` stands in for the real binary and plays scripted
-builders and researchers from `tests/scenarios/*.json`; every verdict the script can
-give (PASS, GATE_FAIL, OUT_OF_SCOPE, STRUCTURE, TIMEOUT, GATE BROKEN, SKIPPED, PARTIAL,
-one-shot, reject refusals, resume, merge) has a scenario whose normalized outputs
-live in `tests/golden/`. Run `check.sh` before and after touching any `.mjs`.
+builders and researchers from `tests/scenarios/*.json`; the verdicts PASS, GATE_FAIL,
+OUT_OF_SCOPE, PROTECTED_TOUCHED, STRUCTURE, NO_CHANGES, TIMEOUT, GATE_TRIVIAL, GATE BROKEN,
+MERGE_CONFLICT, SKIPPED, DONE, PARTIAL, NO_REPORT, NO_MODELS, one-shot, the reject refusals,
+resume and merge each have a scenario whose normalized outputs live in `tests/golden/`
+(INSTALL_FAILED and ERROR do not). Run `check.sh` before and after touching any `.mjs`.
 
 ## Following a run
 

@@ -1,0 +1,17 @@
+$ codegen build --parallel 2  → exit 0
+  MERGE_CONFLICT  stats-mean [mimo-v2.5-free, 1 attempt(s)]
+  PASS            geometry-area [mimo-v2.5-free, 1 attempt(s)]
+  SKIPPED         report  dependency failed: stats-mean
+  geometry-area: PASS (3 steps, 2 files)
+  geometry-area: attempt 1 with opencode/mimo-v2.5-free
+  geometry-area: merged into codegen/STAMP-build
+  stats-mean: MERGE_CONFLICT, see .codegen/runs/STAMP-build/stats-mean/candidate.diff
+  stats-mean: PASS (3 steps, 2 files)
+  stats-mean: attempt 1 with opencode/mimo-v2.5-free
+1/3 contracts passed their gate.
+Build STAMP-build on branch codegen/STAMP-build: 1/3 PASS; failed: stats-mean (MERGE_CONFLICT); skipped: 1
+Continue this run after fixing contracts with: node .opencode/codegen.mjs build --resume [--only ids]
+Land it with: node .opencode/codegen.mjs merge --partial
+board: .codegen/board.html
+build STAMP-build: 3 contracts, parallel 2, ladder mimo-v2.5-free > muse-spark-1.3-contributor-free > big-pickle
+
