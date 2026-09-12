@@ -1,0 +1,321 @@
+<title>Tablero opencode-min v2</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{--bg:#F3F5F8;--surface:#FFFFFF;--surface-2:#EAEEF3;--ink:#182230;--ink-2:#4A5568;--ink-3:#7B8794;--line:#D5DCE5;--line-2:#E6EBF1;--accent:#2F6FCB;--accent-soft:#DDE8F8;
+--ok:#1F8F5A;--ok-soft:#DCF1E6;--warn:#B8740E;--warn-soft:#FBEBCF;--bad:#C2493A;--bad-soft:#F8DCD7;--you:#6A4FC4;--you-soft:#E9E3F8;--wait:#8A96A3;--wait-soft:#EDF0F3;
+--mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;--sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#131920;--surface:#1B232D;--surface-2:#222C38;--ink:#E6EBF0;--ink-2:#AEB8C4;--ink-3:#7F8B98;--line:#2C3743;--line-2:#242E3A;--accent:#5B9BEA;--accent-soft:#1F3350;
+--ok:#3FCB84;--ok-soft:#1B3A2B;--warn:#E8A33C;--warn-soft:#3E2E14;--bad:#EE7A68;--bad-soft:#44231D;--you:#AF97F2;--you-soft:#2E2648;--wait:#6C7884;--wait-soft:#232C36}}
+:root[data-theme="dark"]{--bg:#131920;--surface:#1B232D;--surface-2:#222C38;--ink:#E6EBF0;--ink-2:#AEB8C4;--ink-3:#7F8B98;--line:#2C3743;--line-2:#242E3A;--accent:#5B9BEA;--accent-soft:#1F3350;
+--ok:#3FCB84;--ok-soft:#1B3A2B;--warn:#E8A33C;--warn-soft:#3E2E14;--bad:#EE7A68;--bad-soft:#44231D;--you:#AF97F2;--you-soft:#2E2648;--wait:#6C7884;--wait-soft:#232C36}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;padding-inline:20px;padding-block:32px 80px}
+.wrap{max-width:960px;margin:0 auto}
+h1{font-size:28px;font-weight:600;letter-spacing:-.01em;margin:0 0 6px;text-wrap:balance}
+h2{font-size:18px;font-weight:600;margin:44px 0 12px;padding-top:18px;border-top:1px solid var(--line)}
+h3{font-size:14px;font-weight:600;margin:22px 0 8px}
+p{max-width:68ch;margin:0 0 12px}
+.lede{color:var(--ink-2);font-size:16px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+code,.mono{font-family:var(--mono);font-size:.92em}
+code{background:var(--surface-2);padding:1px 5px;border-radius:3px}
+table{border-collapse:collapse;width:100%;margin:8px 0 16px;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-top:1px solid var(--line-2);vertical-align:top}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:500;border-top:0}
+.scroll{overflow-x:auto}
+ol.dec{padding-left:0;list-style:none;counter-reset:d;display:grid;gap:10px}
+ol.dec li{counter-increment:d;display:grid;grid-template-columns:34px 1fr;gap:12px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:6px}
+ol.dec li::before{content:counter(d);font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:500;padding-top:2px}
+ol.dec b{display:block;margin-bottom:3px}
+ol.dec .rec{color:var(--ink-2);font-size:14px}
+ol.dec .rec strong{color:var(--ok);font-weight:600}
+ul{padding-left:20px;max-width:70ch}li{margin:3px 0}
+/* icon sheet */
+.icons{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:10px 0 6px}
+.ic{display:flex;align-items:center;gap:10px;padding:9px 10px;background:var(--surface);border:1px solid var(--line-2);border-radius:5px;font-size:13px}
+.ic svg{width:20px;height:20px;flex:none;color:var(--ink-2)}
+.ic.ok svg{color:var(--ok)}.ic.warn svg{color:var(--warn)}.ic.bad svg{color:var(--bad)}.ic.you svg{color:var(--you)}.ic.acc svg{color:var(--accent)}
+.ic .n{font-family:var(--mono);font-size:12px;color:var(--ink)}.ic .u{color:var(--ink-3);font-size:11.5px;line-height:1.3}
+/* live previews built with the proposed board CSS */
+.preview{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px;margin:10px 0 4px;overflow-x:auto}
+.preview .cap{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-bottom:10px;letter-spacing:.06em;text-transform:uppercase}
+.strip{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));border:1px solid var(--line);border-radius:8px;background:var(--surface);min-width:780px}
+.strip>div{display:grid;grid-template-columns:34px 1fr;gap:4px 10px;padding:14px 16px;border-right:1px solid var(--line-2)}.strip>div:last-child{border-right:0}
+.strip svg{width:26px;height:26px;grid-row:span 3;color:var(--ink-3);margin-top:2px}
+.strip .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.strip .v{font-size:22px;font-weight:600;line-height:1.15;font-variant-numeric:tabular-nums}.strip .v small{font-size:13px;font-weight:400;color:var(--ink-2);margin-left:4px}
+.strip .s{font-family:var(--mono);font-size:11.5px;color:var(--ink-3)}
+.strip .ok{color:var(--ok)}.strip .run svg{color:var(--warn)}.strip .run .v{color:var(--warn)}.strip .you svg{color:var(--you)}.strip .you .v{color:var(--you)}
+.hdr{display:grid;grid-template-columns:44px 1fr auto;gap:14px;align-items:start;margin-bottom:14px;min-width:780px}.hdr .mono-g{width:44px;height:44px;border-radius:9px;background:var(--accent);color:#fff;font-family:var(--mono);font-weight:500;font-size:20px;display:grid;place-items:center}.hdr .ttl{font-size:20px;font-weight:600;line-height:1.2}.hdr .sub{font-family:var(--mono);font-size:12px;color:var(--ink-3);display:flex;align-items:center;gap:6px;margin-top:3px}.hdr .sub svg{width:14px;height:14px}.hdr .sess{font-family:var(--sans);font-size:13px;color:var(--ink-2)}.hdr .sess b{color:var(--ink);font-weight:600}.hdr .sess .slug{font-family:var(--mono);background:var(--surface-2);padding:0 6px;border-radius:3px}.hdr .right{font-family:var(--mono);font-size:12px;color:var(--ink-3);display:flex;align-items:center;gap:6px;padding-top:4px}.hdr .right svg{width:16px;height:16px}
+.quota{display:grid;grid-template-columns:34px 1fr;gap:4px 12px;padding:12px 16px;background:var(--surface);border:1px solid var(--line);border-radius:8px;min-width:640px;margin-top:12px}.quota svg{width:26px;height:26px;color:var(--warn);grid-row:span 2;margin-top:2px}.quota .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}.quota .rows{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.quota .r{font-size:13px}.quota .r b{font-variant-numeric:tabular-nums;font-weight:600}.quota .r .bar{display:block;width:100%;margin:5px 0 3px}.quota .r .s{font-family:var(--mono);font-size:11px;color:var(--ink-3)}.quota .r.bad b{color:var(--bad)}.quota .r.warn b{color:var(--warn)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:14px 0 0;min-width:640px}
+.tabs span{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:14px;color:var(--ink-3);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs span.on{color:var(--ink);border-bottom-color:var(--accent)}.tabs svg{width:18px;height:18px}.tabs span.on svg{color:var(--accent)}
+.tabs .n{font-family:var(--mono);font-size:11.5px;padding:1px 8px;border-radius:9px;background:var(--wait-soft);color:var(--ink-2)}.tabs .n.ok{background:var(--ok-soft);color:var(--ok)}
+.jrn{background:var(--surface);border:1px solid var(--line);border-radius:8px;min-width:640px}
+.jrn .h{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line-2);font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.jrn .h .leg{display:flex;gap:14px;text-transform:none;letter-spacing:0;font-family:var(--sans);font-size:12.5px}.leg i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.j{display:grid;grid-template-columns:48px 14px 30px 1fr;gap:0 10px;align-items:start;padding:9px 16px;border-top:1px solid var(--line-2)}
+.j .t{font-family:var(--mono);font-size:12px;color:var(--ink-3);padding-top:3px}.j .d{width:8px;height:8px;border-radius:50%;margin-top:7px;background:var(--wait)}
+.j svg{width:22px;height:22px;margin-top:1px;color:var(--ink-2)}.j b{font-weight:600;display:block;line-height:1.3}.j .m{color:var(--ink-3);font-size:13px;font-family:var(--mono)}
+.j.ok .d{background:var(--ok)}.j.ok svg{color:var(--ok)}.j.bad .d{background:var(--bad)}.j.bad svg{color:var(--bad)}.j.you .d{background:var(--you)}.j.you svg{color:var(--you)}.j.run .d{background:var(--warn)}.j.run svg{color:var(--warn)}
+.j.open{background:var(--surface-2)}.jd{grid-column:4;margin-top:8px;padding:10px 12px;background:var(--bg);border:1px solid var(--line-2);border-radius:6px;font-size:13px;display:grid;gap:6px}.jd .row{display:grid;grid-template-columns:110px 1fr;gap:10px}.jd .row span:first-child{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);padding-top:2px}.jd table{margin:0;font-size:12.5px}.jd td,.jd th{padding:4px 8px}.jd pre{margin:0;font-family:var(--mono);font-size:11.5px;color:var(--ink-2);white-space:pre-wrap;background:var(--surface);padding:8px;border-radius:4px;border:1px solid var(--line-2)}
+.pane{display:none;min-width:640px}.pane.on{display:block}.tabs span{cursor:pointer}
+.j.x{cursor:pointer}.j.x:hover{background:var(--surface-2)}.j .jd,.node .jd{display:none}.node.x{cursor:pointer}.node.x:hover{border-color:var(--accent)}
+.modal{position:fixed;inset:0;background:rgba(10,14,20,.55);display:none;align-items:center;justify-content:center;padding:20px;z-index:10}.modal.on{display:flex}.mbox{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;width:min(720px,100%);max-height:85vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35)}.mh{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line-2);position:sticky;top:0;background:var(--surface)}.mh svg{width:20px;height:20px}.mh b{font-family:var(--mono);font-size:14px;flex:1}.mh .sub{font-size:12px;color:var(--ink-3)}.mx{border:0;background:transparent;color:var(--ink-3);font-size:22px;line-height:1;cursor:pointer;padding:2px 6px;border-radius:4px}.mx:hover{background:var(--surface-2);color:var(--ink)}.mx:focus-visible{outline:2px solid var(--accent)}.mb{padding:14px 16px}.mb .jd{display:grid;margin:0;border:0;background:transparent;padding:0}.mh.ok svg{color:var(--ok)}.mh.bad svg{color:var(--bad)}.mh.run svg{color:var(--warn)}.mh.wait svg{color:var(--wait)}
+.gbox{background:var(--surface);border:1px solid var(--line);border-radius:8px;margin-bottom:12px}.gh{display:flex;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--line-2);font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.graph{overflow-x:auto;padding:10px}#dep text{font-family:var(--mono);font-size:12px;fill:var(--ink)}#dep .lbl2{fill:var(--ink-3);font-size:10.5px}#dep .lane-lbl{fill:var(--ink-3);font-size:10.5px;letter-spacing:.06em}
+#dep .edge{stroke:var(--line);stroke-width:1.5;fill:none}#dep .gn{cursor:pointer}#dep .gn rect{fill:var(--surface);stroke:var(--line);stroke-width:1.5}#dep .gn svg{color:var(--ink-3)}
+#dep .gn.ok svg{color:var(--ok)}#dep .gn.run rect{stroke:var(--warn)}#dep .gn.run svg{color:var(--warn)}#dep .gn.bad rect{stroke:var(--bad)}#dep .gn.bad svg{color:var(--bad)}
+#dep.sel .gn,#dep.sel .edge{opacity:.22}#dep.sel .gn.lit{opacity:1}#dep.sel .gn.lit rect{stroke:var(--accent);stroke-width:2}#dep.sel .edge.lit{opacity:1;stroke:var(--accent);stroke-width:2}
+.legend{display:flex;gap:18px;padding:8px 16px 10px;border-top:1px solid var(--line-2);font-size:12.5px;color:var(--ink-2)}.legend span{display:flex;align-items:center;gap:6px}.legend svg{width:16px;height:16px}.legend .ok svg{color:var(--ok)}.legend .run svg{color:var(--warn)}.legend .bad svg{color:var(--bad)}
+.kb{display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:var(--surface);border:1px solid var(--line);border-radius:8px}.kb .col{padding:12px;border-right:1px solid var(--line-2)}.kb .col:last-child{border-right:0}.kb .col .node{margin-bottom:8px;min-width:0}
+.ch{display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:10px}.ch svg{width:18px;height:18px;color:var(--ink-3)}.ch.ok svg{color:var(--ok)}.ch.run svg{color:var(--warn)}.ch.bad svg{color:var(--bad)}.ch i{font-style:normal;font-family:var(--mono);color:var(--ink-3);font-weight:400}
+.rt{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}.rt tr.grp td{font-family:var(--mono);font-size:11px;color:var(--ink-3);background:var(--surface-2)}.rt .q{font-size:12px;color:var(--ink-3);margin-top:2px}
+.st{display:inline-flex;align-items:center;gap:6px;font-weight:500}.st svg{width:16px;height:16px}.st.ok{color:var(--ok)}.st.bad{color:var(--bad)}.st.warn{color:var(--warn)}.ri{width:14px;height:14px;vertical-align:-2px;margin-right:4px;color:var(--ink-3)}
+.mcards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}.mcards>div{display:grid;grid-template-columns:30px 1fr;gap:2px 10px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:8px}.mcards svg{width:22px;height:22px;color:var(--accent);grid-row:span 3}.mcards .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}.mcards .v{font-size:13.5px;font-weight:500}.mcards .s{font-size:12px;color:var(--ink-3)}
+.rt tr.rx{cursor:pointer}.rt tr.rx:hover td{background:var(--surface-2)}.rt .jd{display:none}
+.md{font-size:14px;line-height:1.55;max-width:70ch}.md h1{font-size:18px;margin:0 0 10px}.md h2{font-size:14px;margin:18px 0 6px;padding:0;border:0;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}.md p,.md ul{margin:0 0 8px}.md ul{padding-left:18px}.md pre{font-family:var(--mono);font-size:12px;background:var(--surface-2);padding:8px 10px;border-radius:4px;white-space:pre-wrap}.md a{color:var(--accent);word-break:break-all}
+.nodes{display:flex;gap:12px;min-width:640px}
+.node{display:grid;grid-template-columns:22px 1fr;gap:2px 10px;padding:9px 12px;background:var(--surface);border:1px solid var(--line);border-radius:6px;min-width:190px}
+.node svg{width:20px;height:20px;grid-row:span 2}.node .id{font-family:var(--mono);font-size:12.5px;font-weight:500}.node .s{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.node.ok svg{color:var(--ok)}.node.run svg{color:var(--warn)}.node.bad svg{color:var(--bad)}.node.wait svg{color:var(--wait)}.node.run{border-color:var(--warn)}.node.bad{border-color:var(--bad)}
+.bar{display:inline-block;width:150px;height:8px;border-radius:4px;background:var(--wait-soft);vertical-align:middle;margin-left:10px;overflow:hidden}.bar i{display:block;height:100%;border-radius:4px}
+.note{border-left:3px solid var(--accent);padding:8px 14px;background:var(--surface);border-radius:0 6px 6px 0;margin:14px 0;font-size:14px;max-width:72ch}
+@media (max-width:640px){h1{font-size:23px}ol.dec li{grid-template-columns:26px 1fr}}
+</style>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<symbol id="i-activity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+<symbol id="i-checksq" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></symbol>
+<symbol id="i-flask" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v7.5L4.6 19a2 2 0 0 0 1.7 3h11.4a2 2 0 0 0 1.7-3L14 9.5V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></symbol>
+<symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M10 15V9"/><path d="M14 15V9"/></symbol>
+<symbol id="i-bot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></symbol>
+<symbol id="i-gauge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+<symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M10 13h4"/><path d="M10 17h4"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+<symbol id="i-coins" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></symbol>
+<symbol id="i-branch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></symbol>
+<symbol id="i-checkc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+<symbol id="i-xc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></symbol>
+<symbol id="i-belloff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><path d="M17 17H4l1.4-1.4A2 2 0 0 0 6 14.2V11a6 6 0 0 1 .3-2"/><path d="M8.7 3A6 6 0 0 1 18 8v3.3"/><path d="m2 2 20 20"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 3 14 9-14 9V3z"/></symbol>
+<symbol id="i-wrench" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
+<symbol id="i-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></symbol>
+<symbol id="i-loader" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10" stroke-dasharray="4 4"/></symbol>
+<symbol id="i-msg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+<symbol id="i-stamp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v6"/><path d="M5 9h14"/><path d="M6 13h12v4H6z"/><path d="M4 21h16"/></symbol>
+<symbol id="i-skip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></symbol>
+</svg>
+<div class="wrap">
+<div class="eyebrow">Propuesta de rediseño · para revisar antes de tocar el tablero</div>
+<h1>Tablero opencode-min v2</h1>
+<p class="lede">Lo que he leído en tus cuatro mockups, lo que propongo cambiar en cada pestaña, el set de iconos que usaría, y doce decisiones que necesito de ti. Nada de esto está implementado todavía.</p>
+
+<h2>Resumen</h2>
+<p>Los mockups conservan la estructura actual (cinco datos arriba, cuatro pestañas, mismos textos en español) y cambian la piel: iconos en cada elemento, tema oscuro, tipografía monoespaciada para ids y etiquetas, el grafo de dependencias como tarjetas por capa, el diario con título y detalle en dos líneas, y barras de tasa en modelos. Todo cabe en <code>board-html.mjs</code> y <code>board.css</code>. Cuatro datos nuevos: la cuota de Go sale de una petición HTTP en <code>board.mjs</code>; la fecha de cada tanda de research y el color de la barra de tasa salen de <code>board.mjs</code>; el título y el slug de la sesión del supervisor salen de <code>opencode-db.mjs</code>, que ya lee esa fila.</p>
+<div class="note">Los cuatro mockups no coinciden entre sí en tres detalles: el icono de <b>Fase</b> (pausa, engranaje, menú, pausa), el de <b>Te espera</b> (reloj, reloj de arena) y el icono del proyecto en la cabecera (brote naranja, cuadrado naranja). Propongo un criterio para cada uno en las decisiones de abajo.</div>
+
+<h2>Set de iconos</h2>
+<p>Veintidós iconos en línea, trazo de 2 px al estilo Lucide, incrustados como <em>sprite</em> SVG dentro de <code>board.html</code>. Sin CDN: el tablero se abre como archivo local y debe seguir funcionando sin red. Peso: unos 4 KB. Así se ven con el color que tendrían:</p>
+<div class="icons">
+<div class="ic acc"><svg><use href="#i-activity"/></svg><div><div class="n">activity</div><div class="u">pestaña Ahora · fase corriendo</div></div></div>
+<div class="ic acc"><svg><use href="#i-checksq"/></svg><div><div class="n">check-square</div><div class="u">pestaña Contratos</div></div></div>
+<div class="ic acc"><svg><use href="#i-flask"/></svg><div><div class="n">flask</div><div class="u">pestaña Research · escalera researcher</div></div></div>
+<div class="ic acc"><svg><use href="#i-chart"/></svg><div><div class="n">bar-chart</div><div class="u">pestaña Modelos y coste</div></div></div>
+<div class="ic"><svg><use href="#i-pause"/></svg><div><div class="n">pause-circle</div><div class="u">Fase: parado</div></div></div>
+<div class="ic acc"><svg><use href="#i-bot"/></svg><div><div class="n">bot</div><div class="u">Supervisor: la celda, su sesión y sus avisos</div></div></div>
+<div class="ic"><svg><use href="#i-user"/></svg><div><div class="n">user</div><div class="u">Tú: fase "te espera", tus mensajes</div></div></div>
+<div class="ic"><svg><use href="#i-file"/></svg><div><div class="n">file-text</div><div class="u">Contratos · cada contrato en el diario · informe</div></div></div>
+<div class="ic"><svg><use href="#i-clock"/></svg><div><div class="n">clock</div><div class="u">Te espera · "actualizado hh:mm"</div></div></div>
+<div class="ic"><svg><use href="#i-coins"/></svg><div><div class="n">coins</div><div class="u">Coste de la corrida</div></div></div>
+<div class="ic warn"><svg><use href="#i-gauge"/></svg><div><div class="n">gauge</div><div class="u">Cuota de OpenCode Go</div></div></div>
+<div class="ic you"><svg><use href="#i-branch"/></svg><div><div class="n">git-branch</div><div class="u">rama en cabecera · aterrizaje · regla de escalera</div></div></div>
+<div class="ic ok"><svg><use href="#i-checkc"/></svg><div><div class="n">check-circle</div><div class="u">pasó · build terminado · informe completo</div></div></div>
+<div class="ic bad"><svg><use href="#i-xc"/></svg><div><div class="n">x-circle</div><div class="u">falló · build con fallos · sin informe</div></div></div>
+<div class="ic warn"><svg><use href="#i-loader"/></svg><div><div class="n">loader</div><div class="u">en curso (con el pulso actual)</div></div></div>
+<div class="ic"><svg><use href="#i-circle"/></svg><div><div class="n">circle</div><div class="u">pendiente</div></div></div>
+<div class="ic"><svg><use href="#i-skip"/></svg><div><div class="n">minus-circle</div><div class="u">omitido · no seleccionado</div></div></div>
+<div class="ic bad"><svg><use href="#i-belloff"/></svg><div><div class="n">bell-off</div><div class="u">aviso no entregado</div></div></div>
+<div class="ic"><svg><use href="#i-bell"/></svg><div><div class="n">bell</div><div class="u">aviso entregado</div></div></div>
+<div class="ic warn"><svg><use href="#i-play"/></svg><div><div class="n">play</div><div class="u">build iniciado · reanudado · research lanzado</div></div></div>
+<div class="ic you"><svg><use href="#i-msg"/></svg><div><div class="n">message-square</div><div class="u">tus mensajes · pregunta del supervisor</div></div></div>
+<div class="ic"><svg><use href="#i-stamp"/></svg><div><div class="n">stamp</div><div class="u">plan sellado</div></div></div>
+<div class="ic acc"><svg><use href="#i-wrench"/></svg><div><div class="n">wrench</div><div class="u">escalera builder</div></div></div>
+<div class="ic bad"><svg><use href="#i-alert"/></svg><div><div class="n">triangle-alert</div><div class="u">Fase: detenido (build murió)</div></div></div>
+</div>
+
+<h2>Maqueta interactiva</h2>
+<p>Construida con el CSS que propongo, no una imagen. Las pestañas cambian, un clic en una entrada del diario o en una tarjeta de contrato abre su resumen en una ventana emergente con botón de cerrar, y un clic en un nodo del grafo ilumina su camino. Los datos son de ejemplo. Cambia con el tema del sistema como el tablero actual.</p>
+<div class="preview" id="mock"><div class="hdr"><div class="mono-g">L</div><div><div class="ttl">Avance de las-viewer-v5</div><div class="sub"><svg><use href="#i-branch"/></svg>codegen/20260911T153542Z-build · master</div><div class="sub sess"><svg><use href="#i-bot"/></svg>Sesión del supervisor: <b>Desarrollo profesional de visor de registros</b> · <span class="slug">quiet-knight</span> · hace 40 min</div></div><div class="right"><svg><use href="#i-clock"/></svg>Actualizado 11:19 · cada 30 s</div></div>
+<div class="strip">
+<div><svg><use href="#i-pause"/></svg><div class="k">Fase</div><div class="v">Parado</div><div class="s">supervisor inactivo hace 40 min</div></div>
+<div><svg><use href="#i-bot"/></svg><div class="k">Supervisor</div><div class="v">hace 40 min</div><div class="s">10:39 · te respondió</div></div>
+<div><svg><use href="#i-file"/></svg><div class="k">Contratos</div><div class="v ok">45<small>de 45 pasaron</small></div><div class="s">en master: 76 commits · 11:19</div></div>
+<div class="you"><svg><use href="#i-user"/></svg><div class="k">Te espera</div><div class="v">sí</div><div class="s">¿Apruebas el build?</div></div>
+<div><svg><use href="#i-coins"/></svg><div class="k">Coste (equiv. API)</div><div class="v">$16.90</div><div class="s">builder $16.90</div></div>
+</div>
+<div class="quota"><svg><use href="#i-gauge"/></svg><div class="k">Cuota OpenCode Go · leída hace 2 min</div><div class="rows">
+<div class="r"><span>5 horas</span> <b>0 %</b><span class="bar"><i style="width:2%;background:var(--ok)"></i></span><span class="s">se reinicia 02:07</span></div>
+<div class="r bad"><span>Semana</span> <b>100 %</b><span class="bar"><i style="width:100%;background:var(--bad)"></i></span><span class="s">agotada · vuelve lun 14, 00:00</span></div>
+<div class="r warn"><span>Mes</span> <b>81 %</b><span class="bar"><i style="width:81%;background:var(--warn)"></i></span><span class="s">se reinicia 2 oct</span></div>
+</div></div>
+<div class="tabs" id="tabs"><span class="on" data-p="p1"><svg><use href="#i-activity"/></svg>Ahora</span><span data-p="p3"><svg><use href="#i-flask"/></svg>Research <i class="n">1/3</i></span><span data-p="p2"><svg><use href="#i-checksq"/></svg>Contratos <i class="n">5/8</i></span><span data-p="p4"><svg><use href="#i-chart"/></svg>Modelos y coste</span></div>
+<div class="pane p1 on"><div class="jrn"><div class="h"><span>Diario · 109 entradas · clic en un contrato o research abre su resumen</span><span class="leg"><span><i style="background:var(--ok)"></i>Contrato</span><span><i style="background:var(--accent)"></i>Research</span><span><i style="background:var(--you)"></i>Tú</span></span></div><div class="j you" data-x="0"><div class="t">11:19</div><div class="d"></div><svg><use href="#i-branch"/></svg><div><b>Aterrizado en master</b><span class="m">76 commits · fast-forward</span></div></div><div class="j ok" data-x="0"><div class="t">11:19</div><div class="d"></div><svg><use href="#i-checkc"/></svg><div><b>Build terminado</b><span class="m">45 de 45 contratos pasaron</span></div></div><div class="j bad" data-x="0"><div class="t">11:19</div><div class="d"></div><svg><use href="#i-belloff"/></svg><div><b>Aviso no entregado</b><span class="m">sin sesión del supervisor · build ended: 45/45 PASS</span></div></div><div class="j ok x" data-x="1"><div class="t">11:19</div><div class="d"></div><svg><use href="#i-file"/></svg><div><b>public-identity-manager</b><span class="m">builder · mimo-v2.5-free · 1 intento · 2 archivos</span></div><div class="jd">
+<div class="row"><span>Objetivo</span><span>Gestor de identidad pública: alta, edición y borrado de perfiles con validación de correo.</span></div>
+<div class="row"><span>Puede tocar</span><span class="mono">src/public/identity/**</span></div>
+<div class="row"><span>Intentos</span><table><tr><th>#</th><th>Modelo</th><th>Veredicto</th><th>Pasos</th><th>Archivos</th></tr><tr><td>1</td><td class="mono">mimo-v2.5-free</td><td>pasó</td><td>5</td><td>2</td></tr></table></div>
+<div class="row"><span>Logs</span><span class="mono">.codegen/runs/20260912T022337Z-build/public-identity-manager/</span></div>
+</div></div><div class="j ok x" data-x="1"><div class="t">11:18</div><div class="d"></div><svg><use href="#i-file"/></svg><div><b>public-project-creation</b><span class="m">builder · muse-spark-1.3 · 3 intentos · 2 archivos</span></div><div class="jd">
+<div class="row"><span>Objetivo</span><span>Crear un proyecto desde la pantalla pública: nombre, carpeta y plantilla de modelos; el idioma de la interfaz sale de la configuración.</span></div>
+<div class="row"><span>Puede tocar</span><span class="mono">src/public/create/**</span></div>
+<div class="row"><span>Intentos</span><table><tr><th>#</th><th>Modelo</th><th>Veredicto</th><th>Pasos</th><th>Archivos</th></tr><tr><td>1</td><td class="mono">mimo-v2.5-free</td><td>gate falló</td><td>9</td><td>2</td></tr><tr><td>2</td><td class="mono">mimo-v2.5-free</td><td>gate falló</td><td>7</td><td>2</td></tr><tr><td>3</td><td class="mono">muse-spark-1.3</td><td>pasó</td><td>6</td><td>2</td></tr></table></div>
+<div class="row"><span>Último gate</span><pre>FAIL tests/public/create.test.ts &gt; language comes from settings
+AssertionError: expected 'es' to equal 'en'
+  at create.test.ts:41:18</pre></div>
+<div class="row"><span>Logs</span><span class="mono">.codegen/runs/20260912T022337Z-build/public-project-creation/</span></div>
+</div></div><div class="j run" data-x="0"><div class="t">11:14</div><div class="d"></div><svg><use href="#i-play"/></svg><div><b>Build reanudado</b><span class="m">4 contratos en paralelo</span></div></div><div class="j bad x" data-x="1"><div class="t">11:13</div><div class="d"></div><svg><use href="#i-file"/></svg><div><b>public-project-creation</b><span class="m">gate falló tras 2 intentos: AssertionError: expected 'es' to equal 'en'</span></div><div class="jd">
+<div class="row"><span>Objetivo</span><span>Crear un proyecto desde la pantalla pública: nombre, carpeta y plantilla de modelos; el idioma de la interfaz sale de la configuración.</span></div>
+<div class="row"><span>Puede tocar</span><span class="mono">src/public/create/**</span></div>
+<div class="row"><span>Intentos</span><table><tr><th>#</th><th>Modelo</th><th>Veredicto</th><th>Pasos</th><th>Archivos</th></tr><tr><td>1</td><td class="mono">mimo-v2.5-free</td><td>gate falló</td><td>9</td><td>2</td></tr><tr><td>2</td><td class="mono">mimo-v2.5-free</td><td>gate falló</td><td>7</td><td>2</td></tr><tr><td>3</td><td class="mono">muse-spark-1.3</td><td>pasó</td><td>6</td><td>2</td></tr></table></div>
+<div class="row"><span>Último gate</span><pre>FAIL tests/public/create.test.ts &gt; language comes from settings
+AssertionError: expected 'es' to equal 'en'
+  at create.test.ts:41:18</pre></div>
+<div class="row"><span>Logs</span><span class="mono">.codegen/runs/20260912T022337Z-build/public-project-creation/</span></div>
+</div></div><div class="j run x" data-x="1"><div class="t">10:40</div><div class="d"></div><svg><use href="#i-flask"/></svg><div><b>opencode-provider-logs</b><span class="m">researcher · mimo-v2.5 · informe completo · 13 pasos</span></div><div class="jd rep"><div class="md"><h1>opencode-provider-logs</h1>
+<h2>Summary for contracts</h2>
+<ul><li>OpenCode escribe un archivo de log por proceso en <code>~/.local/share/opencode/log/</code>, nombre <code>YYYY-MM-DDTHHMMSS.log</code>, y borra los que sobran de los 10 más recientes al arrancar.</li>
+<li>Cada línea es <code>timestamp=… level=… run=… message=…</code> más pares clave=valor; los errores de proveedor llevan <code>level=ERROR</code> y <code>providerID=</code>.</li>
+<li>Un intento fallido de modelo se ve como <code>message="stream error"</code> seguido de <code>status=429|500|503</code>; no hay contador de reintentos en el log.</li>
+<li>Casos de prueba: 3 líneas reales en la sección Evidencia; el parser debe tolerar valores con espacios entre comillas.</li></ul>
+<h2>Answer</h2>
+<p>El formato es texto plano con pares clave=valor separados por espacios. La rotación no es por tamaño sino por número de archivos: al iniciar, OpenCode lista el directorio y elimina los más antiguos hasta dejar diez. Para clasificar fallos basta con <code>level=ERROR</code>, <code>providerID</code> y <code>status</code>:</p>
+<pre>timestamp=2026-09-11T14:36:10.221Z level=ERROR run=f1a2 message="stream error" providerID=opencode-go modelID=glm-5.3-flash status=429</pre>
+<h2>Evidence</h2>
+<ul><li><a>https://opencode.ai/docs/troubleshooting/</a> — ubicación y rotación de logs, confianza alta.</li>
+<li><a>https://github.com/anomalyco/opencode/blob/v1.18.30/packages/opencode/src/util/log.ts</a> — formato de línea y límite de 10 archivos, confianza alta.</li>
+<li>Log local del 11 de septiembre — tres líneas de error 429 durante la corrida de research, confianza alta.</li></ul>
+<h2>Open points</h2>
+<p>No confirmado si el límite de diez archivos aplica también a <code>opencode serve</code>.</p></div></div></div></div></div>
+<div class="pane p2"><div class="gbox"><div class="gh"><span>Dependencias · qué frena qué · clic en un nodo ilumina su camino</span><span>8 contratos</span></div><div class="graph"><svg id="dep" width="660" height="220" viewBox="0 0 660 220"><text class="lane-lbl" x="14" y="20">CAPA 0</text><text class="lane-lbl" x="234" y="20">CAPA 1</text><text class="lane-lbl" x="454" y="20">CAPA 2</text><path class="edge" data-from="data-fixtures" data-to="fixtures-harness" d="M190,70.0 C215.0,70.0 215.0,99.0 240,99.0"/><path class="edge" data-from="settings-config" data-to="fixtures-harness" d="M190,128.0 C215.0,128.0 215.0,99.0 240,99.0"/><path class="edge" data-from="platform-git" data-to="projects-state" d="M190,186.0 C215.0,186.0 215.0,157.0 240,157.0"/><path class="edge" data-from="fixtures-harness" data-to="projects-queue" d="M410,99.0 C435.0,99.0 435.0,70.0 460,70.0"/><path class="edge" data-from="projects-state" data-to="projects-queue" d="M410,157.0 C435.0,157.0 435.0,70.0 460,70.0"/><path class="edge" data-from="projects-state" data-to="models-ladder" d="M410,157.0 C435.0,157.0 435.0,128.0 460,128.0"/><path class="edge" data-from="settings-config" data-to="design-icons" d="M190,128.0 C325.0,128.0 325.0,186.0 460,186.0"/><g class="gn ok" data-id="data-fixtures" data-deps=""><rect x="20" y="50.0" width="170" height="40" rx="6"/><svg x="28" y="61.0" width="18" height="18"><use href="#i-checkc"/></svg><text x="52" y="67.0">data-fixtures</text><text class="lbl2" x="52" y="81.0">mimo-v2.5-free · 1 intento</text></g><g class="gn ok" data-id="settings-config" data-deps=""><rect x="20" y="108.0" width="170" height="40" rx="6"/><svg x="28" y="119.0" width="18" height="18"><use href="#i-checkc"/></svg><text x="52" y="125.0">settings-config</text><text class="lbl2" x="52" y="139.0">mimo-v2.5-free · 1 intento</text></g><g class="gn ok" data-id="platform-git" data-deps=""><rect x="20" y="166.0" width="170" height="40" rx="6"/><svg x="28" y="177.0" width="18" height="18"><use href="#i-checkc"/></svg><text x="52" y="183.0">platform-git</text><text class="lbl2" x="52" y="197.0">mimo-v2.5-free · 1 intento</text></g><g class="gn ok" data-id="fixtures-harness" data-deps="data-fixtures,settings-config"><rect x="240" y="79.0" width="170" height="40" rx="6"/><svg x="248" y="90.0" width="18" height="18"><use href="#i-checkc"/></svg><text x="272" y="96.0">fixtures-harness</text><text class="lbl2" x="272" y="110.0">mimo-v2.5-free · 1 intento</text></g><g class="gn ok" data-id="projects-state" data-deps="platform-git"><rect x="240" y="137.0" width="170" height="40" rx="6"/><svg x="248" y="148.0" width="18" height="18"><use href="#i-checkc"/></svg><text x="272" y="154.0">projects-state</text><text class="lbl2" x="272" y="168.0">mimo-v2.5-free · 1 intento</text></g><g class="gn run" data-id="projects-queue" data-deps="fixtures-harness,projects-state"><rect x="460" y="50.0" width="170" height="40" rx="6"/><svg x="468" y="61.0" width="18" height="18"><use href="#i-loader"/></svg><text x="492" y="67.0">projects-queue</text><text class="lbl2" x="492" y="81.0">glm-5.3-flash · intento 2</text></g><g class="gn wait" data-id="models-ladder" data-deps="projects-state"><rect x="460" y="108.0" width="170" height="40" rx="6"/><svg x="468" y="119.0" width="18" height="18"><use href="#i-circle"/></svg><text x="492" y="125.0">models-ladder</text><text class="lbl2" x="492" y="139.0">espera projects-state</text></g><g class="gn bad" data-id="design-icons" data-deps="settings-config"><rect x="460" y="166.0" width="170" height="40" rx="6"/><svg x="468" y="177.0" width="18" height="18"><use href="#i-xc"/></svg><text x="492" y="183.0">design-icons</text><text class="lbl2" x="492" y="197.0">gate roto · 1 intento</text></g></svg></div><div class="legend"><span class="ok"><svg><use href="#i-checkc"/></svg>pasó</span><span class="run"><svg><use href="#i-loader"/></svg>en curso</span><span class="bad"><svg><use href="#i-xc"/></svg>falló</span><span class="wait"><svg><use href="#i-circle"/></svg>pendiente</span></div></div><div class="kb"><div class="col"><div class="ch"><svg><use href="#i-circle"/></svg>Pendiente <i>1</i></div><div class="node wait"><svg><use href="#i-circle"/></svg><div class="id">models-ladder</div><div class="s">espera projects-state</div></div></div><div class="col"><div class="ch run"><svg><use href="#i-loader"/></svg>En curso <i>1</i></div><div class="node run"><svg><use href="#i-loader"/></svg><div class="id">projects-queue</div><div class="s">glm-5.3-flash · intento 2 · 4 min</div></div></div><div class="col"><div class="ch ok"><svg><use href="#i-checkc"/></svg>Pasó <i>5</i></div><div class="node ok x"><svg><use href="#i-checkc"/></svg><div class="id">public-project-creation</div><div class="s">muse-spark-1.3 · 3 intentos · clic</div><div class="jd">
+<div class="row"><span>Objetivo</span><span>Crear un proyecto desde la pantalla pública: nombre, carpeta y plantilla de modelos; el idioma de la interfaz sale de la configuración.</span></div>
+<div class="row"><span>Puede tocar</span><span class="mono">src/public/create/**</span></div>
+<div class="row"><span>Intentos</span><table><tr><th>#</th><th>Modelo</th><th>Veredicto</th><th>Pasos</th><th>Archivos</th></tr><tr><td>1</td><td class="mono">mimo-v2.5-free</td><td>gate falló</td><td>9</td><td>2</td></tr><tr><td>2</td><td class="mono">mimo-v2.5-free</td><td>gate falló</td><td>7</td><td>2</td></tr><tr><td>3</td><td class="mono">muse-spark-1.3</td><td>pasó</td><td>6</td><td>2</td></tr></table></div>
+<div class="row"><span>Último gate</span><pre>FAIL tests/public/create.test.ts &gt; language comes from settings
+AssertionError: expected 'es' to equal 'en'
+  at create.test.ts:41:18</pre></div>
+<div class="row"><span>Logs</span><span class="mono">.codegen/runs/20260912T022337Z-build/public-project-creation/</span></div>
+</div></div><div class="node ok"><svg><use href="#i-checkc"/></svg><div class="id">data-fixtures</div><div class="s">mimo-v2.5-free · 1 intento</div></div></div><div class="col"><div class="ch bad"><svg><use href="#i-xc"/></svg>Falló <i>1</i></div><div class="node bad"><svg><use href="#i-xc"/></svg><div class="id">design-icons</div><div class="s">gate roto · 1 intento</div></div></div></div></div>
+<div class="pane p3"><table class="rt"><tr><th>Pregunta</th><th>Estado</th><th>Modelo</th><th>Pasos</th><th>Informe</th></tr>
+<tr class="grp"><td colspan="5">Tanda · 12 sept, 00:42</td></tr>
+<tr class="rx" data-title="opencode-provider-logs" data-sub="informe completo · mimo-v2.5 · 13 pasos"><td><b class="mono">opencode-provider-logs</b><div class="q">¿Cuál es el formato real actual de los logs de OpenCode para intentos y errores de proveedor?</div></td><td><span class="st ok"><svg><use href="#i-checkc"/></svg>Informe completo</span><div class="q">sin informe con: glm-5.3-flash, deepseek-v4-flash</div></td><td class="mono">mimo-v2.5</td><td>13</td><td class="mono"><svg class="ri"><use href="#i-file"/></svg>opencode-provider-logs.md<div class="jd rep"><div class="md"><h1>opencode-provider-logs</h1>
+<h2>Summary for contracts</h2>
+<ul><li>OpenCode escribe un archivo de log por proceso en <code>~/.local/share/opencode/log/</code>, nombre <code>YYYY-MM-DDTHHMMSS.log</code>, y borra los que sobran de los 10 más recientes al arrancar.</li>
+<li>Cada línea es <code>timestamp=… level=… run=… message=…</code> más pares clave=valor; los errores de proveedor llevan <code>level=ERROR</code> y <code>providerID=</code>.</li>
+<li>Un intento fallido de modelo se ve como <code>message="stream error"</code> seguido de <code>status=429|500|503</code>; no hay contador de reintentos en el log.</li>
+<li>Casos de prueba: 3 líneas reales en la sección Evidencia; el parser debe tolerar valores con espacios entre comillas.</li></ul>
+<h2>Answer</h2>
+<p>El formato es texto plano con pares clave=valor separados por espacios. La rotación no es por tamaño sino por número de archivos: al iniciar, OpenCode lista el directorio y elimina los más antiguos hasta dejar diez. Para clasificar fallos basta con <code>level=ERROR</code>, <code>providerID</code> y <code>status</code>:</p>
+<pre>timestamp=2026-09-11T14:36:10.221Z level=ERROR run=f1a2 message="stream error" providerID=opencode-go modelID=glm-5.3-flash status=429</pre>
+<h2>Evidence</h2>
+<ul><li><a>https://opencode.ai/docs/troubleshooting/</a> — ubicación y rotación de logs, confianza alta.</li>
+<li><a>https://github.com/anomalyco/opencode/blob/v1.18.30/packages/opencode/src/util/log.ts</a> — formato de línea y límite de 10 archivos, confianza alta.</li>
+<li>Log local del 11 de septiembre — tres líneas de error 429 durante la corrida de research, confianza alta.</li></ul>
+<h2>Open points</h2>
+<p>No confirmado si el límite de diez archivos aplica también a <code>opencode serve</code>.</p></div></div></td></tr>
+<tr><td><b class="mono">opencode-model-catalog</b><div class="q">¿Cuál es el esquema real actual de ~/.cache/opencode/models.json?</div></td><td><span class="st bad"><svg><use href="#i-xc"/></svg>Sin informe</span><div class="q">sin informe con: glm-5.3-flash, deepseek-v4-flash, mimo-v2.5</div></td><td class="mono">mimo-v2.5</td><td>4</td><td>—</td></tr>
+<tr class="rx" data-title="las-standard" data-sub="informe parcial · glm-5.3-flash · 30 pasos"><td><b class="mono">las-standard</b><div class="q">Declaración de NULL en LAS 2.0 y tratamiento en lectores.</div></td><td><span class="st warn"><svg><use href="#i-loader"/></svg>Informe parcial</span><div class="q">escrito de una vez · faltan los casos numéricos</div></td><td class="mono">glm-5.3-flash</td><td>30</td><td class="mono"><svg class="ri"><use href="#i-file"/></svg>las-standard.md<div class="jd rep"><div class="md"><h1>las-standard</h1><h2>Answer</h2><p>En LAS 2.0 el valor nulo se declara en la sección <code>~W</code> con el mnemónico <code>NULL.</code>, habitualmente <code>-999.25</code>. Los lectores deben sustituirlo por ausente antes de cualquier cálculo…</p><p><em>Informe cortado en el paso 30: faltan la sección Summary for contracts y los casos numéricos.</em></p></div></div></td></tr>
+</table></div>
+<div class="pane p4"><div class="mcards"><div><svg><use href="#i-wrench"/></svg><div class="k">Escalera builder</div><div class="v mono">mimo-v2.5-free › muse-spark-1.3 › big-pickle</div></div><div><svg><use href="#i-flask"/></svg><div class="k">Escalera researcher</div><div class="v mono">mimo-v2.5-free › muse-spark-1.3 › big-pickle</div></div><div><svg><use href="#i-branch"/></svg><div class="k">Regla</div><div class="v">2 intentos por peldaño · 3 peldaños por ítem</div><div class="s">si un modelo te falla seguido, bájalo en models.json</div></div></div>
+<table class="rt"><tr><th>Builders · contratos</th><th>Intentos</th><th>Pasó</th><th>Tasa</th><th>Coste</th><th>Sesiones</th><th>Tiempo</th></tr>
+<tr><td class="mono">mimo-v2.5-free</td><td>47</td><td>45</td><td>96 %<span class="bar"><i style="width:96%;background:var(--ok)"></i></span></td><td>$0.00</td><td>47</td><td>1 h 26 min</td></tr>
+<tr><td class="mono">glm-5.3-flash</td><td>6</td><td>2</td><td>33 %<span class="bar"><i style="width:33%;background:var(--bad)"></i></span></td><td>$0.41</td><td>6</td><td>18 min</td></tr>
+<tr><td class="mono">deepseek-v4-flash</td><td>2</td><td>0</td><td>0 %<span class="bar"><i style="width:0"></i></span> <span class="q">menos de 3 intentos</span></td><td>$0.09</td><td>2</td><td>7 min</td></tr>
+</table>
+<table class="rt" style="margin-top:12px"><tr><th>Researchers · preguntas</th><th>Intentos</th><th>Pasó</th><th>Tasa</th><th>Coste</th><th>Sesiones</th><th>Tiempo</th></tr>
+<tr><td class="mono">mimo-v2.5-free</td><td>15</td><td>3</td><td>20 %<span class="bar"><i style="width:20%;background:var(--bad)"></i></span></td><td>$0.00</td><td>15</td><td>52 min</td></tr>
+<tr><td class="mono">muse-spark-1.3</td><td>6</td><td>5</td><td>83 %<span class="bar"><i style="width:83%;background:var(--ok)"></i></span></td><td>$0.00</td><td>6</td><td>21 min</td></tr>
+<tr><td class="mono">deepseek-v4-flash</td><td>6</td><td>2</td><td>33 %<span class="bar"><i style="width:33%;background:var(--bad)"></i></span></td><td>$0.38</td><td>6</td><td>19 min</td></tr>
+</table><div class="q" style="padding:8px 4px">Intentos y tasa salen de report.json y research/status.json; coste, sesiones y tiempo de la base de datos de OpenCode. Coste equivalente API · no representa necesariamente un cobro real.</div></div>
+</div>
+<h2>Cambios por zona</h2>
+<div class="scroll"><table>
+<tr><th>Zona</th><th>Hoy</th><th>Propuesto (según el mockup)</th><th>Dónde</th></tr>
+<tr><td>Cabecera</td><td>Título, línea con rama y "actualizado hh:mm · se refresca cada N s"</td><td>Icono del proyecto a la izquierda; rama de integración y rama del usuario con icono <code>git-branch</code>; reloj y "Actualizado hh:mm · cada N s" a la derecha</td><td>board-html</td></tr>
+<tr><td>Sesión del supervisor</td><td>No se muestra; solo el id interno vive en <code>board.json</code></td><td>Línea en la cabecera con icono de robot: título de la sesión (el mismo que lista la TUI en <i>sessions</i>), su slug y hace cuánto actuó. Si hay varias sesiones de supervisor en el proyecto, la más reciente</td><td>opencode-db (devuelve título y slug), board-html; <code>board.json</code> gana <code>supervisor.title</code></td></tr>
+<tr><td>Cuota de Go</td><td>No existe</td><td>Bloque bajo la franja con las tres ventanas que muestra la TUI (5 horas, semana, mes): porcentaje, barra y hora de reinicio; "agotada" en rojo cuando el estado es rate-limited</td><td>board.mjs (una petición HTTP con caché); board-html; <code>board.json</code> gana <code>quota</code></td></tr>
+<tr><td>Franja</td><td>Cinco celdas de texto; "Coste Go"</td><td>Icono por celda; etiqueta "Coste (equiv. API)" y pie "coste equivalente API · no representa necesariamente un cobro real"; icono de Fase según estado</td><td>board-html, css</td></tr>
+<tr><td>Pestañas</td><td>Texto con contador; orden Ahora, Contratos, Research, Modelos</td><td>Icono + texto + contador en píldora; activa en color de acento; orden del flujo de trabajo: Ahora, Research, Contratos, Modelos y coste</td><td>board-html, css</td></tr>
+<tr><td>Ahora · diario</td><td>Una línea por entrada: hora, cuadrado de color, texto corrido</td><td>Hora, punto de color, icono del tipo de evento, <b>título</b> y línea de detalle en mono; leyenda con puntos de color; línea vertical de tiempo</td><td>board-html (separar título y detalle por tipo), css</td></tr>
+<tr><td>Ahora · clic en una entrada</td><td>Nada</td><td>Un clic abre el resumen de esa tarea en una ventana emergente centrada, con botón ×, cierre con Escape o clic fuera; las tarjetas de la pestaña Contratos abren la misma ventana. Contrato: objetivo, rutas que podía tocar, tabla de intentos (modelo, veredicto, pasos, archivos), últimas líneas del gate que falló, carpeta de logs. Research: el informe Markdown renderizado (título, resumen para contratos, respuesta, evidencia, puntos abiertos), tanto desde el diario como desde la columna Informe de la pestaña Research. Build, merge, aviso: la línea de detalle ya lo dice todo, sin desplegable</td><td>board-html (los datos ya están en report.json, status.json y contract.json)</td></tr>
+<tr><td>Contratos · grafo</td><td>SVG puro: rectángulos por capa, curvas, camino crítico</td><td>Columnas "CAPA n" con tarjetas HTML (icono de estado, id, modelo · intentos); curvas SVG detrás; leyenda con iconos. Ver decisión 4</td><td>board-html, css; layout ya está en boardData</td></tr>
+<tr><td>Contratos · clic en un nodo</td><td>Nada; con muchas tareas en una capa no se ve qué depende de qué</td><td>Al pulsar un contrato se ilumina su camino completo (todo lo que necesita hacia atrás y todo lo que lo espera hacia delante) y el resto se atenúa; segundo clic o clic en el fondo lo quita. Cada nodo y arista llevan su id en el HTML, así que es JavaScript en la página, sin datos nuevos</td><td>board-html (script de la página), css</td></tr>
+<tr><td>Contratos · columnas</td><td>Cuatro columnas con tarjetas y borde de color</td><td>Cabecera con icono y número; tarjetas con icono de estado; estado vacío con borde discontinuo "No hay contratos pendientes"</td><td>board-html, css</td></tr>
+<tr><td>Research</td><td>Tabla por tanda, id de tanda como está</td><td>Fila de tanda "Tanda · 12 sept, 00:42" (fecha derivada del id de la corrida); estado con icono y dos líneas; informe con icono o "—"</td><td>board-html; fecha en board.mjs</td></tr>
+<tr><td>Modelos</td><td>Tres celdas de texto y dos tablas</td><td>Tres tarjetas con icono (builder, researcher, regla); dos tablas separadas, builders por contratos y researchers por preguntas, como hoy, para ver cuando un modelo rinde en un rol y no en el otro; barra de tasa junto al porcentaje (verde ≥ 70 %, ámbar ≥ 40 %, rojo); dos pies de página</td><td>board-html, css</td></tr>
+<tr><td>Tema</td><td>Claro y oscuro por sistema</td><td>Los mockups son oscuros. Ver decisión 1</td><td>css</td></tr>
+</table></div>
+
+<h3>Sesión principal del supervisor</h3>
+<p>Al reabrir la TUI, la lista de sesiones mezcla la del supervisor con las de researchers y builders. La base de datos de OpenCode guarda por sesión un título (el que la TUI muestra) y un slug de dos palabras. El tablero mostrará ambos en la cabecera, tomados de la sesión de supervisor más reciente del proyecto, y <code>board.json</code> llevará el título para project-garden.</p>
+<h3>Resumen de una tarea al hacer clic en el diario</h3>
+<p>Cada entrada de contrato o de research, y cada tarjeta de contrato, llevará su resumen ya escrito en el HTML; al pulsar se abre en una ventana emergente con botón ×, que también se cierra con Escape o pulsando fuera. Dentro de una columna estrecha no cabe, por eso la ventana. Todo sale de datos que el tablero ya lee: el objetivo y las rutas del <code>contract.json</code>, los intentos y el último gate del <code>report.json</code>, la pregunta y las últimas palabras del <code>status.json</code> de research. Siempre muestra el estado actual de esa tarea, no el de aquel momento: si un contrato falló a las 11:13 y pasó a las 11:19, las dos entradas despliegan el mismo resumen con los dos intentos y el PASS final. El peso del HTML sube unos 30 KB en un proyecto de 45 contratos.</p>
+<h3>Informes de research renderizados</h3>
+<p>Para una entrada de research, la ventana muestra el informe <code>.codegen/research/&lt;id&gt;.md</code> convertido a HTML, no un resumen. El tablero se abre como archivo local y el navegador no deja leer otros archivos desde ahí, así que el script incrusta cada informe ya renderizado dentro de <code>board.html</code>, oculto hasta el clic. Conversión en Node con una función pequeña (títulos, listas, negrita, código, enlaces, tablas), sin dependencias. Peso: unos 10 KB por informe; un proyecto con 14 informes suma 140 KB, aceptable. También se abre desde la columna Informe de la pestaña Research; en la maqueta, prueba las filas opencode-provider-logs y las-standard.</p>
+<h3>Camino de un contrato al hacer clic</h3>
+<p>Cada nodo del grafo llevará su lista de dependencias en el HTML. Al pulsar uno, la página calcula sus antecesores y sus descendientes y les pone una clase; los demás nodos y aristas bajan a un 25 % de opacidad. Un segundo clic, o un clic fuera, lo deja como estaba. Detalle a decidir: el tablero se recarga solo cada 10 s mientras hay build, así que la selección se perdería a media lectura; propongo recordarla como ya se recuerda la pestaña, hasta que la quites tú. Funciona igual con el grafo SVG actual y con tarjetas HTML, otro motivo para la decisión 4.</p>
+<h3>Cuota de OpenCode Go</h3>
+<p>Comprobado hoy con tu clave: OpenCode Go expone <code>GET https://opencode.ai/zen/go/v1/usage</code> con la clave de <code>auth.json</code>, y devuelve exactamente las tres ventanas de la TUI. Tu respuesta real de hoy: 5 horas 0 %, semana 100 % (agotada, se reinicia el lunes 14 a las 00:00), mes 81 % (se reinicia el 2 de octubre). El tablero la pedirá al dibujarse, con caché de 5 minutos y 3 segundos de tope; sin red o sin clave muestra "sin datos" y nada más falla. Zen (los modelos gratis) no tiene endpoint de cuota: ahí solo veremos el error cuando llegue.</p>
+<h2>Decisiones que necesito de ti</h2>
+<ol class="dec">
+<li><div><b>Tema</b>Los mockups solo muestran oscuro. ¿Solo oscuro, o claro y oscuro por sistema como hoy?<div class="rec"><strong>Recomiendo</strong> mantener ambos: el oscuro es la referencia y el claro se deriva de los mismos tokens; cuesta lo mismo y no pierdes nada.</div></div></li>
+<li><div><b>Icono de Fase</b>Cada mockup usa uno distinto. Propongo que cambie con el estado: <code>pause-circle</code> parado, <code>activity</code> construyendo o investigando, <code>user</code> te espera, <code>triangle-alert</code> detenido.<div class="rec"><strong>Recomiendo</strong> esto: el icono repite lo que ya dice el color de la fase, así se lee desde lejos.</div></div></li>
+<li><div><b>Icono de Te espera</b>Reloj en tres mockups, reloj de arena en uno.<div class="rec"><strong>Recomiendo</strong> <code>user</code> cuando sí te espera y <code>clock</code> cuando no: "esperándote" es una persona, no un tiempo.</div></div></li>
+<li><div><b>Grafo de dependencias</b>Pasar de SVG puro a tarjetas HTML por capa con las curvas en SVG detrás es el cambio más grande de código y el más frágil (las curvas deben seguir a las tarjetas cuando cambia el ancho). Alternativa: conservar el SVG actual y añadir icono de estado y los colores nuevos dentro de cada rectángulo, con las columnas "CAPA n" ya existentes.<div class="rec"><strong>Recomiendo</strong> la alternativa: mismo aspecto a la vista, cero riesgo de desalineación, y el scroll horizontal recordado sigue funcionando igual.</div></div></li>
+<li><div><b>Etiqueta de coste</b>"Coste Go" pasa a "Coste (equiv. API)" con el pie de página del mockup.<div class="rec"><strong>Recomiendo</strong> sí: con modelos gratis y suscripción, el número ya no es un cobro y la etiqueta vieja miente.</div></div></li>
+<li><div><b>Diario en dos líneas</b>Título en negrita y detalle en mono debajo. Hoy cada tipo de evento genera una sola frase; hay que partirla en título y detalle para los doce tipos.<div class="rec"><strong>Recomiendo</strong> sí; es donde más se gana legibilidad y no cambia ningún dato.</div></div></li>
+<li><div><b>Icono del proyecto en la cabecera</b>El mockup usa un brote naranja. No hay imagen por proyecto.<div class="rec"><strong>Recomiendo</strong> un monograma con la inicial del proyecto sobre el color de acento, generado en CSS, o ningún icono. Si quieres el brote, sería el mismo para todos los proyectos.</div></div></li>
+<li><div><b>Barra de tasa</b>Umbrales verde ≥ 70 %, ámbar ≥ 40 %, rojo por debajo, y gris cuando hay menos de 3 intentos (un 0 % con 2 intentos no dice nada).<div class="rec"><strong>Recomiendo</strong> estos umbrales; dime si prefieres otros.</div></div></li>
+<li><div><b>Resumen en el diario: ¿estado actual o de aquel momento?</b>Propongo el estado actual de la tarea (todos sus intentos hasta hoy), porque es lo que sirve para diagnosticar; el momento ya lo da la hora de la entrada.<div class="rec"><strong>Recomiendo</strong> estado actual; guardar una foto por entrada exigiría escribir más en el diario.</div></div></li>
+<li><div><b>Camino iluminado: ¿sobrevive a la recarga?</b>El tablero se recarga cada 10 s con build vivo. Propongo que la selección se recuerde entre recargas (como la pestaña y el scroll) hasta que hagas clic fuera.<div class="rec"><strong>Recomiendo</strong> recordarla; si no, se te apaga mientras la miras.</div></div></li>
+<li><div><b>Cuota de Go: dónde</b>Un bloque propio bajo la franja (como en la vista de arriba) o una sexta celda en la franja. Con tres barras y sus horas de reinicio, en una celda no cabe legible.<div class="rec"><strong>Recomiendo</strong> el bloque propio, visible en todas las pestañas, y en rojo cuando una ventana está agotada.</div></div></li>
+<li><div><b>Iconos como sprite en cada board.html</b>Unos 4 KB por archivo, sin red. La alternativa es un <code>board-icons.svg</code> aparte, que no funciona al abrir el HTML como archivo local en algunos navegadores.<div class="rec"><strong>Recomiendo</strong> el sprite incrustado.</div></div></li>
+</ol>
+
+<h2>Lo que no cambia</h2>
+<ul>
+<li><code>board.json</code>, sus campos y lo que lee project-garden.</li>
+<li>Los textos y estados en español, el refresco automático (10 s corriendo, 30 s parado), la pestaña y el scroll recordados entre recargas.</li>
+<li>Los datos: todo lo que se muestra ya existe en <code>boardData</code>, salvo la fecha de tanda (se deriva del id de la corrida) y el color de la barra (un umbral).</li>
+<li>Los 24 escenarios golden del harness: solo se regenera el golden del tablero, con <code>tests/golden-board.sh --update</code>, después de tu visto bueno.</li>
+</ul>
+
+<h2>Cómo lo haría</h2>
+<ul>
+<li>Un commit para el sprite de iconos y el CSS nuevo (tema, tokens, tipografía); otro para cada pestaña. Cada commit deja <code>tests/check.sh</code> verde salvo el golden del tablero, que se regenera al final.</li>
+<li>Verificación: los cuatro estados del golden (construyendo, te espera, investigando, sin base de datos) mirados en el navegador en claro y oscuro; hot-reload comprobado sobre un build en marcha; una captura real de las-viewer-v5 para que la compares con tus mockups.</li>
+<li>Estimación: las nueve decisiones respondidas hoy, el tablero nuevo mañana en una sesión.</li>
+</ul>
+<div class="modal" id="modal" role="dialog" aria-modal="true"><div class="mbox"><div class="mh" id="mh"><svg><use href="#i-file"/></svg><b id="mt"></b><span class="sub" id="ms"></span><button class="mx" id="mx" aria-label="Cerrar">×</button></div><div class="mb" id="mb"></div></div></div>
+<script>
+(function(){
+  var mock=document.getElementById("mock");
+  mock.querySelectorAll("#tabs span").forEach(function(t){t.addEventListener("click",function(){mock.querySelectorAll("#tabs span").forEach(function(x){x.classList.remove("on")});mock.querySelectorAll(".pane").forEach(function(x){x.classList.remove("on")});t.classList.add("on");mock.querySelector("."+t.dataset.p).classList.add("on")})});
+  var modal=document.getElementById("modal"),mb=document.getElementById("mb"),mt=document.getElementById("mt"),ms=document.getElementById("ms"),mh=document.getElementById("mh");
+  function closeM(){modal.classList.remove("on")}
+  document.getElementById("mx").addEventListener("click",closeM);modal.addEventListener("click",function(e){if(e.target===modal)closeM()});document.addEventListener("keydown",function(e){if(e.key==="Escape")closeM()});
+  mock.querySelectorAll(".rt tr.rx").forEach(function(r){r.addEventListener("click",function(){var jd=r.querySelector(".jd");if(!jd)return;mb.innerHTML=jd.innerHTML;mt.textContent=r.dataset.title;ms.textContent=r.dataset.sub;mh.className="mh";mh.querySelector("use").setAttribute("href","#i-flask");modal.classList.add("on");document.getElementById("mx").focus()})});
+  mock.querySelectorAll(".j.x,.node.x").forEach(function(r){r.addEventListener("click",function(){var jd=r.querySelector(".jd");if(!jd)return;if(jd.classList.contains("rep")){mb.innerHTML=jd.innerHTML}else{mb.innerHTML=jd.outerHTML}mt.textContent=(r.querySelector("b")||r.querySelector(".id")).textContent;ms.textContent=(r.querySelector(".m")||r.querySelector(".s")).textContent.replace(/ · clic.*$/,"");mh.className="mh "+(["ok","bad","run","wait"].find(function(k){return r.classList.contains(k)})||"");var ic=r.querySelector("use").getAttribute("href");mh.querySelector("use").setAttribute("href",ic);modal.classList.add("on");document.getElementById("mx").focus()})});
+  var dep=document.getElementById("dep"),nodes=[].slice.call(dep.querySelectorAll(".gn")),edges=[].slice.call(dep.querySelectorAll(".edge")),sel=null;
+  var deps={};nodes.forEach(function(n){deps[n.dataset.id]=n.dataset.deps?n.dataset.deps.split(","):[]});
+  function up(id,set){deps[id].forEach(function(d){if(!set.has(d)){set.add(d);up(d,set)}})}
+  function down(id,set){Object.keys(deps).forEach(function(k){if(deps[k].indexOf(id)>=0&&!set.has(k)){set.add(k);down(k,set)}})}
+  function clear(){dep.classList.remove("sel");nodes.concat(edges).forEach(function(x){x.classList.remove("lit")});sel=null}
+  nodes.forEach(function(n){n.addEventListener("click",function(e){e.stopPropagation();var id=n.dataset.id;if(sel===id){clear();return}clear();sel=id;var set=new Set([id]);up(id,set);down(id,set);dep.classList.add("sel");nodes.forEach(function(x){if(set.has(x.dataset.id))x.classList.add("lit")});edges.forEach(function(x){if(set.has(x.dataset.from)&&set.has(x.dataset.to))x.classList.add("lit")})})});
+  dep.addEventListener("click",clear);
+})()
+</script>
+</div>
