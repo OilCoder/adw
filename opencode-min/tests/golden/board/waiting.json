@@ -1,0 +1,87 @@
+{
+  "updatedAt": "2026-09-12T17:05:00.000Z",
+  "phase": "te espera",
+  "phaseCls": "you",
+  "phaseSub": "desde 17:01 · 4 min",
+  "alive": false,
+  "researchAlive": false,
+  "waiting": "El plan tiene 23 contratos en 4 capas. ¿Apruebas el build?",
+  "build": {
+    "run": "20260911T153542Z-build",
+    "passed": 18,
+    "total": 23,
+    "failed": [
+      "export-visual-wire",
+      "design-icons"
+    ],
+    "gateBroken": [
+      "design-icons"
+    ],
+    "pending": 2,
+    "running": [
+      "archive-change"
+    ],
+    "integration": {
+      "branch": "codegen/20260911T153542Z-build",
+      "merged": false
+    },
+    "closedBy": {
+      "opencode-go/glm-5.3-flash": 6,
+      "opencode/mimo-v2.5-free": 11,
+      "opencode-go/deepseek-v4-flash": 1
+    }
+  },
+  "research": {
+    "total": 14,
+    "done": 9,
+    "partial": 3,
+    "rejected": 2,
+    "alive": false
+  },
+  "cost": {
+    "total": 4.61,
+    "byRole": {
+      "builder": 3.2,
+      "researcher": 1.41
+    },
+    "byModel": {
+      "builder": {
+        "glm-5.3-flash": {
+          "sessions": 12,
+          "cost": 2.1,
+          "input": 1000000,
+          "output": 200000,
+          "ms": 3600000
+        },
+        "mimo-v2.5-free": {
+          "sessions": 5,
+          "cost": 0,
+          "input": 400000,
+          "output": 80000,
+          "ms": 600000
+        }
+      },
+      "researcher": {
+        "glm-5.3-flash": {
+          "sessions": 4,
+          "cost": 1.41,
+          "input": 500000,
+          "output": 90000,
+          "ms": 1200000
+        }
+      }
+    }
+  },
+  "supervisor": {
+    "sessionId": "ses_fixed",
+    "lastAt": "2026-09-12T17:01:00.000Z",
+    "lastKind": "text"
+  },
+  "lastNotify": {
+    "at": "2026-09-12T17:10:35.489Z",
+    "text": "build ended: 23/23 PASS. Tell the user it is ready to merge.",
+    "delivered": true,
+    "port": "4101",
+    "reason": null
+  }
+}

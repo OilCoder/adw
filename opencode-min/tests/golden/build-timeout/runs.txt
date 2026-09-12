@@ -1,0 +1,13 @@
+$ codegen build --parallel 1  → exit 0
+  FAIL            safe-divide  TIMEOUT: 
+  safe-divide: FAIL after 2 attempts
+  safe-divide: TIMEOUT (0 steps, 0 files)
+  safe-divide: TIMEOUT (0 steps, 0 files)
+  safe-divide: attempt 1 with opencode/mimo-v2.5-free
+  safe-divide: attempt 2 with opencode/mimo-v2.5-free
+0/1 contracts passed their gate.
+Build STAMP-build on branch codegen/STAMP-build: 0/1 PASS; failed: safe-divide (FAIL)
+Continue this run after fixing contracts with: node .opencode/codegen.mjs build --resume [--only ids]
+board: .codegen/board.html
+build STAMP-build: 1 contracts, parallel 1, ladder mimo-v2.5-free
+

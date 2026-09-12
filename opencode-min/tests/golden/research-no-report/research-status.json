@@ -1,0 +1,21 @@
+{
+  "run": "STAMP-research",
+  "results": {
+    "las-null": {
+      "status": "NO_REPORT",
+      "model": "opencode/big-pickle",
+      "attempt": 3,
+      "steps": 3,
+      "one_shot": false,
+      "report": null,
+      "final": "I could not find it.",
+      "run": "STAMP-research",
+      
+      "rejected": [
+        "opencode/mimo-v2.5-free",
+        "opencode/muse-spark-1.3-contributor-free",
+        "opencode/big-pickle"
+      ]
+    }
+  }
+}

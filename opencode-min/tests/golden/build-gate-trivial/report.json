@@ -1,0 +1,11 @@
+{
+  "run": "STAMP-build",
+  "integration": "codegen/STAMP-build",
+  "user_branch": "master",
+  "contracts": {
+    "safe-divide": {
+      "status": "GATE_TRIVIAL",
+      "reason": "gate passes on the untouched repository"
+    }
+  }
+}

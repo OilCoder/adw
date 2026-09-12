@@ -1,0 +1,5 @@
+{"at":"TS","kind":"build-end","run":"STAMP-build","passed":0,"total":1}
+{"at":"TS","kind":"build-start","run":"STAMP-build","integration":"codegen/STAMP-build","contracts":1,"only":null,"parallel":1}
+{"at":"TS","kind":"contract","id":"safe-divide","status":"FAIL","title":"Implement safe_divide","objective":"Implement safe_divide in calculator.py.","models":["opencode/mimo-v2.5-free"],"attempts":2,"verdict":"TIMEOUT"}
+{"at":"TS","kind":"notify","text":"build ended: 0/1 PASS; failed: safe-divide (FAIL). Diagnose the failed ones, fix their contracts or gates, then build --resume.","delivered":false,"port":"1","reason":"no supervisor session"}
+{"at":"TS","kind":"notify","text":"contract safe-divide FAILED after 2 attempts; last verdict TIMEOUT: . Build so far: 0/1 PASS; failed: safe-divide (FAIL). The run continues. Diagnose it now (tail .codegen/runs/STAMP-build/safe-divide/gate-2.txt) and leave its contract or gate fixed and committed; launch nothing while the run is alive.","delivered":false,"port":"1","reason":"no supervisor session"}

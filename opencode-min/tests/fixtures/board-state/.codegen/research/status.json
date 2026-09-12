@@ -1,0 +1,177 @@
+{
+  "run": "20260911T143610Z-research",
+  "results": {
+    "las-standard": {
+      "status": "PARTIAL",
+      "model": "opencode-go/qwen3.8-flash",
+      "attempt": 2,
+      "steps": 30,
+      "report": ".codegen/research/las-standard.md",
+      "final": "PARTIAL .codegen/research/x.md missing the numeric cases",
+      "run": "20260910T141621Z-research",
+      "at": "2026-09-10T14:24:39.979Z"
+    },
+    "local-projects-security": {
+      "status": "REJECTED",
+      "model": "opencode-go/glm-5.3-flash",
+      "attempt": 1,
+      "steps": 7,
+      "report": null,
+      "final": "e esquema, exportaci\u00f3n/importaci\u00f3n port\u00e1til ZIP, procedimientos de recuperaci\u00f3n ante fallos, seguridad de f\u00f3rmulas (sandboxing de recetas) y una pol\u00edtica de privacidad que garantiza que los datos nunca salgan del origen, todo respaldado por fuentes primarias de MDN, W3C, WHATWG y el blog para desarrolladores de Chrome.\n\nLISTO /home/pokinux/las-viewer-v5/.codegen/research/local-projects-security.md",
+      "run": "20260910T141621Z-research",
+      "at": "2026-09-10T14:17:14.955Z",
+      "rejected": [
+        "opencode-go/glm-5.3-flash"
+      ]
+    },
+    "web-stack": {
+      "status": "DONE",
+      "model": "opencode-go/glm-5.3-flash",
+      "attempt": 1,
+      "steps": 7,
+      "report": ".codegen/research/web-stack.md",
+      "final": "cial de Apache Arrow, MDN, W3C, Chrome Developers, React, Vite, benchmarks reproducibles de uPlot y la tesis original de LTTB) y 5 puntos abiertos honestos (LAS 3.0 sin soporte en librer\u00edas existentes, falta de benchmarks de Arrow IPC en navegador, comportamiento multi-pista de uPlot, rangos intermedios de Safari, cuotas de Firefox).\n\nDONE /home/pokinux/las-viewer-v5/.codegen/research/web-stack.md",
+      "run": "20260910T141621Z-research",
+      "at": "2026-09-10T14:17:23.803Z",
+      "one_shot": true
+    },
+    "net-pay": {
+      "status": "REJECTED",
+      "model": "opencode-go/glm-5.3",
+      "attempt": 1,
+      "steps": 17,
+      "report": null,
+      "final": "El contenido excede el l\u00edmite de una sola llamada. Escribo por partes, usando un marcador temporal al final.",
+      "run": "20260910T144948Z-research",
+      "at": "2026-09-10T14:59:48.453Z",
+      "rejected": [
+        "opencode-go/glm-5.3-flash",
+        "opencode-go/deepseek-v4-flash",
+        "opencode-go/glm-5.3",
+        "opencode-go/qwen3.8-max",
+        "opencode-go/qwen3.8-flash"
+      ]
+    },
+    "market-landscape": {
+      "status": "DONE",
+      "model": "opencode-go/glm-5.3-flash",
+      "attempt": 1,
+      "steps": 30,
+      "report": ".codegen/research/market-landscape.md",
+      "final": "e b\u00fasqueda).\n3. Prueba final: guardar el archivo y verificar que quede sin placeholders.\n\n## Recomendaciones\n\nReabrir el informe, completar los pasos 2 y 3 arriba (aprox. 5-10 minutos de trabajo con las URLs ya abiertas en la sesi\u00f3n) y cerrar con la l\u00ednea final `PARTIAL .codegen/research/market-landscape.md WellPlot no verificado; detalle de despliegue/rendimiento de suites comerciales pendiente`.",
+      "run": "20260910T141621Z-research",
+      "at": "2026-09-10T14:18:02.868Z"
+    },
+    "testing-performance": {
+      "status": "DONE",
+      "model": "opencode-go/glm-5.3-flash",
+      "attempt": 1,
+      "steps": 26,
+      "report": ".codegen/research/testing-performance.md",
+      "final": "e.now()`, getter overhead del module runner), tama\u00f1os S/M/L/XL con ejemplos reales del repositorio.\n\n**Confirmaci\u00f3n del corpus real**: el \u00fanico archivo WRAP YES (`Mlp_Young_Trust_1-5_part3.las`), variantes DLM SPACE, NULL `-999.0` vs `-999.25`, texto `nan` en `~Other`, y la ausencia total de LAS 1.2 (justificando fixtures sint\u00e9ticos para esa versi\u00f3n).\n\nDONE .codegen/research/testing-performance.md",
+      "run": "20260910T141621Z-research",
+      "at": "2026-09-10T14:19:20.047Z"
+    },
+    "plotting-ux": {
+      "status": "DONE",
+      "model": "opencode-go/qwen3.8-max",
+      "attempt": 1,
+      "steps": 30,
+      "report": ".codegen/research/plotting-ux.md",
+      "final": "(recovered from journal: the run was killed by the TUI shell before writing status)",
+      "run": "20260910T150003Z-research",
+      "at": "2026-09-10T15:10:03.421Z",
+      "rejected": [
+        "opencode-go/glm-5.3-flash",
+        "opencode-go/deepseek-v4-flash",
+        "opencode-go/glm-5.3"
+      ]
+    },
+    "petrophysics": {
+      "status": "DONE",
+      "model": "opencode-go/deepseek-v4-flash",
+      "attempt": 2,
+      "steps": 14,
+      "report": ".codegen/research/petrophysics.md",
+      "final": "12 rules for when not to compute).\n\nEvery source listed in `## Evidence` was opened or retrieved in this run, with confidence notes; `## Open points` flags the primary sources I could not fully open (Arps 1953, Timur SPE full text, Coates 1999, Larionov original, Schlumberger Simandoux canonical) and notes which numeric cases are computed here vs. published.\n\nDONE .codegen/research/petrophysics.md",
+      "run": "20260910T143521Z-research",
+      "at": "2026-09-10T14:48:33.808Z",
+      "rejected": [
+        "opencode-go/glm-5.3-flash"
+      ]
+    },
+    "qc-processing": {
+      "status": "DONE",
+      "model": "opencode-go/glm-5.3-flash",
+      "attempt": 1,
+      "steps": 19,
+      "report": ".codegen/research/qc-processing.md",
+      "final": ", remuestreo, interpolaci\u00f3n limitada, suavizados, despiking, m\u00e1scaras, normalizaci\u00f3n y f\u00f3rmulas seguras), todas ancladas a fuentes primarias abiertas que abr\u00ed en esta sesi\u00f3n (NumPy, SciPy, pandas, welly y el c\u00f3digo fuente de SDDS), m\u00e1s 12 casos de prueba con resultados conocidos y las secciones de evidencia y puntos abiertos.\n\nListo en /home/pokinux/las-viewer-v5/.codegen/research/qc-processing.md",
+      "run": "20260910T141621Z-research",
+      "at": "2026-09-10T14:21:29.809Z"
+    },
+    "net-pay-interpretation": {
+      "status": "DONE",
+      "model": "opencode-go/glm-5.3-flash",
+      "attempt": 1,
+      "steps": 17,
+      "report": ".codegen/research/net-pay-interpretation.md",
+      "final": "El informe qued\u00f3 completo y limpio, con jerarqu\u00eda de cutoffs, f\u00f3rmulas de ponderaci\u00f3n y la tabla MD/TVD/TVT/TST trazada a fuentes abiertas verificadas.\n\nDONE .codegen/research/net-pay-interpretation.md",
+      "run": "20260910T161238Z-research",
+      "at": "2026-09-10T16:15:09.200Z",
+      "rejected": []
+    },
+    "net-pay-integration": {
+      "status": "PARTIAL",
+      "model": "opencode-go/qwen3.8-flash",
+      "attempt": 1,
+      "steps": 13,
+      "report": ".codegen/research/net-pay-integration.md",
+      "final": "Caso 2 (irregular), con las dos particiones recalculadas de forma independiente:\n\n",
+      "run": "20260910T162937Z-research",
+      "at": "2026-09-10T16:39:36.370Z",
+      "rejected": [
+        "opencode-go/glm-5.3-flash"
+      ]
+    },
+    "net-pay-anomalies": {
+      "status": "PARTIAL",
+      "model": "opencode-go/qwen3.8-flash",
+      "attempt": 1,
+      "steps": 20,
+      "report": ".codegen/research/net-pay-anomalies.md",
+      "final": "Next, I'll fetch the normative and technical sources. Let's start with the LAS 2.0 (February 2017) document, the LAS 2.0 1992 mirror, and the lasio index.\n\n",
+      "run": "20260910T162937Z-research",
+      "at": "2026-09-10T16:39:36.355Z",
+      "rejected": [
+        "opencode-go/glm-5.3-flash"
+      ]
+    },
+    "net-pay-gaps": {
+      "status": "DONE",
+      "model": "opencode-go/deepseek-v4-flash",
+      "attempt": 2,
+      "steps": 23,
+      "report": ".codegen/research/net-pay-gaps.md",
+      "final": "de D1\u2013D9, con tabla resumen.\n\nFuentes abiertas realmente consultadas: LAS 2.0 feb-2017 (v\u00eda proxy de texto), LAS 2.0 1992 (espejo), lasio, arXiv \u00abMind the Gap\u00bb, petekio (c\u00f3digo fuente), SciPy trapezoid, pypeit, eyeris, GeolOil, USGS. Limitaciones honestas en Open points (ScienceDirect no abierta directamente, sin consenso en `f_gap`, casos solo ascendentes).\n\nDONE .codegen/research/net-pay-gaps.md",
+      "run": "20260910T164116Z-research",
+      "at": "2026-09-10T16:57:31.134Z",
+      "rejected": [
+        "opencode-go/qwen3.8-flash"
+      ]
+    },
+    "industry-log-track-presets": {
+      "status": "DONE",
+      "model": "opencode-go/glm-5.3-flash",
+      "attempt": 2,
+      "steps": 12,
+      "report": ".codegen/research/industry-log-track-presets.md",
+      "final": "ipt determinista con las reglas (nunca usar curva \u00edndice, no duplicar curvas, crear pista solo si hay curvas), la distinci\u00f3n entre pr\u00e1cticas estandarizadas vs. dependientes de compa\u00f1\u00eda/cuenca, y la evidencia citada de fuentes verificadas abiertas en esta sesi\u00f3n (IHS Petra, RockWare LogPlot, GeolOil, KGS, Schlumberger, LAS spec, Danomics, etc.).\n\nDONE .codegen/research/industry-log-track-presets.md",
+      "run": "20260911T143610Z-research",
+      "at": "2026-09-11T14:50:09.944Z",
+      "rejected": [
+        "opencode-go/qwen3.8-flash"
+      ]
+    }
+  }
+}

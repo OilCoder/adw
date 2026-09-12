@@ -1,0 +1,19 @@
+$ codegen build --parallel 3  → exit 0
+  PASS            geometry-area [mimo-v2.5-free, 1 attempt(s)]
+  PASS            report [mimo-v2.5-free, 1 attempt(s)]
+  PASS            stats-mean [mimo-v2.5-free, 1 attempt(s)]
+  geometry-area: PASS (3 steps, 1 files)
+  geometry-area: attempt 1 with opencode/mimo-v2.5-free
+  geometry-area: merged into codegen/STAMP-build
+  report: PASS (3 steps, 1 files)
+  report: attempt 1 with opencode/mimo-v2.5-free
+  report: merged into codegen/STAMP-build
+  stats-mean: PASS (3 steps, 1 files)
+  stats-mean: attempt 1 with opencode/mimo-v2.5-free
+  stats-mean: merged into codegen/STAMP-build
+3/3 contracts passed their gate.
+Build STAMP-build on branch codegen/STAMP-build: 3/3 PASS
+Land it with: node .opencode/codegen.mjs merge
+board: .codegen/board.html
+build STAMP-build: 3 contracts, parallel 3, ladder mimo-v2.5-free > muse-spark-1.3-contributor-free > big-pickle
+

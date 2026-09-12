@@ -1,0 +1,60 @@
+#!/usr/bin/env node
+// A stand-in for the real `opencode` binary, for tests/golden.sh: no model, no
+// network, deterministic. Put tests/fake-opencode first in PATH.
+//
+//   opencode run --format json --model M --agent A PROMPT   plays a scripted step
+//   opencode run --attach URL --session ID MSG               logs the notice
+//
+// The script comes from $FAKE_OPENCODE_SCRIPT (JSON): { "<agent>": { "<id>": [step, ...], "*": [...] } }
+// where <id> is the contract id or the research question id found in the prompt,
+// and the n-th call for that (agent, id) plays the n-th step (the last one repeats).
+// A step: { "files": { "path": "content" | null }, "steps": 3, "tools": ["write"],
+//           "text": "final text", "sleep": 0 }.
+// Call counters live in $FAKE_OPENCODE_STATE; notices go to $FAKE_OPENCODE_STATE/notify.log.
+
+import { readFileSync, writeFileSync, mkdirSync, existsSync, appendFileSync, rmSync } from "node:fs"
+import path from "node:path"
+
+const argv = process.argv.slice(2)
+const state = process.env.FAKE_OPENCODE_STATE ?? "/tmp/fake-opencode-state"
+mkdirSync(state, { recursive: true })
+
+if (argv[0] !== "run") { console.error(`fake opencode: unsupported command ${argv[0]}`); process.exit(2) }
+const opt = {}
+const rest = []
+for (let i = 1; i < argv.length; i++) {
+  if (argv[i].startsWith("--")) { opt[argv[i].slice(2)] = argv[i + 1]; i++ } else rest.push(argv[i])
+}
+const prompt = rest.join(" ")
+
+if (opt.attach) {
+  appendFileSync(path.join(state, "notify.log"), `${opt.session} ${prompt}\n`)
+  process.exit(0)
+}
+
+const agent = opt.agent ?? "build"
+const id = (prompt.match(/contracts\/([^/]+)\/contract\.json/) ?? prompt.match(/Research question (\S+):/) ?? [])[1] ?? "*"
+const script = process.env.FAKE_OPENCODE_SCRIPT ? JSON.parse(readFileSync(process.env.FAKE_OPENCODE_SCRIPT, "utf8")) : {}
+const steps = script[agent]?.[id] ?? script[agent]?.["*"] ?? [{}]
+const counter = path.join(state, `${agent}.${id}.calls`)
+const n = existsSync(counter) ? Number(readFileSync(counter, "utf8")) : 0
+writeFileSync(counter, String(n + 1))
+const step = steps[Math.min(n, steps.length - 1)]
+
+const emit = (e) => process.stdout.write(JSON.stringify(e) + "\n")
+const cwd = process.env.PWD ?? process.cwd()
+appendFileSync(path.join(state, "calls.log"), `${agent} ${id} call=${n + 1} model=${opt.model} cwd=${cwd}\n`)
+
+if (step.sleep) await new Promise((r) => setTimeout(r, step.sleep * 1000))
+
+const files = step.files ?? {}
+const tools = step.tools ?? Object.keys(files).map(() => "write")
+for (let s = 0; s < (step.steps ?? 3); s++) emit({ type: "step_start", part: { type: "step-start" } })
+for (const t of tools) emit({ type: "tool_use", part: { type: "tool", tool: t, state: { status: "completed", input: {} } } })
+for (const [rel, content] of Object.entries(files)) {
+  const abs = path.join(cwd, rel)
+  if (content === null) { rmSync(abs, { force: true }); continue }
+  mkdirSync(path.dirname(abs), { recursive: true })
+  writeFileSync(abs, content)
+}
+emit({ type: "text", part: { type: "text", text: step.text ?? "DONE" } })

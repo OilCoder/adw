@@ -1,0 +1,29 @@
+{
+  "run": "STAMP-build",
+  "integration": "codegen/STAMP-build",
+  "user_branch": "master",
+  "contracts": {
+    "safe-divide": {
+      "status": "FAIL",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "TIMEOUT",
+          "steps": 0,
+          "files": [],
+          "detail": ""
+        },
+        {
+          "attempt": 2,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "TIMEOUT",
+          "steps": 0,
+          "files": [],
+          "detail": ""
+        }
+      ],
+      "reason": "TIMEOUT: "
+    }
+  }
+}

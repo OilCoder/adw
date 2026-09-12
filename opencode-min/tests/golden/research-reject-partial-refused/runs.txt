@@ -1,0 +1,11 @@
+$ codegen research  → exit 0
+            last words: PARTIAL .codegen/research/las-null.md missing summary
+  PARTIAL   las-null  .codegen/research/las-null.md  [mimo-v2.5-free]  written in one go
+  las-null: PARTIAL (3 steps, written in one go)
+  las-null: attempt 1 with opencode/mimo-v2.5-free
+Research summary
+research STAMP-research: 1 questions, ladder mimo-v2.5-free > muse-spark-1.3-contributor-free > big-pickle
+
+$ codegen research --reject las-null  → exit 1
+codegen: cannot reject las-null: it is PARTIAL; the question is too big for one sitting. Split it into new ids by what is missing and run those.
+

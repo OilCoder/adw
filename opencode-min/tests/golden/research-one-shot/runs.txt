@@ -1,0 +1,7 @@
+$ codegen research  → exit 0
+  DONE      las-null  .codegen/research/las-null.md  [mimo-v2.5-free]  written in one go
+  las-null: DONE (6 steps, written in one go)
+  las-null: attempt 1 with opencode/mimo-v2.5-free
+Research summary
+research STAMP-research: 1 questions, ladder mimo-v2.5-free > muse-spark-1.3-contributor-free > big-pickle
+

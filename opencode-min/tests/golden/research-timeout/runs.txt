@@ -1,0 +1,12 @@
+$ codegen research  → exit 0
+  TIMEOUT   las-null  (no report)  [big-pickle]  skipped: mimo-v2.5-free, muse-spark-1.3-contributor-free, big-pickle
+  las-null: TIMEOUT (0 steps)
+  las-null: TIMEOUT (0 steps)
+  las-null: TIMEOUT (0 steps)
+  las-null: TIMEOUT (tried mimo-v2.5-free, muse-spark-1.3-contributor-free, big-pickle)
+  las-null: attempt 1 with opencode/mimo-v2.5-free
+  las-null: attempt 2 with opencode/muse-spark-1.3-contributor-free
+  las-null: attempt 3 with opencode/big-pickle
+Research summary
+research STAMP-research: 1 questions, ladder mimo-v2.5-free > muse-spark-1.3-contributor-free > big-pickle
+

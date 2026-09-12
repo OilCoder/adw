@@ -1,0 +1,8 @@
+board: .codegen/board.html
+build finished
+
+Build STAMP-build on branch codegen/STAMP-build: 0/1 PASS; failed: safe-divide (GATE_TRIVIAL)
+  GATE_TRIVIAL    safe-divide  gate passes on the untouched repository
+
+0/1 contracts passed their gate.
+Continue this run after fixing contracts with: node .opencode/codegen.mjs build --resume [--only ids]

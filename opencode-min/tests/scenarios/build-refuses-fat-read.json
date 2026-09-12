@@ -1,0 +1,13 @@
+{
+  "fixture": "builder-basic",
+  "pre": {
+    ".codegen/contracts/safe-divide/contract.json": "{\n  \"objective\": \"Implement safe_divide in calculator.py.\",\n  \"read\": [\n    \"calculator.py\",\n    \"src/**\"\n  ],\n  \"allowed_to_modify\": [\n    \"calculator.py\"\n  ],\n  \"protected\": [\n    \"tests/**\"\n  ],\n  \"requirements\": [\n    {\n      \"id\": \"R1\",\n      \"statement\": \"Return normal Python division as a float.\"\n    },\n    {\n      \"id\": \"R2\",\n      \"statement\": \"Raise ValueError with the exact message 'divisor must not be zero' when the divisor is zero.\"\n    },\n    {\n      \"id\": \"R3\",\n      \"statement\": \"Preserve the public function signature.\"\n    }\n  ],\n  \"gate\": \"bash .codegen/contracts/safe-divide/gate.sh\"\n}\n"
+  },
+  "runs": [
+    [
+      "build",
+      "--parallel",
+      "1"
+    ]
+  ]
+}

@@ -1,0 +1,6 @@
+builder safe-divide call=1 model=opencode/mimo-v2.5-free cwd=$SANDBOXES/safe-divide
+builder safe-divide call=2 model=opencode/mimo-v2.5-free cwd=$SANDBOXES/safe-divide
+builder safe-divide call=3 model=opencode/muse-spark-1.3-contributor-free cwd=$SANDBOXES/safe-divide
+builder safe-divide call=4 model=opencode/muse-spark-1.3-contributor-free cwd=$SANDBOXES/safe-divide
+builder safe-divide call=5 model=opencode/big-pickle cwd=$SANDBOXES/safe-divide
+builder safe-divide call=6 model=opencode/big-pickle cwd=$SANDBOXES/safe-divide

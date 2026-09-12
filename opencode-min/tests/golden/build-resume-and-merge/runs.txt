@@ -1,0 +1,62 @@
+$ codegen build --parallel 3  → exit 0
+  FAIL            stats-mean  NO_CHANGES: DONE
+  PASS            geometry-area [mimo-v2.5-free, 1 attempt(s)]
+  SKIPPED         report  dependency failed: stats-mean
+  geometry-area: PASS (3 steps, 1 files)
+  geometry-area: attempt 1 with opencode/mimo-v2.5-free
+  geometry-area: merged into codegen/STAMP-build
+  stats-mean: FAIL after 6 attempts
+  stats-mean: NO_CHANGES (3 steps, 0 files)
+  stats-mean: NO_CHANGES (3 steps, 0 files)
+  stats-mean: NO_CHANGES (3 steps, 0 files)
+  stats-mean: NO_CHANGES (3 steps, 0 files)
+  stats-mean: NO_CHANGES (3 steps, 0 files)
+  stats-mean: NO_CHANGES (3 steps, 0 files)
+  stats-mean: attempt 1 with opencode/mimo-v2.5-free
+  stats-mean: attempt 2 with opencode/mimo-v2.5-free
+  stats-mean: attempt 3 with opencode/muse-spark-1.3-contributor-free
+  stats-mean: attempt 4 with opencode/muse-spark-1.3-contributor-free
+  stats-mean: attempt 5 with opencode/big-pickle
+  stats-mean: attempt 6 with opencode/big-pickle
+1/3 contracts passed their gate.
+Build STAMP-build on branch codegen/STAMP-build: 1/3 PASS; failed: stats-mean (FAIL); skipped: 1
+Continue this run after fixing contracts with: node .opencode/codegen.mjs build --resume [--only ids]
+Land it with: node .opencode/codegen.mjs merge --partial
+board: .codegen/board.html
+build STAMP-build: 3 contracts, parallel 3, ladder mimo-v2.5-free > muse-spark-1.3-contributor-free > big-pickle
+
+$ codegen build --resume --only stats-mean  → exit 0
+  NOT_SELECTED    report
+  PASS            geometry-area [mimo-v2.5-free, 1 attempt(s)]
+  PASS            stats-mean [mimo-v2.5-free, 1 attempt(s)]
+  stats-mean: PASS (3 steps, 1 files)
+  stats-mean: attempt 1 with opencode/mimo-v2.5-free
+  stats-mean: merged into codegen/STAMP-build
+2/3 contracts passed their gate.
+Build STAMP-build on branch codegen/STAMP-build: 2/3 PASS
+Continue this run after fixing contracts with: node .opencode/codegen.mjs build --resume [--only ids]
+Land it with: node .opencode/codegen.mjs merge --partial
+board: .codegen/board.html
+build STAMP-build: 3 contracts, parallel 4, ladder mimo-v2.5-free > muse-spark-1.3-contributor-free > big-pickle, only stats-mean
+resume STAMP-build: merged master into codegen/STAMP-build
+
+$ codegen merge  → exit 1
+codegen: not every contract passed: report (NOT_SELECTED). Fix and --resume, or merge --partial to take what passed.
+
+$ codegen build --resume  → exit 0
+  PASS            geometry-area [mimo-v2.5-free, 1 attempt(s)]
+  PASS            report [mimo-v2.5-free, 1 attempt(s)]
+  PASS            stats-mean [mimo-v2.5-free, 1 attempt(s)]
+  report: PASS (3 steps, 1 files)
+  report: attempt 1 with opencode/mimo-v2.5-free
+  report: merged into codegen/STAMP-build
+3/3 contracts passed their gate.
+Build STAMP-build on branch codegen/STAMP-build: 3/3 PASS
+Land it with: node .opencode/codegen.mjs merge
+board: .codegen/board.html
+build STAMP-build: 3 contracts, parallel 4, ladder mimo-v2.5-free > muse-spark-1.3-contributor-free > big-pickle
+resume STAMP-build: merged master into codegen/STAMP-build
+
+$ codegen merge  → exit 0
+landed codegen/STAMP-build on master (fast-forward): 3 commit(s), every contract passed
+

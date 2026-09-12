@@ -1,0 +1,45 @@
+{
+  
+  "phase": "parado",
+  "phaseCls": "",
+  "phaseSub": "sin actividad registrada",
+  "alive": false,
+  "researchAlive": false,
+  "waiting": null,
+  "build": {
+    "run": "STAMP-build",
+    "passed": 3,
+    "total": 3,
+    "failed": [],
+    "gateBroken": [],
+    "pending": 0,
+    "running": [],
+    "integration": {
+      "branch": "codegen/STAMP-build",
+      "merged": false
+    },
+    "closedBy": {
+      "opencode/mimo-v2.5-free": 3
+    }
+  },
+  "research": {
+    "total": 0,
+    "done": 0,
+    "partial": 0,
+    "rejected": 0,
+    "alive": false
+  },
+  "cost": {
+    "total": 0,
+    "byRole": {},
+    "byModel": {}
+  },
+  "supervisor": null,
+  "lastNotify": {
+    
+    "text": "build ended: 3/3 PASS. Tell the user it is ready to merge.",
+    "delivered": false,
+    "port": "1",
+    "reason": "no supervisor session"
+  }
+}

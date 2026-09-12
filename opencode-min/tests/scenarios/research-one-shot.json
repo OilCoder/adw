@@ -1,0 +1,26 @@
+{
+  "fixture": "parallel-basic",
+  "script": {
+    "researcher": {
+      "las-null": [
+        {
+          "files": {
+            ".codegen/research/las-null.md": "# las-null\n\n## Summary for contracts\n\n- NULL is declared in the ~Well section as the NULL mnemonic; readers replace it with missing.\n\n## Answer\n\nThe ~W section declares `NULL.` with a value such as -999.25.\n\n## Evidence\n\n- https://example.org/las20 \u2014 spec text, high confidence.\n\n## Open points\n\nNone.\n"
+          },
+          "tools": [
+            "websearch",
+            "webfetch",
+            "write"
+          ],
+          "steps": 6,
+          "text": "DONE .codegen/research/las-null.md"
+        }
+      ]
+    }
+  },
+  "runs": [
+    [
+      "research"
+    ]
+  ]
+}

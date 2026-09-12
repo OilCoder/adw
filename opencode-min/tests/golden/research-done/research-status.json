@@ -1,0 +1,17 @@
+{
+  "run": "STAMP-research",
+  "results": {
+    "las-null": {
+      "status": "DONE",
+      "model": "opencode/mimo-v2.5-free",
+      "attempt": 1,
+      "steps": 8,
+      "one_shot": false,
+      "report": ".codegen/research/las-null.md",
+      "final": "Report written.\nDONE .codegen/research/las-null.md",
+      "run": "STAMP-research",
+      
+      "rejected": []
+    }
+  }
+}

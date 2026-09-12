@@ -1,0 +1,24 @@
+$ codegen research  → exit 0
+  DONE      las-null  .codegen/research/las-null.md  [mimo-v2.5-free]
+  las-null: DONE (3 steps)
+  las-null: attempt 1 with opencode/mimo-v2.5-free
+Research summary
+research STAMP-research: 1 questions, ladder mimo-v2.5-free > muse-spark-1.3-contributor-free > big-pickle
+
+$ codegen research --reject las-null  → exit 0
+  DONE      las-null  .codegen/research/las-null.md  [muse-spark-1.3-contributor-free]  skipped: mimo-v2.5-free
+  las-null: DONE (3 steps)
+  las-null: attempt 1 with opencode/muse-spark-1.3-contributor-free
+Research summary
+research STAMP-research: 1 questions, ladder mimo-v2.5-free > muse-spark-1.3-contributor-free > big-pickle (questions skip models that already failed them)
+
+$ codegen research --reject las-null  → exit 0
+  DONE      las-null  .codegen/research/las-null.md  [big-pickle]  skipped: mimo-v2.5-free, muse-spark-1.3-contributor-free
+  las-null: DONE (3 steps)
+  las-null: attempt 1 with opencode/big-pickle
+Research summary
+research STAMP-research: 1 questions, ladder mimo-v2.5-free > muse-spark-1.3-contributor-free > big-pickle (questions skip models that already failed them)
+
+$ codegen research --reject las-null  → exit 1
+codegen: cannot reject las-null: already rejected twice; the question is too big for one sitting. Split it into new ids by what is missing and run those.
+

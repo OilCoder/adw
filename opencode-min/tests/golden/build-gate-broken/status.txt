@@ -1,0 +1,8 @@
+board: .codegen/board.html
+build finished
+
+Build STAMP-build on branch codegen/STAMP-build: 0/1 PASS; failed: safe-divide (FAIL)
+  FAIL            safe-divide  GATE BROKEN: it fails only in files outside the contract's scope; fix the gate or the contract, not the builder. GATE_FA
+
+0/1 contracts passed their gate.
+Continue this run after fixing contracts with: node .opencode/codegen.mjs build --resume [--only ids]

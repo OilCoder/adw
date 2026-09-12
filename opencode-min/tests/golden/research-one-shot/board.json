@@ -1,0 +1,40 @@
+{
+  
+  "phase": "parado",
+  "phaseCls": "",
+  "phaseSub": "sin actividad registrada",
+  "alive": false,
+  "researchAlive": false,
+  "waiting": null,
+  "build": {
+    "run": null,
+    "passed": 0,
+    "total": 3,
+    "failed": [],
+    "gateBroken": [],
+    "pending": 3,
+    "running": [],
+    "integration": null,
+    "closedBy": {}
+  },
+  "research": {
+    "total": 1,
+    "done": 1,
+    "partial": 0,
+    "rejected": 0,
+    "alive": false
+  },
+  "cost": {
+    "total": 0,
+    "byRole": {},
+    "byModel": {}
+  },
+  "supervisor": null,
+  "lastNotify": {
+    
+    "text": "research run ended: 1 DONE; written in one go, never re-read (judge harder): las-null. Judge the new reports and continue.",
+    "delivered": false,
+    "port": "1",
+    "reason": "no supervisor session"
+  }
+}

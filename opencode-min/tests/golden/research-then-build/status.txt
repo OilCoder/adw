@@ -1,0 +1,13 @@
+board: .codegen/board.html
+build finished
+
+Build STAMP-build on branch codegen/STAMP-build: 3/3 PASS
+  PASS            stats-mean [mimo-v2.5-free, 1 attempt(s)]
+  PASS            geometry-area [mimo-v2.5-free, 1 attempt(s)]
+  PASS            report [mimo-v2.5-free, 1 attempt(s)]
+
+3/3 contracts passed their gate.
+Land it with: node .opencode/codegen.mjs merge
+
+Research summary
+  DONE      las-null  .codegen/research/las-null.md  [mimo-v2.5-free]

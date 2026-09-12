@@ -1,0 +1,5 @@
+no build run yet
+
+Research summary
+  PARTIAL   las-null  .codegen/research/las-null.md  [mimo-v2.5-free]  written in one go
+            last words: PARTIAL .codegen/research/las-null.md missing summary
