@@ -3,11 +3,27 @@
 Minimal code-generation harness for OpenCode. One script, three agents, one
 hand-edited model list. Replaces the `opencode/` system (7,500 lines of
 runners, admission, metalog, research verification, session tracking) with
-about 1,100 lines (script 750, board 250, db 90) that do the same core job:
+about 2,100 formatted lines in six modules (the same 1,100 dense lines of v1, split and formatted) that do the same core job:
 
 ```text
 idea → research questions (parallel) → plan + contracts + gates → builders (parallel, sandboxed) → independent gate → integration branch
 ```
+
+## Files
+
+| File | Does |
+|---|---|
+| `.opencode/codegen.mjs` | the commands (`research`, `build`, `status`, `merge`, `structure`, `board`) and every file under `.codegen/` |
+| `.opencode/agent.mjs` | runs a process with a timeout, one OpenCode agent, a task pool, and the model ladder |
+| `.opencode/sandbox.mjs` | one contract's sandbox: export, dependencies, gate, scope and structure checks, landing the diff |
+| `.opencode/board.mjs` | the board's facts (`boardData`, `boardJson`) |
+| `.opencode/board-html.mjs`, `board.css` | the board's HTML, one function per section, styles inlined. **A redesign touches only these two.** |
+| `.opencode/opencode-db.mjs` | read-only look at OpenCode's database: supervisor activity, cost per session |
+| `.opencode/agents/*.md`, `instructions/*.md` | the agents' prompts and the rules the supervisor reads |
+| `.opencode/models.json` | the ladder |
+
+The board reloads `board-html.mjs` and `board.css` whenever they change on disk,
+so a build that runs for hours picks up a redesign without a restart.
 
 ## Roles and where they run
 

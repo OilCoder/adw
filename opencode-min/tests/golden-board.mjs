@@ -43,7 +43,7 @@ const golden = path.join(HERE, "golden", "board")
 mkdirSync(golden, { recursive: true })
 let failed = 0
 for (const [name, args] of Object.entries(cases)) {
-  const out = { [`${name}.html`]: renderBoard(args), [`${name}.json`]: JSON.stringify(boardJson(args), null, 2) + "\n" }
+  const out = { [`${name}.html`]: await renderBoard(args), [`${name}.json`]: JSON.stringify(boardJson(args), null, 2) + "\n" }
   for (const [f, got] of Object.entries(out)) {
     const file = path.join(golden, f)
     if (update || !existsSync(file)) { writeFileSync(file, got); console.log(`wrote ${f}`); continue }

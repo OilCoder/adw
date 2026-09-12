@@ -372,3 +372,20 @@ diario está en `.gitignore` (install.sh y los seis proyectos, sacado del
 índice con `git rm --cached`), y ni la guarda de `merge` ni el sello lo miran;
 `board.json` igual. Pendiente en cada proyecto: commitear la salida del
 índice junto con el resto (lo hace el sello del próximo build).
+
+## Higiene sin cambio de comportamiento (2026-09-12)
+
+Ver README "Files" y "Behaviour freeze". Resumen:
+- `tests/check.sh` (17 s, sin modelos): sintaxis, lint prompt/permisos, tablero
+  golden (4 estados, HTML byte a byte) y 22 escenarios golden con un `opencode`
+  falso (`tests/fake-opencode/`). Los golden se generaron con el código de v1 y
+  cada fase se verificó contra ellos.
+- Fases: prettier (printWidth 110) → `codegen.mjs` partido en `agent.mjs` +
+  `sandbox.mjs` (la escalera duplicada es un `climb()`) → tablero en `board.mjs`
+  (datos) + `board-html.mjs` (una función por sección) + `board.css`.
+- Cambios funcionales del mismo día, antes de la higiene: escalera con 5 Zen
+  gratis delante; guarda models.json ↔ whitelist; `hidden` fuera; supervisor
+  relee contratos y usa `--parallel 8`; marca "written in one go" en research.
+- Pendiente: reestructurar `supervisor.md` (ronda aparte), rediseño del tablero
+  sobre `board-html.mjs`/`board.css` (regenerar golden con `--update`), y
+  actualizar los seis proyectos de campo cuando el usuario lo decida.

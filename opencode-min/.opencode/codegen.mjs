@@ -207,8 +207,9 @@ function sealAndCheckTracked() {
 // .codegen/board.html: the dependency graph and a board by state, rewritten
 // on every state change so a browser tab can follow the run.
 async function writeBoard() {
-  // board.mjs is imported fresh whenever it changes on disk, so a build that
-  // runs for hours picks up a new board without a restart.
+  // board.mjs is imported fresh whenever it changes on disk (and it does the
+  // same with board-html.mjs and board.css), so a build that runs for hours
+  // picks up a new board without a restart.
   const boardFile = path.join(ROOT, ".opencode", "board.mjs")
   let renderBoard
   let boardJson
@@ -256,7 +257,7 @@ async function writeBoard() {
     models: MODELS,
     ladders: { builder: ladderFor("builder"), researcher: ladderFor("researcher") },
   }
-  writeFileSync(file, renderBoard(args))
+  writeFileSync(file, await renderBoard(args))
   // board.json next to the HTML: same facts, for project-garden and scripts.
   // "merged" asks git whether the integration branch is already in the user's branch.
   // Only meaningful once something landed on the integration branch: a fresh
