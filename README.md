@@ -1,4 +1,6 @@
-# claude-project-base — métodos de generación de código
+# ADW, Agent Development Workflow
+
+Métodos de generación de código con agentes. El nombre es ADW porque el flujo no depende de un asistente: el supervisor puede ser la TUI de OpenCode o Claude Code, y los builders son modelos de OpenCode; el harness es el mismo.
 
 Este repositorio compara métodos autocontenidos de generación de código para
 Claude Code y OpenCode. Cada variante conserva su propia integración de harness.

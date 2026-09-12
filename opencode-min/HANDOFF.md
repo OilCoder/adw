@@ -106,7 +106,7 @@ tanda de reordenación planificada por el supervisor.
 ## Pendiente / siguiente
 
 - Cerrar c19 y que el usuario pruebe la app generada.
-- `opencode-min/` está **sin commit** en `claude-project-base` (el usuario
+- `opencode-min/` está **sin commit** en `adw` (el usuario
   decide cuándo). `las-viewer-v4` tiene sus commits de sello.
 - Siguiente proyecto de prueba: pendiente de decidir. Preocupación del
   usuario: de dónde salen los datos. Fuentes de su nota de research
@@ -247,7 +247,7 @@ gate de v4+v5: marca solo los 18 de typecheck, ninguno que luego pasó.
 
 ## Punto de recuperación (2026-09-10 22:35, antes de compact)
 
-### Harness (sin commit en claude-project-base; el usuario decide)
+### Harness (sin commit en adw; el usuario decide)
 `codegen.mjs` 705 líneas. Cambios del día ya descritos arriba, más:
 - Sandboxes Python: venv con `uv` (`pip install -e .[dev]` o `requirements.txt`, más pytest); gate y builder ven el venv primero en PATH.
 - Gate roto generalizado: (a) test del gate no compila bajo `.codegen/`; (b) type checker con todos los errores fuera de `allowed_to_modify` → FAIL al primer intento "GATE BROKEN". Replay 42 fallas v4+v5: solo los 18 de typecheck.
@@ -274,7 +274,7 @@ Ideas en `wiki/idea/` (idea, modelo, verificacion, requisitos, datos, decisiones
 Puertos: cada TUI con `OPENCODE_PORT=N opencode --port N`; los avisos van al puerto de la variable. 4097 y 4098 ocupados por TUIs anteriores.
 
 ### Pendiente
-- Commit de opencode-min en claude-project-base.
+- Commit de opencode-min en adw.
 - Medir el pico de contexto del supervisor en el próximo proyecto (antes 281k) y el ciclo fallo → resume.
 - Revisión de calidad mimo vs glm sobre prodpipe cuando cierre.
 - Después, no ahora: partir `buildOne` (preparar/intentar/aterrizar), unificar el bucle de escalera duplicado, fixture de eventos `--format json` congelado.
