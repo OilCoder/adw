@@ -36,8 +36,14 @@ baratos, todo con la suscripción (decisión del usuario: sin clave de API).
 ## Pruebas del estreno
 
 - `smoke.sh` con haiku: 1/1 PASS, 6 pasos, 17 s, 0,041 USD equivalentes.
-- `parallel-basic --parallel 3` y `research`: ver abajo (se lanzaron a la vez
-  para medir la concurrencia con suscripción).
+- `parallel-basic --parallel 3` (a la vez que un research): 3/3 PASS con
+  haiku, 1 intento cada uno, 7 a 14 pasos, 0,03 a 0,05 USD equivalentes,
+  todo en ~80 s; cero eventos de rate limit con cuatro procesos a la vez.
+- `research` (las-null, haiku): PARTIAL por tope de pasos (30): el informe
+  quedó completo (96 líneas, las cuatro secciones, 9 fuentes) pero el modelo
+  gastó los turnos en escrituras pequeñas y no llegó a la línea `DONE`.
+  Mismo comportamiento que en opencode-min; el supervisor lo acepta. Si se
+  repite, subir `steps` del researcher a 40 es el ajuste, no otro modelo.
 
 ## Costes asumidos (dichos al usuario)
 
