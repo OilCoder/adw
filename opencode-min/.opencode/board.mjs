@@ -5,52 +5,151 @@
 
 import { supervisorActivity, agentCosts } from "./opencode-db.mjs"
 
-const CLASS = { PASS: "ok", RUNNING: "run", PENDING: "wait", NOT_SELECTED: "wait", DONE: "ok", PARTIAL: "run", REJECTED: "bad" }
-const LABEL = {
-  PASS: "pasó", RUNNING: "construyendo", PENDING: "esperando", NOT_SELECTED: "no seleccionado", FAIL: "falló",
-  GATE_FAIL: "gate falló", OUT_OF_SCOPE: "fuera de alcance", PROTECTED_TOUCHED: "tocó protegidos", STRUCTURE: "rompe el mapa", NO_CHANGES: "sin cambios",
-  TIMEOUT: "timeout", NO_MODELS: "sin modelos", GATE_TRIVIAL: "gate trivial", MERGE_CONFLICT: "conflicto de merge", SKIPPED: "omitido", INSTALL_FAILED: "npm ci falló",
-  STOPPED: "detenido", ERROR: "error", DONE: "informe completo", PARTIAL: "informe parcial", NO_REPORT: "sin informe", REJECTED: "rechazado",
+const CLASS = {
+  PASS: "ok",
+  RUNNING: "run",
+  PENDING: "wait",
+  NOT_SELECTED: "wait",
+  DONE: "ok",
+  PARTIAL: "run",
+  REJECTED: "bad",
 }
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]))
+const LABEL = {
+  PASS: "pasó",
+  RUNNING: "construyendo",
+  PENDING: "esperando",
+  NOT_SELECTED: "no seleccionado",
+  FAIL: "falló",
+  GATE_FAIL: "gate falló",
+  OUT_OF_SCOPE: "fuera de alcance",
+  PROTECTED_TOUCHED: "tocó protegidos",
+  STRUCTURE: "rompe el mapa",
+  NO_CHANGES: "sin cambios",
+  TIMEOUT: "timeout",
+  NO_MODELS: "sin modelos",
+  GATE_TRIVIAL: "gate trivial",
+  MERGE_CONFLICT: "conflicto de merge",
+  SKIPPED: "omitido",
+  INSTALL_FAILED: "npm ci falló",
+  STOPPED: "detenido",
+  ERROR: "error",
+  DONE: "informe completo",
+  PARTIAL: "informe parcial",
+  NO_REPORT: "sin informe",
+  REJECTED: "rechazado",
+}
+const esc = (s) =>
+  String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c])
 const cls = (st) => CLASS[st] ?? "bad"
 const short = (m) => String(m ?? "").replace(/^[^/]+\//, "")
-const mins = (ms) => (ms < 60000 ? `${Math.max(0, Math.round(ms / 1000))} s` : ms < 3600000 ? `${Math.round(ms / 60000)} min` : `${Math.floor(ms / 3600000)} h ${Math.round((ms % 3600000) / 60000)} min`)
-const hhmm = (t) => new Date(t).toLocaleTimeString("es", { hour12: false, hour: "2-digit", minute: "2-digit" })
+const mins = (ms) =>
+  ms < 60000
+    ? `${Math.max(0, Math.round(ms / 1000))} s`
+    : ms < 3600000
+      ? `${Math.round(ms / 60000)} min`
+      : `${Math.floor(ms / 3600000)} h ${Math.round((ms % 3600000) / 60000)} min`
+const hhmm = (t) =>
+  new Date(t).toLocaleTimeString("es", { hour12: false, hour: "2-digit", minute: "2-digit" })
 const day = (t) => new Date(t).toLocaleDateString("es", { weekday: "short", day: "2-digit", month: "short" })
 const usd = (n) => `$${(n ?? 0).toFixed(2)}`
-const cut = (s, n) => { s = String(s ?? "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1) + "…" : s }
+const cut = (s, n) => {
+  s = String(s ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+  return s.length > n ? s.slice(0, n - 1) + "…" : s
+}
 
 // The facts the board is made of, in one object: the HTML below and
 // board.json (read by project-garden) come from the same call, so they can
 // never disagree.
-export function boardData({ root, sandboxes, plan, report, current, research, alive, researchRun, researchAlive, events = [], now = Date.now() }) {
-  const contracts = (plan?.contracts ?? []).map((c) => ({ ...c, deps: c.depends_on ?? [], s: report?.contracts?.[c.id] ?? { status: "PENDING" } }))
+export function boardData({
+  root,
+  sandboxes,
+  plan,
+  report,
+  current,
+  research,
+  alive,
+  researchRun,
+  researchAlive,
+  events = [],
+  now = Date.now(),
+}) {
+  const contracts = (plan?.contracts ?? []).map((c) => ({
+    ...c,
+    deps: c.depends_on ?? [],
+    s: report?.contracts?.[c.id] ?? { status: "PENDING" },
+  }))
   const byId = Object.fromEntries(contracts.map((c) => [c.id, c]))
   const passed = contracts.filter((c) => c.s.status === "PASS").length
   const running = contracts.filter((c) => c.s.status === "RUNNING")
-  const failed = contracts.filter((c) => !["PASS", "RUNNING", "PENDING", "NOT_SELECTED", "SKIPPED"].includes(c.s.status))
+  const failed = contracts.filter(
+    (c) => !["PASS", "RUNNING", "PENDING", "NOT_SELECTED", "SKIPPED"].includes(c.s.status),
+  )
   // Tests pass fixed `sup` and `costs`; the script leaves them out and the
   // board reads OpenCode's database.
   const sup = "sup" in arguments[0] ? arguments[0].sup : supervisorActivity(root)
   const costs = "costs" in arguments[0] ? arguments[0].costs : agentCosts(root, sandboxes)
   const researchResults = research?.results ?? {}
-  const researchRunning = researchAlive ? (researchRun?.questions ?? []).filter((id) => !researchResults[id] || new Date(researchResults[id].at ?? 0) < new Date(researchRun.started)) : []
+  const researchRunning = researchAlive
+    ? (researchRun?.questions ?? []).filter(
+        (id) => !researchResults[id] || new Date(researchResults[id].at ?? 0) < new Date(researchRun.started),
+      )
+    : []
 
   // ---- phase ----
   const lastMerge = [...events].reverse().find((e) => e.kind === "merge")
   const supAgo = sup?.last ? now - sup.last.at : null
   let phase, phaseCls, phaseSub
-  if (researchAlive) { phase = "investigando"; phaseCls = "run"; phaseSub = `desde ${hhmm(researchRun.started)} · ${mins(now - new Date(researchRun.started).getTime())} · ${researchRun.questions?.length ?? 0} preguntas` }
-  else if (alive) { phase = "construyendo"; phaseCls = "run"; phaseSub = `desde ${hhmm(current.started)} · ${mins(now - new Date(current.started).getTime())} · ${running.length} en paralelo` }
-  else if (sup?.last && supAgo < 3 * 60000 && sup.last.kind !== "text") { phase = "supervisor trabajando"; phaseCls = "run"; phaseSub = `última acción hace ${mins(supAgo)}` }
-  else if (sup?.waiting && !alive && !researchAlive) { phase = "te espera"; phaseCls = "you"; phaseSub = `desde ${hhmm(sup.last.at)} · ${mins(supAgo)}` }
-  else if (current && !current.finished && Object.values(report?.contracts ?? {}).some((c) => c.status === "RUNNING")) { phase = "detenido"; phaseCls = "bad"; phaseSub = "el build murió con contratos en curso; reanuda con --resume" }
-  else { phase = "parado"; phaseCls = ""; phaseSub = sup?.last ? `supervisor inactivo hace ${mins(supAgo)}` : "sin actividad registrada" }
+  if (researchAlive) {
+    phase = "investigando"
+    phaseCls = "run"
+    phaseSub = `desde ${hhmm(researchRun.started)} · ${mins(now - new Date(researchRun.started).getTime())} · ${researchRun.questions?.length ?? 0} preguntas`
+  } else if (alive) {
+    phase = "construyendo"
+    phaseCls = "run"
+    phaseSub = `desde ${hhmm(current.started)} · ${mins(now - new Date(current.started).getTime())} · ${running.length} en paralelo`
+  } else if (sup?.last && supAgo < 3 * 60000 && sup.last.kind !== "text") {
+    phase = "supervisor trabajando"
+    phaseCls = "run"
+    phaseSub = `última acción hace ${mins(supAgo)}`
+  } else if (sup?.waiting && !alive && !researchAlive) {
+    phase = "te espera"
+    phaseCls = "you"
+    phaseSub = `desde ${hhmm(sup.last.at)} · ${mins(supAgo)}`
+  } else if (
+    current &&
+    !current.finished &&
+    Object.values(report?.contracts ?? {}).some((c) => c.status === "RUNNING")
+  ) {
+    phase = "detenido"
+    phaseCls = "bad"
+    phaseSub = "el build murió con contratos en curso; reanuda con --resume"
+  } else {
+    phase = "parado"
+    phaseCls = ""
+    phaseSub = sup?.last ? `supervisor inactivo hace ${mins(supAgo)}` : "sin actividad registrada"
+  }
   // The supervisor only "waits" when nothing is running: a status report
   // written while a build or research is alive is not a question for the user.
   const waitingText = sup?.waiting && !alive && !researchAlive ? cut(sup.waiting, 220) : null
-  return { contracts, byId, passed, running, failed, sup, costs, researchResults, researchRunning, lastMerge, supAgo, phase, phaseCls, phaseSub, waitingText }
+  return {
+    contracts,
+    byId,
+    passed,
+    running,
+    failed,
+    sup,
+    costs,
+    researchResults,
+    researchRunning,
+    lastMerge,
+    supAgo,
+    phase,
+    phaseCls,
+    phaseSub,
+    waitingText,
+  }
 }
 
 // board.json: the same facts, flat, for tools that read many projects at once.
@@ -62,109 +161,350 @@ export function boardJson(args) {
   const lastNotify = [...events].reverse().find((e) => e.kind === "notify") ?? null
   const gateBroken = d.failed.filter((c) => /GATE BROKEN/i.test(String(c.s.reason ?? ""))).map((c) => c.id)
   const byModel = {}
-  for (const c of d.contracts) if (c.s.status === "PASS" && c.s.model) byModel[c.s.model] = (byModel[c.s.model] ?? 0) + 1
+  for (const c of d.contracts)
+    if (c.s.status === "PASS" && c.s.model) byModel[c.s.model] = (byModel[c.s.model] ?? 0) + 1
   return {
     updatedAt: new Date(now).toISOString(),
-    phase: d.phase, phaseCls: d.phaseCls, phaseSub: d.phaseSub, alive, researchAlive,
+    phase: d.phase,
+    phaseCls: d.phaseCls,
+    phaseSub: d.phaseSub,
+    alive,
+    researchAlive,
     waiting: d.waitingText,
-    build: { run: current?.run ?? null, passed: d.passed, total: d.contracts.length, failed: d.failed.map((c) => c.id), gateBroken, pending, running: d.running.map((c) => c.id),
-      integration: current?.integration ? { branch: current.integration, merged } : null, closedBy: byModel },
-    research: { total: rr.length, done: rr.filter((r) => r.status === "DONE").length, partial: rr.filter((r) => r.status === "PARTIAL").length, rejected: rr.filter((r) => r.status === "REJECTED").length, alive: researchAlive },
+    build: {
+      run: current?.run ?? null,
+      passed: d.passed,
+      total: d.contracts.length,
+      failed: d.failed.map((c) => c.id),
+      gateBroken,
+      pending,
+      running: d.running.map((c) => c.id),
+      integration: current?.integration ? { branch: current.integration, merged } : null,
+      closedBy: byModel,
+    },
+    research: {
+      total: rr.length,
+      done: rr.filter((r) => r.status === "DONE").length,
+      partial: rr.filter((r) => r.status === "PARTIAL").length,
+      rejected: rr.filter((r) => r.status === "REJECTED").length,
+      alive: researchAlive,
+    },
     cost: d.costs ? { total: d.costs.total, byRole: d.costs.byRole, byModel: d.costs.byModel } : null,
-    supervisor: d.sup?.last ? { sessionId: d.sup.sessionId ?? null, lastAt: new Date(d.sup.last.at).toISOString(), lastKind: d.sup.last.kind } : null,
-    lastNotify: lastNotify ? { at: lastNotify.at, text: lastNotify.text, delivered: Boolean(lastNotify.delivered), port: lastNotify.port ?? null, reason: lastNotify.reason ?? null } : null,
+    supervisor: d.sup?.last
+      ? {
+          sessionId: d.sup.sessionId ?? null,
+          lastAt: new Date(d.sup.last.at).toISOString(),
+          lastKind: d.sup.last.kind,
+        }
+      : null,
+    lastNotify: lastNotify
+      ? {
+          at: lastNotify.at,
+          text: lastNotify.text,
+          delivered: Boolean(lastNotify.delivered),
+          port: lastNotify.port ?? null,
+          reason: lastNotify.reason ?? null,
+        }
+      : null,
   }
 }
 
 export function renderBoard(args) {
-  const { root, sandboxes, plan, report, current, research, alive, researchRun, researchAlive, events = [], models, ladders = {}, now = Date.now() } = args
-  const { contracts, byId, passed, running, failed, sup, costs, researchResults, researchRunning, lastMerge, supAgo, phase, phaseCls, phaseSub, waitingText } = boardData(args)
+  const {
+    root,
+    sandboxes,
+    plan,
+    report,
+    current,
+    research,
+    alive,
+    researchRun,
+    researchAlive,
+    events = [],
+    models,
+    ladders = {},
+    now = Date.now(),
+  } = args
+  const {
+    contracts,
+    byId,
+    passed,
+    running,
+    failed,
+    sup,
+    costs,
+    researchResults,
+    researchRunning,
+    lastMerge,
+    supAgo,
+    phase,
+    phaseCls,
+    phaseSub,
+    waitingText,
+  } = boardData(args)
 
   const strip = `<div class="strip">
     <div><div class="k">Fase</div><div class="v ${phaseCls}">${phaseCls === "run" ? '<span class="pulse"></span>' : ""}${phase}</div><div class="sub">${esc(phaseSub)}</div></div>
     <div><div class="k">Supervisor</div><div class="v">${sup?.last ? `hace ${mins(supAgo)}` : "–"}</div><div class="sub">${sup?.last ? esc(`${hhmm(sup.last.at)} · ${sup.last.kind === "text" ? "te respondió" : sup.last.kind === "thinking" ? "pensando" : cut(sup.last.text, 60)}`) : "sin sesión de OpenCode aquí"}</div></div>
     <div><div class="k">Contratos</div><div class="v ${passed && passed === contracts.length ? "ok" : ""}">${passed}<small>de ${contracts.length} pasaron</small></div><div class="sub">${lastMerge ? `en master: ${lastMerge.commits} commits · ${hhmm(lastMerge.at)}` : contracts.length ? "nada aterrizado aún" : "sin plan"}</div></div>
     <div><div class="k">Te espera</div><div class="v ${waitingText ? "you" : ""}">${waitingText ? "sí" : "nada"}</div><div class="sub">${waitingText ? esc(cut(waitingText, 90)) : sup?.userMessages?.length ? `tu último mensaje: ${hhmm(sup.userMessages.at(-1).at)}` : ""}</div></div>
-    <div><div class="k">Coste Go</div><div class="v">${costs ? usd(costs.total) : "–"}</div><div class="sub">${costs ? esc(Object.entries(costs.byRole).map(([r, c]) => `${r} ${usd(c)}`).join(" · ")) : "base de OpenCode no disponible"}</div></div>
+    <div><div class="k">Coste Go</div><div class="v">${costs ? usd(costs.total) : "–"}</div><div class="sub">${
+      costs
+        ? esc(
+            Object.entries(costs.byRole)
+              .map(([r, c]) => `${r} ${usd(c)}`)
+              .join(" · "),
+          )
+        : "base de OpenCode no disponible"
+    }</div></div>
   </div>`
 
   // ---- running now ----
   const runCards = []
-  for (const c of running) runCards.push(`<div class="card run"><div class="id">● ${esc(c.id)}</div><div class="t">${esc(cut(c.title ?? c.s.objective ?? "", 110))}</div><div class="m"><span>builder · ${esc(short(c.s.model))}</span><span>intento ${c.s.attempt ?? 1}</span><span>${c.s.started ? mins(now - new Date(c.s.started).getTime()) : ""}</span></div></div>`)
+  for (const c of running)
+    runCards.push(
+      `<div class="card run"><div class="id">● ${esc(c.id)}</div><div class="t">${esc(cut(c.title ?? c.s.objective ?? "", 110))}</div><div class="m"><span>builder · ${esc(short(c.s.model))}</span><span>intento ${c.s.attempt ?? 1}</span><span>${c.s.started ? mins(now - new Date(c.s.started).getTime()) : ""}</span></div></div>`,
+    )
   for (const id of researchRunning) {
-    const q = (events.slice().reverse().find((e) => e.kind === "research-start")?.questions ?? []).find((x) => x.id === id)
-    runCards.push(`<div class="card run sq"><div class="id">■ ${esc(id)}</div><div class="t">${esc(cut(q?.question ?? "", 110))}</div><div class="m"><span>researcher</span><span>${mins(now - new Date(researchRun.started).getTime())}</span></div></div>`)
+    const q = (
+      events
+        .slice()
+        .reverse()
+        .find((e) => e.kind === "research-start")?.questions ?? []
+    ).find((x) => x.id === id)
+    runCards.push(
+      `<div class="card run sq"><div class="id">■ ${esc(id)}</div><div class="t">${esc(cut(q?.question ?? "", 110))}</div><div class="m"><span>researcher</span><span>${mins(now - new Date(researchRun.started).getTime())}</span></div></div>`,
+    )
   }
-  const runningPanel = runCards.length ? `<div class="panel"><div class="panel-h"><span>Corriendo ahora</span><span>${runCards.length}</span></div><div class="cards">${runCards.join("")}</div></div>` : ""
+  const runningPanel = runCards.length
+    ? `<div class="panel"><div class="panel-h"><span>Corriendo ahora</span><span>${runCards.length}</span></div><div class="cards">${runCards.join("")}</div></div>`
+    : ""
 
   // ---- journal: script events + user messages + supervisor questions ----
   const entries = []
   for (const e of events) {
     const at = new Date(e.at).getTime()
-    if (e.kind === "contract") entries.push({ at, shape: "dot", cls: e.status === "PASS" ? "ok" : "bad", html: `<b>${esc(e.id)}</b> · builder · ${esc((e.models ?? [e.model]).map(short).join(" › "))} · ${esc(cut(e.title ?? e.objective, 120))} <span class="m">${e.status === "PASS" ? `${e.attempts} intento${e.attempts > 1 ? "s" : ""}, ${e.files} archivos` : `${esc(LABEL[e.status] ?? e.status)} tras ${e.attempts} intentos${e.detail ? ": " + esc(cut(e.detail, 100)) : ""}`}</span>` })
-    else if (e.kind === "research") entries.push({ at, shape: "sq", cls: cls(e.status), html: `<b>${esc(e.id)}</b> · researcher · ${esc((e.models ?? [e.model]).map(short).join(" › "))} · ${esc(cut(e.question, 120))} <span class="m">${esc(LABEL[e.status] ?? e.status)}, ${e.steps} pasos${e.one_shot ? ", escrito de una vez" : ""}</span>` })
-    else if (e.kind === "reject") entries.push({ at, shape: "sq", cls: "bad", html: `<b>${esc(e.id)}</b> · informe de ${esc(short(e.model))} rechazado por el supervisor, se relanza con el siguiente modelo` })
-    else if (e.kind === "research-start") entries.push({ at, shape: "sq", cls: "run", html: `Research: ${e.questions.length} pregunta${e.questions.length > 1 ? "s" : ""} <span class="m">${esc(e.questions.map((q) => q.id).join(", "))}</span>` })
-    else if (e.kind === "notify") entries.push({ at, shape: "dia", cls: e.delivered ? "wait" : "bad", html: `<b>Aviso al supervisor${e.delivered ? "" : ` (no entregado: ${esc(e.reason ?? "sin sesión")})`}:</b> ${esc(cut(e.text, 160))}` })
-    else if (e.kind === "seal") entries.push({ at, shape: "dot", cls: "wait", html: `Plan sellado: ${e.contracts} contratos` })
-    else if (e.kind === "build-start") entries.push({ at, shape: "dot", cls: "run", html: `Build iniciado: ${e.contracts} contratos, paralelo ${e.parallel} <span class="m">${esc(e.run)}</span>` })
-    else if (e.kind === "build-resume") entries.push({ at, shape: "dot", cls: "run", html: `Build reanudado${e.only ? ` (${esc(e.only.join(", "))})` : ""}, paralelo ${e.parallel}` })
-    else if (e.kind === "build-end") entries.push({ at, shape: "dot", cls: e.passed === e.total ? "ok" : "bad", html: `Build terminado: ${e.passed} de ${e.total} contratos pasaron` })
-    else if (e.kind === "merge") entries.push({ at, shape: "dot", cls: "merge", html: `<b>Aterrizado en ${esc(e.branch)}</b>: ${e.commits} commits (${e.how})${e.pending ? `, ${e.pending} contratos pendientes` : ""}` })
+    if (e.kind === "contract")
+      entries.push({
+        at,
+        shape: "dot",
+        cls: e.status === "PASS" ? "ok" : "bad",
+        html: `<b>${esc(e.id)}</b> · builder · ${esc((e.models ?? [e.model]).map(short).join(" › "))} · ${esc(cut(e.title ?? e.objective, 120))} <span class="m">${e.status === "PASS" ? `${e.attempts} intento${e.attempts > 1 ? "s" : ""}, ${e.files} archivos` : `${esc(LABEL[e.status] ?? e.status)} tras ${e.attempts} intentos${e.detail ? ": " + esc(cut(e.detail, 100)) : ""}`}</span>`,
+      })
+    else if (e.kind === "research")
+      entries.push({
+        at,
+        shape: "sq",
+        cls: cls(e.status),
+        html: `<b>${esc(e.id)}</b> · researcher · ${esc((e.models ?? [e.model]).map(short).join(" › "))} · ${esc(cut(e.question, 120))} <span class="m">${esc(LABEL[e.status] ?? e.status)}, ${e.steps} pasos${e.one_shot ? ", escrito de una vez" : ""}</span>`,
+      })
+    else if (e.kind === "reject")
+      entries.push({
+        at,
+        shape: "sq",
+        cls: "bad",
+        html: `<b>${esc(e.id)}</b> · informe de ${esc(short(e.model))} rechazado por el supervisor, se relanza con el siguiente modelo`,
+      })
+    else if (e.kind === "research-start")
+      entries.push({
+        at,
+        shape: "sq",
+        cls: "run",
+        html: `Research: ${e.questions.length} pregunta${e.questions.length > 1 ? "s" : ""} <span class="m">${esc(e.questions.map((q) => q.id).join(", "))}</span>`,
+      })
+    else if (e.kind === "notify")
+      entries.push({
+        at,
+        shape: "dia",
+        cls: e.delivered ? "wait" : "bad",
+        html: `<b>Aviso al supervisor${e.delivered ? "" : ` (no entregado: ${esc(e.reason ?? "sin sesión")})`}:</b> ${esc(cut(e.text, 160))}`,
+      })
+    else if (e.kind === "seal")
+      entries.push({ at, shape: "dot", cls: "wait", html: `Plan sellado: ${e.contracts} contratos` })
+    else if (e.kind === "build-start")
+      entries.push({
+        at,
+        shape: "dot",
+        cls: "run",
+        html: `Build iniciado: ${e.contracts} contratos, paralelo ${e.parallel} <span class="m">${esc(e.run)}</span>`,
+      })
+    else if (e.kind === "build-resume")
+      entries.push({
+        at,
+        shape: "dot",
+        cls: "run",
+        html: `Build reanudado${e.only ? ` (${esc(e.only.join(", "))})` : ""}, paralelo ${e.parallel}`,
+      })
+    else if (e.kind === "build-end")
+      entries.push({
+        at,
+        shape: "dot",
+        cls: e.passed === e.total ? "ok" : "bad",
+        html: `Build terminado: ${e.passed} de ${e.total} contratos pasaron`,
+      })
+    else if (e.kind === "merge")
+      entries.push({
+        at,
+        shape: "dot",
+        cls: "merge",
+        html: `<b>Aterrizado en ${esc(e.branch)}</b>: ${e.commits} commits (${e.how})${e.pending ? `, ${e.pending} contratos pendientes` : ""}`,
+      })
   }
-  for (const u of sup?.userMessages ?? []) entries.push({ at: u.at, shape: "dia", cls: "you", html: `<b>Tú:</b> ${esc(cut(u.text, 160))}` })
-  if (waitingText) entries.push({ at: sup.last.at, shape: "dia", cls: "you", html: `<b>Supervisor te espera:</b> ${esc(cut(waitingText, 200))}` })
+  for (const u of sup?.userMessages ?? [])
+    entries.push({ at: u.at, shape: "dia", cls: "you", html: `<b>Tú:</b> ${esc(cut(u.text, 160))}` })
+  if (waitingText)
+    entries.push({
+      at: sup.last.at,
+      shape: "dia",
+      cls: "you",
+      html: `<b>Supervisor te espera:</b> ${esc(cut(waitingText, 200))}`,
+    })
   entries.sort((a, b) => b.at - a.at)
   let lastDay = ""
-  const journal = entries.slice(0, 80).map((e) => {
-    const d = day(e.at); const head = d !== lastDay ? `<div class="jday">${esc(d)}</div>` : ""; lastDay = d
-    return `${head}<div class="j ${e.cls}"><div class="t">${hhmm(e.at)}</div><div class="s ${e.shape}"></div><div class="x">${e.html}</div></div>`
-  }).join("")
+  const journal = entries
+    .slice(0, 80)
+    .map((e) => {
+      const d = day(e.at)
+      const head = d !== lastDay ? `<div class="jday">${esc(d)}</div>` : ""
+      lastDay = d
+      return `${head}<div class="j ${e.cls}"><div class="t">${hhmm(e.at)}</div><div class="s ${e.shape}"></div><div class="x">${e.html}</div></div>`
+    })
+    .join("")
 
   // ---- graph ----
   const depth = {}
-  const d = (id) => depth[id] ?? (depth[id] = byId[id].deps.length ? 1 + Math.max(...byId[id].deps.map(d)) : 0)
+  const d = (id) =>
+    depth[id] ?? (depth[id] = byId[id].deps.length ? 1 + Math.max(...byId[id].deps.map(d)) : 0)
   contracts.forEach((c) => d(c.id))
   const layers = []
   contracts.forEach((c) => (layers[depth[c.id]] ??= []).push(c))
-  const NW = 150, colW = NW + 40, rowH = 50, top = 40
-  const W = Math.max(colW * layers.length, 300), H = top + rowH * Math.max(1, ...layers.map((l) => l.length)) + 10
+  const NW = 150,
+    colW = NW + 40,
+    rowH = 50,
+    top = 40
+  const W = Math.max(colW * layers.length, 300),
+    H = top + rowH * Math.max(1, ...layers.map((l) => l.length)) + 10
   const pos = {}
-  layers.forEach((l, li) => { const y0 = top + (H - top - rowH * l.length) / 2 + rowH / 2; l.forEach((c, i) => { pos[c.id] = { x: colW * li + 20, y: y0 + i * rowH } }) })
-  const longest = (id) => { const c = byId[id]; if (!c.deps.length) return [id]; return [...c.deps.map(longest).sort((a, b) => b.length - a.length)[0], id] }
+  layers.forEach((l, li) => {
+    const y0 = top + (H - top - rowH * l.length) / 2 + rowH / 2
+    l.forEach((c, i) => {
+      pos[c.id] = { x: colW * li + 20, y: y0 + i * rowH }
+    })
+  })
+  const longest = (id) => {
+    const c = byId[id]
+    if (!c.deps.length) return [id]
+    return [...c.deps.map(longest).sort((a, b) => b.length - a.length)[0], id]
+  }
   const sinks = contracts.filter((c) => !contracts.some((o) => o.deps.includes(c.id)))
   const crit = new Set(sinks.map((s) => longest(s.id)).sort((a, b) => b.length - a.length)[0] ?? [])
   let svg = ""
-  layers.forEach((l, li) => { const x = colW * li; svg += `<line class="lane" x1="${x + 8}" y1="${top - 14}" x2="${x + 8}" y2="${H - 6}"/><text class="lane-lbl" x="${x + 14}" y="${top - 20}">CAPA ${li}</text>` })
-  contracts.forEach((c) => c.deps.forEach((dep) => { const a = pos[dep], b = pos[c.id], x1 = a.x + NW, x2 = b.x, mx = (x1 + x2) / 2; const k = byId[dep].s.status === "PASS" && c.s.status !== "PENDING" ? "edge done" : crit.has(dep) && crit.has(c.id) ? "edge crit" : "edge"; svg += `<path class="${k}" d="M${x1},${a.y} C${mx},${a.y} ${mx},${b.y} ${x2},${b.y}"/>` }))
-  contracts.forEach((c) => { const p = pos[c.id], st = c.s.status, k = cls(st); const sub = st === "RUNNING" ? `● ${short(c.s.model)} · int. ${c.s.attempt ?? 1}` : st === "PASS" ? `${short(c.s.model)} · ${c.s.attempts?.length ?? 1} int.` : LABEL[st] ?? st; svg += `<g><title>${esc(c.id)} — ${esc(c.title ?? "")}\n${esc(sub)}</title><rect class="node ${k}" x="${p.x}" y="${p.y - 17}" width="${NW}" height="34" rx="4"/><text x="${p.x + 8}" y="${p.y - 3}">${esc(cut(c.id, 20))}</text><text class="lbl2" x="${p.x + 8}" y="${p.y + 10}">${esc(cut(sub, 24))}</text></g>` })
+  layers.forEach((l, li) => {
+    const x = colW * li
+    svg += `<line class="lane" x1="${x + 8}" y1="${top - 14}" x2="${x + 8}" y2="${H - 6}"/><text class="lane-lbl" x="${x + 14}" y="${top - 20}">CAPA ${li}</text>`
+  })
+  contracts.forEach((c) =>
+    c.deps.forEach((dep) => {
+      const a = pos[dep],
+        b = pos[c.id],
+        x1 = a.x + NW,
+        x2 = b.x,
+        mx = (x1 + x2) / 2
+      const k =
+        byId[dep].s.status === "PASS" && c.s.status !== "PENDING"
+          ? "edge done"
+          : crit.has(dep) && crit.has(c.id)
+            ? "edge crit"
+            : "edge"
+      svg += `<path class="${k}" d="M${x1},${a.y} C${mx},${a.y} ${mx},${b.y} ${x2},${b.y}"/>`
+    }),
+  )
+  contracts.forEach((c) => {
+    const p = pos[c.id],
+      st = c.s.status,
+      k = cls(st)
+    const sub =
+      st === "RUNNING"
+        ? `● ${short(c.s.model)} · int. ${c.s.attempt ?? 1}`
+        : st === "PASS"
+          ? `${short(c.s.model)} · ${c.s.attempts?.length ?? 1} int.`
+          : (LABEL[st] ?? st)
+    svg += `<g><title>${esc(c.id)} — ${esc(c.title ?? "")}\n${esc(sub)}</title><rect class="node ${k}" x="${p.x}" y="${p.y - 17}" width="${NW}" height="34" rx="4"/><text x="${p.x + 8}" y="${p.y - 3}">${esc(cut(c.id, 20))}</text><text class="lbl2" x="${p.x + 8}" y="${p.y + 10}">${esc(cut(sub, 24))}</text></g>`
+  })
 
   // ---- contracts board ----
   const card = (c) => {
-    const s = c.s, st = s.status, k = cls(st), cost = costs?.byContract?.[c.id]
+    const s = c.s,
+      st = s.status,
+      k = cls(st),
+      cost = costs?.byContract?.[c.id]
     let meta
-    if (st === "RUNNING") meta = `<span><span class="pulse"></span>${esc(short(s.model))}</span><span>intento ${s.attempt ?? 1}</span><span>${s.started ? mins(now - new Date(s.started).getTime()) : ""}</span>`
-    else if (st === "PASS") meta = `<span>${esc(short(s.model))}</span><span>${s.attempts?.length ?? 1} intento${(s.attempts?.length ?? 1) > 1 ? "s" : ""}</span><span>${s.duration_ms ? mins(s.duration_ms) : ""}</span>${cost != null ? `<span>${usd(cost)}</span>` : ""}`
-    else if (st === "PENDING") { const w = c.deps.filter((x) => byId[x].s.status !== "PASS"); meta = `<span>espera ${w.length === 1 ? esc(w[0]) : w.length + " dependencias"}</span>` }
-    else meta = `<span>${esc(LABEL[st] ?? st)}</span>${s.attempts?.length ? `<span>${s.attempts.length} intentos</span>` : ""}${cost != null ? `<span>${usd(cost)}</span>` : ""}${s.reason ? `<span class="reason">${esc(cut(String(s.reason).split("\n")[0], 140))}</span>` : ""}`
+    if (st === "RUNNING")
+      meta = `<span><span class="pulse"></span>${esc(short(s.model))}</span><span>intento ${s.attempt ?? 1}</span><span>${s.started ? mins(now - new Date(s.started).getTime()) : ""}</span>`
+    else if (st === "PASS")
+      meta = `<span>${esc(short(s.model))}</span><span>${s.attempts?.length ?? 1} intento${(s.attempts?.length ?? 1) > 1 ? "s" : ""}</span><span>${s.duration_ms ? mins(s.duration_ms) : ""}</span>${cost != null ? `<span>${usd(cost)}</span>` : ""}`
+    else if (st === "PENDING") {
+      const w = c.deps.filter((x) => byId[x].s.status !== "PASS")
+      meta = `<span>espera ${w.length === 1 ? esc(w[0]) : w.length + " dependencias"}</span>`
+    } else
+      meta = `<span>${esc(LABEL[st] ?? st)}</span>${s.attempts?.length ? `<span>${s.attempts.length} intentos</span>` : ""}${cost != null ? `<span>${usd(cost)}</span>` : ""}${s.reason ? `<span class="reason">${esc(cut(String(s.reason).split("\n")[0], 140))}</span>` : ""}`
     return `<div class="card ${k}"><div class="id">${esc(c.id)}</div><div class="t">${esc(c.title ?? "")}</div><div class="m">${meta}</div></div>`
   }
-  const board = [["wait", "Pendiente"], ["run", "En curso"], ["ok", "Pasó"], ["bad", "Falló"]].map(([k, name]) => { const items = contracts.filter((c) => cls(c.s.status) === k); return `<div class="col"><div class="col-h"><span class="eyebrow">${name}</span><span class="n">${items.length}</span></div>${items.map(card).join("")}</div>` }).join("")
+  const board = [
+    ["wait", "Pendiente"],
+    ["run", "En curso"],
+    ["ok", "Pasó"],
+    ["bad", "Falló"],
+  ]
+    .map(([k, name]) => {
+      const items = contracts.filter((c) => cls(c.s.status) === k)
+      return `<div class="col"><div class="col-h"><span class="eyebrow">${name}</span><span class="n">${items.length}</span></div>${items.map(card).join("")}</div>`
+    })
+    .join("")
 
   // ---- research tab ----
   const starts = events.filter((e) => e.kind === "research-start")
   const questionText = {}
   for (const s of starts) for (const q of s.questions) questionText[q.id] = q.question
   const runsOf = {}
-  for (const [id, r] of Object.entries(researchResults)) (runsOf[r.run ?? research?.run ?? "?"] ??= []).push([id, r])
-  const researchTab = Object.keys(researchResults).length ? Object.entries(runsOf).sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([run, rows]) => `<tr class="grp"><td colspan="5">TANDA ${esc(run)}</td></tr>${rows.map(([id, r]) => `<tr><td class="mono"><b>${esc(id)}</b><div class="q">${esc(cut(questionText[id] ?? "", 140))}</div></td><td><span class="pill ${cls(r.status)}">${esc(r.status)}</span>${r.rejected?.length ? `<div class="q">sin informe con: ${esc(r.rejected.map(short).join(", "))}</div>` : ""}</td><td class="mono">${esc(short(r.model))}</td><td class="num">${r.steps ?? ""}</td><td class="mono">${esc(r.report ?? "")}</td></tr>`).join("")}`).join("") : null
-  const researchTable = researchTab ? `<table class="rs"><colgroup><col style="width:44%"><col style="width:20%"><col style="width:12%"><col style="width:6%"><col style="width:18%"></colgroup><tr><th>Pregunta</th><th>Estado</th><th>Modelo</th><th>Pasos</th><th>Informe</th></tr>${researchTab}</table>` : `<div class="empty">Sin research todavía.</div>`
+  for (const [id, r] of Object.entries(researchResults))
+    (runsOf[r.run ?? research?.run ?? "?"] ??= []).push([id, r])
+  const researchTab = Object.keys(researchResults).length
+    ? Object.entries(runsOf)
+        .sort((a, b) => (a[0] < b[0] ? 1 : -1))
+        .map(
+          ([run, rows]) =>
+            `<tr class="grp"><td colspan="5">TANDA ${esc(run)}</td></tr>${rows.map(([id, r]) => `<tr><td class="mono"><b>${esc(id)}</b><div class="q">${esc(cut(questionText[id] ?? "", 140))}</div></td><td><span class="pill ${cls(r.status)}">${esc(r.status)}</span>${r.rejected?.length ? `<div class="q">sin informe con: ${esc(r.rejected.map(short).join(", "))}</div>` : ""}</td><td class="mono">${esc(short(r.model))}</td><td class="num">${r.steps ?? ""}</td><td class="mono">${esc(r.report ?? "")}</td></tr>`).join("")}`,
+        )
+        .join("")
+    : null
+  const researchTable = researchTab
+    ? `<table class="rs"><colgroup><col style="width:44%"><col style="width:20%"><col style="width:12%"><col style="width:6%"><col style="width:18%"></colgroup><tr><th>Pregunta</th><th>Estado</th><th>Modelo</th><th>Pasos</th><th>Informe</th></tr>${researchTab}</table>`
+    : `<div class="empty">Sin research todavía.</div>`
 
   // ---- models tab ----
   const perRole = { builder: {}, researcher: {} }
-  for (const c of contracts) for (const a of c.s.attempts ?? []) { const m = (perRole.builder[a.model] ??= { attempts: 0, passed: 0 }); m.attempts++; if (a.verdict === "PASS") m.passed++ }
-  for (const r of Object.values(researchResults)) { if (!r.model) continue; const m = (perRole.researcher[r.model] ??= { attempts: 0, passed: 0 }); m.attempts += r.attempt ?? 1; if (r.status === "DONE") m.passed++ }
-  const modelTable = (role, title) => { const rows = Object.entries(perRole[role]).map(([m, v]) => { const cost = costs?.byModel?.[role]?.[short(m)]; return `<tr><td class="mono">${esc(short(m))}</td><td class="num">${v.attempts}</td><td class="num">${v.passed}</td><td class="num">${v.attempts ? Math.round(100 * v.passed / v.attempts) : 0} %</td><td class="num">${cost ? usd(cost.cost) : "–"}</td><td class="num">${cost ? cost.sessions : "–"}</td><td class="num">${cost?.ms ? mins(cost.ms) : "–"}</td><td class="num">${cost?.ms && cost.sessions ? mins(cost.ms / cost.sessions) : "–"}</td></tr>` }).join(""); return `<div class="group">${title}</div><table><tr><th>Modelo</th><th class="num">Intentos</th><th class="num">Pasó</th><th class="num">Tasa</th><th class="num">Coste</th><th class="num">Sesiones</th><th class="num">Tiempo</th><th class="num">Por sesión</th></tr>${rows || `<tr><td colspan="8" class="empty">Sin datos todavía.</td></tr>`}</table>` }
+  for (const c of contracts)
+    for (const a of c.s.attempts ?? []) {
+      const m = (perRole.builder[a.model] ??= { attempts: 0, passed: 0 })
+      m.attempts++
+      if (a.verdict === "PASS") m.passed++
+    }
+  for (const r of Object.values(researchResults)) {
+    if (!r.model) continue
+    const m = (perRole.researcher[r.model] ??= { attempts: 0, passed: 0 })
+    m.attempts += r.attempt ?? 1
+    if (r.status === "DONE") m.passed++
+  }
+  const modelTable = (role, title) => {
+    const rows = Object.entries(perRole[role])
+      .map(([m, v]) => {
+        const cost = costs?.byModel?.[role]?.[short(m)]
+        return `<tr><td class="mono">${esc(short(m))}</td><td class="num">${v.attempts}</td><td class="num">${v.passed}</td><td class="num">${v.attempts ? Math.round((100 * v.passed) / v.attempts) : 0} %</td><td class="num">${cost ? usd(cost.cost) : "–"}</td><td class="num">${cost ? cost.sessions : "–"}</td><td class="num">${cost?.ms ? mins(cost.ms) : "–"}</td><td class="num">${cost?.ms && cost.sessions ? mins(cost.ms / cost.sessions) : "–"}</td></tr>`
+      })
+      .join("")
+    return `<div class="group">${title}</div><table><tr><th>Modelo</th><th class="num">Intentos</th><th class="num">Pasó</th><th class="num">Tasa</th><th class="num">Coste</th><th class="num">Sesiones</th><th class="num">Tiempo</th><th class="num">Por sesión</th></tr>${rows || `<tr><td colspan="8" class="empty">Sin datos todavía.</td></tr>`}</table>`
+  }
   const modelsTab = `<div class="strip s3"><div><div class="k">Escalera builder</div><div class="v sm">${esc((ladders.builder ?? []).map(short).join(" › "))}</div></div><div><div class="k">Escalera researcher</div><div class="v sm">${esc((ladders.researcher ?? []).map(short).join(" › "))}</div></div><div><div class="k">Regla</div><div class="v sm">2 intentos por peldaño · ${models?.max_models_per_item ?? 3} peldaños por ítem · si un modelo te falla seguido, bájalo en models.json</div></div></div>
     ${modelTable("builder", "BUILDERS · contratos")}
     ${modelTable("researcher", "RESEARCHERS · preguntas")}
