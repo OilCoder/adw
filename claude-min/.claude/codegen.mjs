@@ -41,16 +41,17 @@ const STATE = path.join(ROOT, ".codegen")
 // independent project and nothing the builder does can reach the user's tree.
 const SANDBOXES = path.join(path.dirname(ROOT), `.${path.basename(ROOT)}-codegen-sandboxes`)
 const MODELS = JSON.parse(readFileSync(path.join(ROOT, ".claude", "models.json"), "utf8"))
-// Agents are markdown files: front matter with `steps` (max turns), `allow`
-// and `deny` (Claude Code permission rules, JSON arrays), then the system
-// prompt. The same file is the only place a role is defined.
+// Agents are Claude Code agent files (.claude/agents/*.md): native front
+// matter (`name`, `description`, `maxTurns`) plus `allow` and `deny`, the
+// permission rules the script hands to claude -p as a settings file. The
+// same file is the only place a role is defined.
 function loadAgent(name) {
-  const text = readFileSync(path.join(ROOT, ".claude", "roles", `${name}.md`), "utf8")
+  const text = readFileSync(path.join(ROOT, ".claude", "agents", `${name}.md`), "utf8")
   const m = text.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/)
   if (!m) throw new Error(`agent ${name}: missing front matter`)
   const field = (k) => (m[1].match(new RegExp(`^${k}:\\s*(.+)$`, "m")) ?? [])[1]
   const list = (k) => { const v = field(k); return v ? JSON.parse(v) : [] }
-  return { name, steps: Number(field("steps") ?? 40), allow: list("allow"), deny: list("deny"), system: m[2].trim() }
+  return { name, steps: Number(field("maxTurns") ?? 40), allow: list("allow"), deny: list("deny"), system: m[2].trim() }
 }
 const AGENTS = Object.fromEntries(["researcher", "builder"].map((a) => [a, loadAgent(a)]))
 // A run that hit its step cap did not finish.
@@ -358,7 +359,7 @@ function printResearch(results) {
 function loadPlan(only) {
   const plan = readJson(path.join(STATE, "plan.json"))
   const map = loadStructure()
-  if (!map) throw new Error("plan: write .codegen/structure.md first (see .claude/instructions/structure.md)")
+  if (!map) throw new Error("plan: write .codegen/structure.md first (see .claude/rules/structure.md)")
   const ids = new Set()
   for (const c of plan.contracts) {
     if (!c.id || ids.has(c.id)) throw new Error(`plan: duplicate or missing id ${c.id}`)
@@ -524,6 +525,11 @@ async function buildOne(entry, { runDir, integration, integrationDir, state, rep
   // Export the current integration branch and give the sandbox its own history.
   const integrationHead = git(["rev-parse", integration])
   execFileSync("bash", ["-c", `git -C "${ROOT}" archive ${integrationHead} | tar -x -C "${wt}"`], { stdio: ["ignore", "ignore", "pipe"] })
+  // The sandbox is the builder's project: the supervisor's CLAUDE.md, rules
+  // and settings must not load into it (they would forbid editing src/ and
+  // hand the builder the wrong role). The builder's role and permissions
+  // travel with the claude -p call instead.
+  rmSync(path.join(wt, ".claude"), { recursive: true, force: true }); rmSync(path.join(wt, "CLAUDE.md"), { force: true })
   git(["init", "-q"], wt)
   git(["add", "-A"], wt)
   git(["-c", "user.name=codegen", "-c", "user.email=codegen@localhost", "commit", "-q", "--allow-empty", "-m", `sandbox ${id} from ${integrationHead}`], wt)
@@ -732,7 +738,7 @@ try {
   else if (command === "merge") await merge(args)
   else if (command === "structure") {
     const map = loadStructure()
-    if (!map) throw new Error("no .codegen/structure.md yet (see .claude/instructions/structure.md)")
+    if (!map) throw new Error("no .codegen/structure.md yet (see .claude/rules/structure.md)")
     const tree = git(["ls-files"]).split("\n").filter((f) => f && !/^(\.codegen|\.claude|docs|wiki|data)\//.test(f))
     const problems = checkStructure(map, tree, ROOT)
     for (const p of problems) console.log(`  ${p}`)

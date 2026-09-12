@@ -1,6 +1,7 @@
 ---
-description: Implements exactly one sealed contract. Launched by the script, never by hand.
-steps: 40
+name: builder
+description: Implements exactly one sealed contract. Launched by the script, never by hand. Not for delegation from the supervisor session: the script runs it with claude -p.
+maxTurns: 40
 allow: ["Read", "Glob", "Grep", "Edit", "Write", "Bash(bash .codegen/contracts/*)", "Bash(python3 -m pytest*)", "Bash(python3 -m unittest*)", "Bash(npm test*)", "Bash(npm run*)", "Bash(npm ci*)", "Bash(npm install*)", "Bash(npx vitest*)", "Bash(npx jest*)", "Bash(npx tsc*)", "Bash(node --test*)", "Bash(git diff*)", "Bash(git status*)", "Bash(uv run*)", "Bash(.venv/bin/*)"]
 deny: ["Edit(.claude/**)", "Write(.claude/**)", "Edit(.codegen/**)", "Write(.codegen/**)", "Edit(.git/**)", "Write(.git/**)", "WebSearch", "WebFetch", "Agent"]
 ---

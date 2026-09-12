@@ -4,7 +4,7 @@ set -euo pipefail
 target=${1:?usage: install.sh <project-dir>}
 src=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 mkdir -p "$target/.claude" "$target/.codegen/research" "$target/.codegen/contracts"
-cp -r "$src/.claude/roles" "$src/.claude/instructions" "$src/.claude/codegen.mjs" "$src/.claude/board.mjs" "$target/.claude/"
+cp -r "$src/.claude/agents" "$src/.claude/rules" "$src/.claude/codegen.mjs" "$src/.claude/board.mjs" "$target/.claude/"
 [[ -f "$target/.claude/models.json" ]] || cp "$src/.claude/models.json" "$target/.claude/"
 # The supervisor is the Claude Code session opened in the project: CLAUDE.md
 # hands it the role, .claude/settings.json gives it exactly the supervisor's

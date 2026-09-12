@@ -10,7 +10,7 @@ not optional and is not decided per task: the supervisor fixes it once in
 - `docs/`: the project website deployed with GitHub Pages. Never product code.
 - `wiki/`: the project documentation for people and agents. Three fixed
   subfolders: `wiki/idea/` (the idea, seven files, rules in
-  `.claude/instructions/idea.md`), `wiki/audits/<stamp>/` (sessions
+  `.claude/rules/idea.md`), `wiki/audits/<stamp>/` (sessions
   recorded while testing the app: `notes.md` and `img/`), and
   `wiki/changes/<name>/` (change proposals and their delta on the idea;
   `wiki/changes/archive/` once landed).

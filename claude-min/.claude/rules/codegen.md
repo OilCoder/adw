@@ -14,7 +14,7 @@ cheap one keeps failing in a project, move it down in `models.json`.
 ## Files the supervisor writes
 
 - `.codegen/structure.md`: the map, required before `build` (rules in
-  `.claude/instructions/structure.md`). Machine-readable part: under
+  `.claude/rules/structure.md`). Machine-readable part: under
   `## Folders`, one bullet per folder starting with a backticked pattern
   (`- \`src/core/**\`: pure domain logic`, `- \`*\`: root config files`);
   under `## Repeated names allowed`, bullets like `- \`store.ts\`` for file

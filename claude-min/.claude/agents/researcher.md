@@ -1,6 +1,7 @@
 ---
-description: Answers one bounded research question with sources it actually opened. Launched by the script, never by hand.
-steps: 30
+name: researcher
+description: Answers one bounded research question with sources it actually opened. Launched by the script, never by hand. Not for delegation from the supervisor session: the script runs it with claude -p.
+maxTurns: 30
 allow: ["Read", "Glob", "Grep", "Write", "Edit", "WebSearch", "WebFetch"]
 deny: ["Bash", "Agent"]
 ---

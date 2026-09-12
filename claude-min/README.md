@@ -54,7 +54,7 @@ the script drops it for its own children).
 
 ## Agents
 
-`.claude/roles/<role>.md`: front matter with `steps` (max turns), `allow` and
+`.claude/agents/<role>.md`: front matter with `steps` (max turns), `allow` and
 `deny` (Claude Code permission rules, JSON arrays), then the system prompt.
 The script runs every agent with `--permission-mode default` and a settings
 file made from those two lists: an unlisted tool call is denied, never asked.
