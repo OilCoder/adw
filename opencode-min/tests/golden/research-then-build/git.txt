@@ -1,10 +1,10 @@
 codegen/STAMP-build
 master
 == codegen/STAMP-build
-codegen(report): Implement summary in report.py using stats.mean and geometry.rect_area, formatted exactly as 'mean=<mean> area=<area>'.
-codegen: merge geometry-area
-codegen(stats-mean): Implement mean in stats.py; raise ValueError('values must not be empty') on an empty list.
 codegen(geometry-area): Implement rect_area in geometry.py; raise ValueError('sides must not be negative') when a side is negative.
+codegen(report): Implement summary in report.py using stats.mean and geometry.rect_area, formatted exactly as 'mean=<mean> area=<area>'.
+codegen(stats-mean): Implement mean in stats.py; raise ValueError('values must not be empty') on an empty list.
+codegen: merge geometry-area
 codegen: seal plan and harness
 fixture
 == master

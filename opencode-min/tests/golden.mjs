@@ -70,10 +70,13 @@ for (const name of scenarios) {
   if (current) out["report.json"] = normalize(readFileSync(path.join(work, ".codegen/runs", current.run, "report.json"), "utf8"), work)
   for (const [k, f] of [["research-status.json", ".codegen/research/status.json"], ["board.json", ".codegen/board.json"], ["notify.log", "../state/notify.log"], ["calls.log", "../state/calls.log"]]) {
     const p = path.join(work, f); if (existsSync(p)) out[k] = normalize(readFileSync(p, "utf8"), work)
+    // Parallel contracts call the fake in any order.
+    if (k === "calls.log" && out[k]) out[k] = out[k].split("\n").filter(Boolean).sort().join("\n") + "\n"
   }
   if (existsSync(path.join(work, ".codegen/journal.jsonl"))) out["journal.jsonl"] = normalize(readFileSync(path.join(work, ".codegen/journal.jsonl"), "utf8"), work).split("\n").filter(Boolean).sort().join("\n") + "\n"
   const branches = sh(`git for-each-ref --format='%(refname:short)' refs/heads | sort`, work).stdout
-  const log = sh(`for b in $(git for-each-ref --format='%(refname:short)' refs/heads | sort); do echo "== $b"; git log --format='%s' "$b"; done`, work).stdout
+  // Commit subjects per branch, sorted: parallel contracts land in any order.
+  const log = sh(`for b in $(git for-each-ref --format='%(refname:short)' refs/heads | sort); do echo "== $b"; git log --format='%s' "$b" | sort; done`, work).stdout
   out["git.txt"] = normalize(branches + log, work)
   const golden = path.join(HERE, "golden", name)
   const fresh = !existsSync(golden)

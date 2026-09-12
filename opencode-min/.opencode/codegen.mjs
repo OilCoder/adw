@@ -22,22 +22,30 @@
 //
 // Models come from .opencode/models.json, cheapest first, edited by hand: if a
 // model keeps failing you, move it down there.
+//
+// This file owns the commands and the state files. agent.mjs runs processes,
+// agents and the model ladder; sandbox.mjs prepares, judges and lands one
+// contract's sandbox; board.mjs draws.
 
 import { spawnSync, spawn, execFileSync } from "node:child_process"
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-  appendFileSync,
-  readdirSync,
-  rmSync,
-} from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync, rmSync, statSync } from "node:fs"
 import path from "node:path"
-
 import { pathToFileURL } from "node:url"
 import { supervisorActivity } from "./opencode-db.mjs"
-import { statSync } from "node:fs"
+import { loadModels, ladderFor as ladder, short, git as gitIn, run, runAgent, pool, climb } from "./agent.mjs"
+import {
+  exportSandbox,
+  resetSandbox,
+  installDeps,
+  runGate,
+  gateBroken,
+  changedFiles,
+  checkScope,
+  loadStructure as loadStructureIn,
+  inMap,
+  checkStructure,
+  landContract,
+} from "./sandbox.mjs"
 
 // node:sqlite (used by the board) is still flagged experimental in Node 22.
 process.removeAllListeners("warning")
@@ -47,38 +55,18 @@ process.on("warning", (w) => {
 
 const ROOT = process.cwd()
 const STATE = path.join(ROOT, ".codegen")
-// Each contract builds in a sandbox next to the repository: an export of the
-// integration branch with its own fresh git history, so OpenCode sees an
-// independent project and nothing the builder does can reach the user's tree.
+// Each contract builds in a sandbox next to the repository (see sandbox.mjs).
 const SANDBOXES = path.join(path.dirname(ROOT), `.${path.basename(ROOT)}-codegen-sandboxes`)
-const MODELS = JSON.parse(readFileSync(path.join(ROOT, ".opencode", "models.json"), "utf8"))
-// A model the ladder names but opencode.json's whitelist hides is refused by
-// OpenCode and burns an attempt; both files must agree before anything runs.
-{
-  const providers = JSON.parse(readFileSync(path.join(ROOT, "opencode.json"), "utf8")).provider ?? {}
-  const hidden = [...new Set([...(MODELS.researcher ?? []), ...(MODELS.builder ?? [])])].filter((m) => {
-    const [p, id] = m.split("/")
-    const w = providers[p]?.whitelist
-    return Array.isArray(w) && !w.includes(id)
-  })
-  if (hidden.length) {
-    console.error(
-      `codegen: models.json names models that opencode.json does not whitelist: ${hidden.join(", ")}; add them to provider.<id>.whitelist or drop them from the ladder`,
-    )
-    process.exit(1)
-  }
+let MODELS, TIMEOUTS, STEP_CAP
+try {
+  ;({ models: MODELS, timeouts: TIMEOUTS, stepCap: STEP_CAP } = loadModels(ROOT))
+} catch (e) {
+  console.error(`codegen: ${e.message}`)
+  process.exit(1)
 }
-// Step caps from the agents' front matter: a run that hit its cap did not finish.
-const STEP_CAP = Object.fromEntries(
-  ["researcher", "builder"].map((a) => [
-    a,
-    Number(
-      (readFileSync(path.join(ROOT, ".opencode", "agents", `${a}.md`), "utf8").match(/^steps:\s*(\d+)/m) ??
-        [])[1] ?? Infinity,
-    ),
-  ]),
-)
-const TIMEOUTS = MODELS.timeouts_seconds ?? {}
+const ladderFor = (role, exclude) => ladder(MODELS, role, exclude)
+const git = (args, cwd = ROOT) => gitIn(args, cwd)
+const loadStructure = () => loadStructureIn(STATE)
 
 // ---------- helpers ----------
 
@@ -111,10 +99,6 @@ function writeJson(file, value) {
   writeFileSync(file, JSON.stringify(value, null, 2) + "\n")
 }
 
-function git(args, cwd = ROOT) {
-  return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim()
-}
-
 function stamp() {
   return new Date()
     .toISOString()
@@ -129,90 +113,22 @@ function log(line) {
   if (LOG_FILE) appendFileSync(LOG_FILE, text + "\n")
 }
 
-// Runs a command, captures stdout/stderr to files, kills it after timeoutSeconds.
-function run(cmd, args, { cwd, timeoutSeconds, stdoutFile, stderrFile, env = {} }) {
-  return new Promise((resolve) => {
-    // OpenCode resolves its project from $PWD, not from the real cwd; without
-    // this override a builder edits the directory the script was started in.
-    const child = spawn(cmd, args, {
-      cwd,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, ...env, PWD: cwd },
-    })
-    let out = "",
-      err = ""
-    child.stdout.on("data", (d) => {
-      out += d
-    })
-    child.stderr.on("data", (d) => {
-      err += d
-    })
-    const timer = setTimeout(() => child.kill("SIGKILL"), timeoutSeconds * 1000)
-    child.on("close", (code, signal) => {
-      clearTimeout(timer)
-      if (stdoutFile) writeFileSync(stdoutFile, out)
-      if (stderrFile) writeFileSync(stderrFile, err)
-      resolve({ code, signal, stdout: out, stderr: err, timedOut: signal === "SIGKILL" })
-    })
-  })
+function pidAlive(pid) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
 }
 
-// Runs one OpenCode agent with one model and returns its final text.
-async function runAgent({ agent, model, prompt, cwd, timeoutSeconds, logPrefix, env }) {
-  const result = await run(
-    "opencode",
-    ["run", "--format", "json", "--model", model, "--agent", agent, prompt],
-    {
-      cwd,
-      timeoutSeconds,
-      stdoutFile: `${logPrefix}.events.jsonl`,
-      stderrFile: `${logPrefix}.stderr.txt`,
-      env,
-    },
+// .codegen/journal.jsonl: one line per thing that happened, read by the board.
+function journal(event) {
+  mkdirSync(STATE, { recursive: true })
+  appendFileSync(
+    path.join(STATE, "journal.jsonl"),
+    JSON.stringify({ at: new Date().toISOString(), ...event }) + "\n",
   )
-  const texts = []
-  let steps = 0,
-    writes = 0,
-    edits = 0
-  for (const line of result.stdout.split("\n")) {
-    if (!line.trim()) continue
-    try {
-      const event = JSON.parse(line)
-      if (event.type === "step_start") steps++
-      if (event.type === "text" && event.part?.text) texts.push(event.part.text)
-      if (event.type === "tool_use") {
-        if (event.part?.tool === "write") writes++
-        else if (event.part?.tool === "edit") edits++
-      }
-    } catch {
-      /* not json */
-    }
-  }
-  // oneShot: the agent wrote its output once and never edited it (measured:
-  // a quarter to a half of research reports; those are the shallow ones).
-  return { ...result, steps, finalText: texts.at(-1) ?? "", oneShot: writes === 1 && edits === 0 }
-}
-
-// Runs up to `limit` tasks at a time. `next()` returns a task or null when
-// nothing is ready; the loop ends when nothing is ready and nothing is running.
-async function pool(limit, next) {
-  const running = new Set()
-  for (;;) {
-    let task
-    while (running.size < limit && (task = next())) {
-      const p = task().finally(() => running.delete(p))
-      running.add(p)
-    }
-    if (running.size === 0) return
-    await Promise.race(running)
-  }
-}
-
-// Files whose path matches an entry: exact path, `dir/**`, or `*.ext`.
-function matches(file, pattern) {
-  if (pattern.endsWith("/**")) return file === pattern.slice(0, -3) || file.startsWith(pattern.slice(0, -2))
-  if (pattern.startsWith("*.")) return file.endsWith(pattern.slice(1))
-  return file === pattern
 }
 
 // Wakes the supervisor. The TUI is a chat turn: nobody is awake between
@@ -285,24 +201,6 @@ function sealAndCheckTracked() {
       contracts: readJson(path.join(STATE, "plan.json"), { contracts: [] }).contracts.length,
     })
     log("sealed .codegen and the harness into a commit")
-  }
-}
-
-// .codegen/journal.jsonl: one line per thing that happened, read by the board.
-function journal(event) {
-  mkdirSync(STATE, { recursive: true })
-  appendFileSync(
-    path.join(STATE, "journal.jsonl"),
-    JSON.stringify({ at: new Date().toISOString(), ...event }) + "\n",
-  )
-}
-
-function pidAlive(pid) {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch {
-    return false
   }
 }
 
@@ -380,15 +278,6 @@ async function writeBoard() {
   return file
 }
 
-// ---------- model ladder ----------
-
-// The ladder for one item: models.json in order, minus the ones excluded,
-// cut to max_models_per_item rungs.
-function ladderFor(role, exclude = []) {
-  return (MODELS[role] ?? []).filter((m) => !exclude.includes(m)).slice(0, MODELS.max_models_per_item ?? 3)
-}
-const short = (m) => String(m).replace(/^[^/]+\//, "")
-
 // ---------- research ----------
 
 async function research(args) {
@@ -458,93 +347,7 @@ async function research(args) {
   await pool(selected.length, () => {
     const q = queue.shift()
     if (!q) return null
-    return async () => {
-      const output = path.join("research", `${q.id}.md`)
-      const outputAbs = path.join(STATE, output)
-      let attempt = 0
-      const rejected = previous[q.id]?.rejected ?? []
-      const exhausted = [...rejected]
-      for (const model of ladderFor("researcher", rejected)) {
-        attempt++
-        log(`  ${q.id}: attempt ${attempt} with ${model}`)
-        const prompt = [
-          `Research question ${q.id}: ${q.question}`,
-          q.context ? `Context: ${q.context}` : "",
-          `Write the report to .codegen/${output}`,
-        ]
-          .filter(Boolean)
-          .join("\n")
-        const r = await runAgent({
-          agent: "researcher",
-          model,
-          prompt,
-          cwd: ROOT,
-          timeoutSeconds: TIMEOUTS.researcher ?? 600,
-          logPrefix: path.join(runDir, `${q.id}.${attempt}`),
-        })
-        const text = existsSync(outputAbs) ? readFileSync(outputAbs, "utf8") : ""
-        const written = text.trim().length > 200
-        // DONE only when the model closed with it, in time, within its step cap
-        // and with the summary the supervisor reads; anything else with a file
-        // is PARTIAL, for the supervisor to accept or split.
-        const closed =
-          !r.timedOut &&
-          r.steps < STEP_CAP.researcher &&
-          /^## Summary for contracts/m.test(text) &&
-          /^DONE\b/.test(r.finalText.trim().split("\n").at(-1))
-        const status = written ? (closed ? "DONE" : "PARTIAL") : r.timedOut ? "TIMEOUT" : "NO_REPORT"
-        results[q.id] = {
-          status,
-          model,
-          attempt,
-          steps: r.steps,
-          one_shot: written && r.oneShot,
-          report: written ? `.codegen/${output}` : null,
-          final: r.finalText.slice(-400),
-          run: runId,
-          at: new Date().toISOString(),
-          rejected: exhausted,
-        }
-        log(`  ${q.id}: ${status} (${r.steps} steps${written && r.oneShot ? ", written in one go" : ""})`)
-        if (written) break
-        exhausted.push(model)
-      }
-      // Models that failed without a report stay skipped for this question in later runs.
-      results[q.id] ??= {
-        status: "NO_MODELS",
-        model: null,
-        attempt: 0,
-        steps: 0,
-        report: null,
-        final: "",
-        run: runId,
-        at: new Date().toISOString(),
-        rejected: exhausted,
-      }
-      if (results[q.id].status !== "DONE" && results[q.id].status !== "PARTIAL") {
-        results[q.id].rejected = exhausted
-        log(
-          `  ${q.id}: ${results[q.id].status}${exhausted.length ? ` (tried ${exhausted.map(short).join(", ")})` : ""}`,
-        )
-      }
-      const res = results[q.id]
-      journal({
-        kind: "research",
-        id: q.id,
-        question: q.question,
-        status: res.status,
-        model: res.model,
-        models: res.report ? exhausted.concat([res.model]) : exhausted,
-        steps: res.steps,
-        one_shot: res.one_shot,
-        report: res.report,
-      })
-      if (res.status !== "DONE")
-        notify(
-          `research ${q.id}: ${res.status} with ${short(res.model) ?? "no model"}${res.report ? `, report at ${res.report}` : ", no report"}${res.final ? `. Last words: ${res.final.replace(/\s+/g, " ").trim().slice(-160)}` : ""}. Accept it or split it into new ids; the other questions keep running.`,
-        )
-      writeBoard()
-    }
+    return () => researchOne(q, { runDir, runId, previous, results })
   })
   writeJson(path.join(runDir, "report.json"), { run: runId, results })
   writeJson(statusFile, { run: runId, results: { ...previous, ...results } })
@@ -555,26 +358,111 @@ async function research(args) {
   })
   writeBoard()
   const tally = Object.values(results).reduce((t, r) => ((t[r.status] = (t[r.status] ?? 0) + 1), t), {})
+  const oneShot = Object.entries(results).filter(([, r]) => r.one_shot)
+  const notDone = Object.entries(results).filter(([, r]) => r.status !== "DONE")
   notify(
     `research run ended: ${Object.entries(tally)
       .map(([k, v]) => `${v} ${k}`)
       .join(", ")}${
-      Object.entries(results).filter(([, r]) => r.one_shot).length
-        ? `; written in one go, never re-read (judge harder): ${Object.entries(results)
-            .filter(([, r]) => r.one_shot)
-            .map(([id]) => id)
-            .join(", ")}`
+      oneShot.length
+        ? `; written in one go, never re-read (judge harder): ${oneShot.map(([id]) => id).join(", ")}`
         : ""
-    }${
-      Object.entries(results).filter(([, r]) => r.status !== "DONE").length
-        ? `; not DONE: ${Object.entries(results)
-            .filter(([, r]) => r.status !== "DONE")
-            .map(([id, r]) => `${id} (${r.status})`)
-            .join(", ")}`
-        : ""
-    }. Judge the new reports and continue.`,
+    }${notDone.length ? `; not DONE: ${notDone.map(([id, r]) => `${id} (${r.status})`).join(", ")}` : ""}. Judge the new reports and continue.`,
   )
   printResearch(results)
+}
+
+// One question up the researcher ladder: one attempt per rung, skipping the
+// models that already failed it (rejected reports, timeouts, no report).
+async function researchOne(q, { runDir, runId, previous, results }) {
+  const output = path.join("research", `${q.id}.md`)
+  const outputAbs = path.join(STATE, output)
+  let attempt = 0
+  const rejected = previous[q.id]?.rejected ?? []
+  const exhausted = [...rejected]
+  await climb({
+    ladder: ladderFor("researcher", rejected),
+    attempt: async (model) => {
+      attempt++
+      log(`  ${q.id}: attempt ${attempt} with ${model}`)
+      const prompt = [
+        `Research question ${q.id}: ${q.question}`,
+        q.context ? `Context: ${q.context}` : "",
+        `Write the report to .codegen/${output}`,
+      ]
+        .filter(Boolean)
+        .join("\n")
+      const r = await runAgent({
+        agent: "researcher",
+        model,
+        prompt,
+        cwd: ROOT,
+        timeoutSeconds: TIMEOUTS.researcher ?? 600,
+        logPrefix: path.join(runDir, `${q.id}.${attempt}`),
+      })
+      const text = existsSync(outputAbs) ? readFileSync(outputAbs, "utf8") : ""
+      const written = text.trim().length > 200
+      // DONE only when the model closed with it, in time, within its step cap
+      // and with the summary the supervisor reads; anything else with a file
+      // is PARTIAL, for the supervisor to accept or split.
+      const closed =
+        !r.timedOut &&
+        r.steps < STEP_CAP.researcher &&
+        /^## Summary for contracts/m.test(text) &&
+        /^DONE\b/.test(r.finalText.trim().split("\n").at(-1))
+      const status = written ? (closed ? "DONE" : "PARTIAL") : r.timedOut ? "TIMEOUT" : "NO_REPORT"
+      results[q.id] = {
+        status,
+        model,
+        attempt,
+        steps: r.steps,
+        one_shot: written && r.oneShot,
+        report: written ? `.codegen/${output}` : null,
+        final: r.finalText.slice(-400),
+        run: runId,
+        at: new Date().toISOString(),
+        rejected: exhausted,
+      }
+      log(`  ${q.id}: ${status} (${r.steps} steps${written && r.oneShot ? ", written in one go" : ""})`)
+      if (written) return "stop"
+      exhausted.push(model)
+    },
+  })
+  // Models that failed without a report stay skipped for this question in later runs.
+  results[q.id] ??= {
+    status: "NO_MODELS",
+    model: null,
+    attempt: 0,
+    steps: 0,
+    report: null,
+    final: "",
+    run: runId,
+    at: new Date().toISOString(),
+    rejected: exhausted,
+  }
+  if (results[q.id].status !== "DONE" && results[q.id].status !== "PARTIAL") {
+    results[q.id].rejected = exhausted
+    log(
+      `  ${q.id}: ${results[q.id].status}${exhausted.length ? ` (tried ${exhausted.map(short).join(", ")})` : ""}`,
+    )
+  }
+  const res = results[q.id]
+  journal({
+    kind: "research",
+    id: q.id,
+    question: q.question,
+    status: res.status,
+    model: res.model,
+    models: res.report ? exhausted.concat([res.model]) : exhausted,
+    steps: res.steps,
+    one_shot: res.one_shot,
+    report: res.report,
+  })
+  if (res.status !== "DONE")
+    notify(
+      `research ${q.id}: ${res.status} with ${short(res.model) ?? "no model"}${res.report ? `, report at ${res.report}` : ", no report"}${res.final ? `. Last words: ${res.final.replace(/\s+/g, " ").trim().slice(-160)}` : ""}. Accept it or split it into new ids; the other questions keep running.`,
+    )
+  writeBoard()
 }
 
 function printResearch(results) {
@@ -590,7 +478,7 @@ function printResearch(results) {
 
 // ---------- build ----------
 
-function loadPlan(only) {
+function loadPlan() {
   const plan = readJson(path.join(STATE, "plan.json"))
   const map = loadStructure()
   if (!map)
@@ -612,107 +500,17 @@ function loadPlan(only) {
       throw new Error(
         `plan: ${c.id} read list is too big for a cheap model (${heavy.join(", ") || `${c.contract.read.length} files`}): at most 5 concrete files, never a glob, the idea or a research report; quote what the builder needs in the contract instead`,
       )
-    if (map)
-      for (const p of c.contract.allowed_to_modify)
-        if (!inMap(p.replace(/\/\*\*$/, "/x"), map) && !inMap(p, map))
-          throw new Error(`plan: ${c.id} allows ${p}, which is outside .codegen/structure.md`)
+    for (const p of c.contract.allowed_to_modify)
+      if (!inMap(p.replace(/\/\*\*$/, "/x"), map) && !inMap(p, map))
+        throw new Error(`plan: ${c.id} allows ${p}, which is outside .codegen/structure.md`)
   }
   return plan
-}
-
-function changedFiles(cwd) {
-  const tracked = git(["diff", "--name-only", "HEAD", "--"], cwd)
-  const untracked = git(["ls-files", "--others", "--exclude-standard"], cwd)
-  const junk =
-    /(^|\/)(__pycache__|\.pytest_cache|node_modules|\.venv|\.mypy_cache|\.ruff_cache)\/|\.pyc$|\.egg-info\//
-  return [...new Set(`${tracked}\n${untracked}`.split("\n").filter((f) => f && !junk.test(f)))].sort()
-}
-
-function checkScope(contract, files) {
-  const protectedPatterns = [".codegen/**", ".opencode/**", "opencode.json", ...(contract.protected ?? [])]
-  const outside = files.filter((f) => !contract.allowed_to_modify.some((p) => matches(f, p)))
-  const touchedProtected = files.filter((f) => protectedPatterns.some((p) => matches(f, p)))
-  return { outside, touchedProtected }
-}
-
-// The map: .codegen/structure.md, written by the supervisor. Machine-readable
-// part = every bullet that starts with a backticked path under "## Folders"
-// ("- `src/core/**`: pure logic", "- `*`: root config files" for top-level
-// files) and under "## Repeated names allowed" ("- `index.ts`").
-function loadStructure() {
-  const file = path.join(STATE, "structure.md")
-  if (!existsSync(file)) return null
-  const folders = [],
-    repeated = ["index.*", "__init__.py", "mod.rs", "README.md"]
-  let section = ""
-  for (const line of readFileSync(file, "utf8").split("\n")) {
-    const h = line.match(/^##\s+(.*)/)
-    if (h) {
-      section = h[1].trim().toLowerCase()
-      continue
-    }
-    const b = line.match(/^\s*[-*]\s+`([^`]+)`/)
-    if (!b) continue
-    if (section.startsWith("folders")) folders.push(b[1])
-    else if (section.startsWith("repeated names")) repeated.push(b[1])
-  }
-  if (!folders.length)
-    throw new Error("structure: .codegen/structure.md has no `path` bullets under ## Folders")
-  return { folders, repeated }
-}
-
-const inMap = (file, map) =>
-  map.folders.some((p) =>
-    p === "*" ? !file.includes("/") : matches(file, p) || matches(file, p.replace(/\/\*\*$/, "")),
-  )
-const PROVISIONAL =
-  /(^|\/)(todo|placeholder|tmp|temp|old|backup|untitled|new)([._-][^/]*)?$|\.(tmp|bak|orig|old|swp|rej)$|~$/i
-
-// Files that break the map: outside every declared folder, provisional, or a
-// new file whose name already exists elsewhere (unless the name is conventional).
-function checkStructure(map, files, cwd, before = new Set()) {
-  if (!map) return []
-  const tree = git(["ls-files"], cwd).split("\n").filter(Boolean)
-  const byName = {}
-  for (const f of tree) (byName[path.basename(f)] ??= []).push(f)
-  const problems = []
-  for (const f of files) {
-    if (!inMap(f, map)) problems.push(`${f}: outside the map`)
-    else if (PROVISIONAL.test(f)) problems.push(`${f}: provisional file`)
-    else if (!before.has(f)) {
-      const name = path.basename(f)
-      const twins = (byName[name] ?? []).filter((x) => x !== f)
-      if (
-        twins.length &&
-        !map.repeated.some((p) =>
-          new RegExp(`^${p.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*")}$`).test(name),
-        )
-      )
-        problems.push(`${f}: same name as ${twins[0]}`)
-    }
-  }
-  return problems
-}
-
-async function runGate(id, cwd, logFile, env) {
-  const r = await run("bash", [path.join(".codegen", "contracts", id, "gate.sh")], {
-    cwd,
-    timeoutSeconds: TIMEOUTS.gate ?? 300,
-    stdoutFile: logFile,
-    stderrFile: logFile + ".stderr",
-    env,
-  })
-  return {
-    pass: r.code === 0 && !r.timedOut,
-    output: (r.stdout + "\n" + r.stderr).slice(-3000),
-    timedOut: r.timedOut,
-  }
 }
 
 async function build(args) {
   const only = args.only ? String(args.only).split(",") : null
   const parallel = Number(args.parallel ?? 4)
-  const plan = loadPlan(null)
+  const plan = loadPlan()
   const live = readJson(path.join(STATE, "runs", "current.json"), null)
   if (live?.pid && pidAlive(live.pid))
     throw new Error(`build ${live.run} is still running (pid ${live.pid}); wait for it or kill it first`)
@@ -841,6 +639,9 @@ async function build(args) {
   printBuild({ run: runId, integration, user_branch: userBranch, contracts: state })
 }
 
+// One contract: sandbox, dependencies, baseline gate, the builder ladder
+// (two attempts per rung, the gate output of a failed attempt as evidence for
+// the next), then land the diff or record why not.
 async function buildOne(entry, { runDir, integration, integrationDir, state, report }) {
   const { id, contract } = entry
   const wt = path.join(SANDBOXES, id)
@@ -849,88 +650,23 @@ async function buildOne(entry, { runDir, integration, integrationDir, state, rep
   mkdirSync(logs, { recursive: true })
   rmSync(wt, { recursive: true, force: true })
   mkdirSync(wt, { recursive: true })
-  // Export the current integration branch and give the sandbox its own history.
-  const integrationHead = git(["rev-parse", integration])
-  execFileSync("bash", ["-c", `git -C "${ROOT}" archive ${integrationHead} | tar -x -C "${wt}"`], {
-    stdio: ["ignore", "ignore", "pipe"],
-  })
-  git(["init", "-q"], wt)
-  git(["add", "-A"], wt)
-  git(
-    [
-      "-c",
-      "user.name=codegen",
-      "-c",
-      "user.email=codegen@localhost",
-      "commit",
-      "-q",
-      "--allow-empty",
-      "-m",
-      `sandbox ${id} from ${integrationHead}`,
-    ],
-    wt,
-  )
-  const base = git(["rev-parse", "HEAD"], wt)
+  const { integrationHead, base } = exportSandbox({ root: ROOT, integration, wt, id })
+  const record = (status, extra = {}) =>
+    journal({ kind: "contract", id, status, title: entry.title, objective: contract.objective, ...extra })
 
-  // Dependencies are not in git: install them before the baseline gate so a
-  // missing node_modules never masquerades as a legitimate gate failure.
-  let env
-  if (existsSync(path.join(wt, "package-lock.json"))) {
-    const install = await run("npm", ["ci", "--no-audit", "--no-fund", "--prefer-offline"], {
-      cwd: wt,
-      timeoutSeconds: TIMEOUTS.install ?? 600,
-      stdoutFile: path.join(logs, "npm-ci.txt"),
-      stderrFile: path.join(logs, "npm-ci.stderr.txt"),
-    })
-    if (install.code !== 0) {
-      state[id] = { status: "INSTALL_FAILED", reason: install.stderr.slice(-800) }
-      log(`  ${id}: INSTALL_FAILED`)
-      return
-    }
+  const deps = await installDeps(wt, logs, TIMEOUTS.install ?? 600)
+  if (deps.failed !== undefined) {
+    state[id] = { status: "INSTALL_FAILED", reason: deps.failed }
+    log(`  ${id}: INSTALL_FAILED${deps.step}`)
+    return
   }
-  // Python: a venv per sandbox with uv (system python has no pytest), so
-  // `python3` in the gate and in the builder resolves to it.
-  const pyproject = existsSync(path.join(wt, "pyproject.toml")),
-    reqs = existsSync(path.join(wt, "requirements.txt"))
-  if (pyproject || reqs) {
-    const uvLog = {
-      cwd: wt,
-      timeoutSeconds: TIMEOUTS.install ?? 600,
-      stdoutFile: path.join(logs, "uv.txt"),
-      stderrFile: path.join(logs, "uv.stderr.txt"),
-    }
-    const steps = [
-      ["venv", ".venv"],
-      pyproject ? ["pip", "install", "-e", ".[dev]"] : ["pip", "install", "-r", "requirements.txt"],
-      ["pip", "install", "pytest"],
-    ]
-    for (const args of steps) {
-      let r = await run("uv", args, uvLog)
-      if (r.code !== 0 && args[3] === ".[dev]") r = await run("uv", ["pip", "install", "-e", "."], uvLog)
-      if (r.code !== 0) {
-        state[id] = { status: "INSTALL_FAILED", reason: `uv ${args.join(" ")}: ${r.stderr.slice(-800)}` }
-        log(`  ${id}: INSTALL_FAILED (uv ${args.join(" ")})`)
-        return
-      }
-    }
-    env = {
-      VIRTUAL_ENV: path.join(wt, ".venv"),
-      PATH: `${path.join(wt, ".venv", "bin")}:${process.env.PATH}`,
-    }
-  }
+  const env = deps.env
 
   // The gate must fail before anyone builds; otherwise it proves nothing.
-  const baseline = await runGate(id, wt, path.join(logs, "gate-baseline.txt"), env)
+  const baseline = await runGate(id, wt, path.join(logs, "gate-baseline.txt"), env, TIMEOUTS.gate ?? 300)
   if (baseline.pass) {
     state[id] = { status: "GATE_TRIVIAL", reason: "gate passes on the untouched repository" }
-    journal({
-      kind: "contract",
-      id,
-      status: "GATE_TRIVIAL",
-      title: entry.title,
-      objective: contract.objective,
-      attempts: 0,
-    })
+    record("GATE_TRIVIAL", { attempts: 0 })
     log(`  ${id}: GATE_TRIVIAL`)
     rmSync(wt, { recursive: true, force: true })
     return
@@ -938,36 +674,14 @@ async function buildOne(entry, { runDir, integration, integrationDir, state, rep
 
   const attempts = []
   let evidence = "",
-    structure = [],
     broken = false
   const map = loadStructure()
-  // A gate that only reports errors in files the builder may not touch (its
-  // own test file, another domain, missing types elsewhere) cannot be fixed
-  // by any builder: stop at the first attempt and hand it to the supervisor.
-  const gateBroken = (out) => {
-    // (a) the gate's own test file does not parse or compile;
-    // (b) a type checker reports errors, and every one is in a file outside scope.
-    if (
-      /\.codegen\/\S+:\d+(?::\d+)?:? *(?:ERROR|error|SyntaxError)/.test(out) ||
-      /Transform failed[\s\S]{0,300}\.codegen\//.test(out)
-    )
-      return true
-    const ts = [
-      ...new Set(
-        [
-          ...out.matchAll(
-            /(?:^|[\s'"(])(\/?(?:\.?[\w.@-]+\/)*[\w.@-]+\.[a-zA-Z]{1,5})\(\d+,\d+\): error TS\d+/gm,
-          ),
-        ].map((m) => m[1]),
-      ),
-    ].map((f) => (f.startsWith(wt + "/") ? f.slice(wt.length + 1) : f.replace(/^\.\//, "")))
-    return ts.length > 0 && ts.every((f) => !contract.allowed_to_modify.some((p) => matches(f, p)))
-  }
   const baseFiles = new Set(git(["ls-files"], wt).split("\n"))
-  outer: for (const model of ladderFor("builder")) {
-    git(["reset", "-q", "--hard", base], wt)
-    git(["clean", "-qfd"], wt)
-    for (let n = 1; n <= 2; n++) {
+  await climb({
+    ladder: ladderFor("builder"),
+    attemptsPerRung: 2,
+    onRung: () => resetSandbox(wt, base),
+    attempt: async (model) => {
       const attempt = attempts.length + 1
       Object.assign(state[id], { model, attempt })
       report()
@@ -991,7 +705,7 @@ async function buildOne(entry, { runDir, integration, integrationDir, state, rep
       })
       const files = changedFiles(wt)
       const scope = checkScope(contract, files)
-      let verdict, detail
+      let verdict, detail, structure
       if (scope.touchedProtected.length) {
         verdict = "PROTECTED_TOUCHED"
         detail = scope.touchedProtected.join(", ")
@@ -1005,124 +719,77 @@ async function buildOne(entry, { runDir, integration, integrationDir, state, rep
         verdict = r.timedOut ? "TIMEOUT" : "NO_CHANGES"
         detail = r.finalText.slice(0, 500)
       } else {
-        const gate = await runGate(id, wt, path.join(logs, `gate-${attempt}.txt`), env)
+        const gate = await runGate(id, wt, path.join(logs, `gate-${attempt}.txt`), env, TIMEOUTS.gate ?? 300)
         verdict = gate.pass ? "PASS" : "GATE_FAIL"
         detail = gate.pass ? "" : gate.output
       }
       attempts.push({ attempt, model, verdict, steps: r.steps, files, detail: detail.slice(-1500) })
       log(`  ${id}: ${verdict} (${r.steps} steps, ${files.length} files)`)
-      if (verdict === "PASS") break outer
-      if (verdict === "GATE_FAIL" && gateBroken(detail)) {
+      if (verdict === "PASS") return "stop"
+      if (verdict === "GATE_FAIL" && gateBroken(detail, wt, contract)) {
         broken = true
         log(
           `  ${id}: the gate fails only in files outside the contract's scope; no builder can fix that, stopping`,
         )
-        break outer
+        return "stop"
       }
       evidence = `${verdict}: ${detail}`.slice(-3000)
-      if (verdict === "PROTECTED_TOUCHED" || verdict === "OUT_OF_SCOPE" || verdict === "STRUCTURE") {
-        git(["reset", "-q", "--hard", base], wt)
-        git(["clean", "-qfd"], wt)
-      }
-    }
-  }
+      if (verdict === "PROTECTED_TOUCHED" || verdict === "OUT_OF_SCOPE" || verdict === "STRUCTURE")
+        resetSandbox(wt, base)
+    },
+  })
 
   const last = attempts.at(-1)
-  if (last?.verdict === "PASS") {
-    // Take the sandbox diff and land it on a contract branch cut from the
-    // integration base this sandbox started from, then merge. All git calls
-    // here are synchronous, so parallel contracts land one after another.
-    git(["add", "-A"], wt)
-    const patch = path.join(logs, "candidate.diff")
-    writeFileSync(patch, execFileSync("git", ["diff", "--cached", "--binary", base], { cwd: wt }))
-    try {
-      git(["checkout", "-q", "-B", branch, integrationHead], integrationDir)
-      git(["apply", "--index", patch], integrationDir)
-      git(
-        [
-          "commit",
-          "-q",
-          "-m",
-          `codegen(${id}): ${contract.objective ?? entry.title ?? id}\n\nmodel: ${last.model}`,
-        ],
-        integrationDir,
-      )
-      git(["checkout", "-q", integration], integrationDir)
-      git(["merge", "-q", "--no-edit", "-m", `codegen: merge ${id}`, branch], integrationDir)
-      git(["push", "-q", "origin", `${integration}:${integration}`], integrationDir)
-      git(["branch", "-q", "-D", branch], integrationDir)
-      state[id] = {
-        status: "PASS",
-        model: last.model,
-        attempts,
-        files: last.files,
-        duration_ms: Date.now() - new Date(state[id].started ?? Date.now()).getTime(),
-      }
-      journal({
-        kind: "contract",
-        id,
-        status: "PASS",
-        title: entry.title,
-        objective: contract.objective,
-        model: last.model,
-        models: [...new Set(attempts.map((a) => a.model))],
-        attempts: attempts.length,
-        files: last.files.length,
-      })
-      log(`  ${id}: merged into ${integration}`)
-    } catch (e) {
-      try {
-        git(["merge", "--abort"], integrationDir)
-      } catch {}
-      try {
-        git(["checkout", "-q", "-f", integration], integrationDir)
-        git(["push", "-q", "origin", `${branch}:${branch}`], integrationDir)
-      } catch {}
-      state[id] = {
-        status: "MERGE_CONFLICT",
-        model: last.model,
-        attempts,
-        reason: String(e.stderr ?? e.message).slice(-800),
-        branch,
-        patch: path.relative(ROOT, patch),
-      }
-      journal({
-        kind: "contract",
-        id,
-        status: "MERGE_CONFLICT",
-        title: entry.title,
-        objective: contract.objective,
-        model: last.model,
-        models: [...new Set(attempts.map((a) => a.model))],
-        attempts: attempts.length,
-      })
-      log(`  ${id}: MERGE_CONFLICT, see ${path.relative(ROOT, patch)}`)
-      rmSync(wt, { recursive: true, force: true })
-      return
-    }
-  } else {
+  const models = [...new Set(attempts.map((a) => a.model))]
+  if (last?.verdict !== "PASS") {
     state[id] = {
       status: "FAIL",
       attempts,
       reason: `${broken ? "GATE BROKEN: it fails only in files outside the contract's scope; fix the gate or the contract, not the builder. " : ""}${last ? `${last.verdict}: ${last.detail.slice(-600)}` : "no attempts"}`,
     }
-    journal({
-      kind: "contract",
-      id,
-      status: "FAIL",
-      title: entry.title,
-      objective: contract.objective,
-      models: [...new Set(attempts.map((a) => a.model))],
-      attempts: attempts.length,
-      verdict: last?.verdict,
-      detail: (last?.detail ?? "").split("\n").filter(Boolean).slice(-1)[0]?.slice(0, 160),
-    })
+    const lastLine = (last?.detail ?? "").split("\n").filter(Boolean).slice(-1)[0]?.slice(0, 160)
+    record("FAIL", { models, attempts: attempts.length, verdict: last?.verdict, detail: lastLine })
     log(`  ${id}: FAIL after ${attempts.length} attempts`)
     notify(
-      `contract ${id} FAILED after ${attempts.length} attempts${broken ? " (GATE BROKEN: fails only outside the contract's scope)" : ""}; last verdict ${last?.verdict}: ${(last?.detail ?? "").split("\n").filter(Boolean).slice(-1)[0]?.slice(0, 160) ?? ""}. Build so far: ${buildLine(state)}. The run continues. Diagnose it now (tail .codegen/runs/${path.basename(runDir)}/${id}/gate-${attempts.length}.txt) and leave its contract or gate fixed and committed; launch nothing while the run is alive.`,
+      `contract ${id} FAILED after ${attempts.length} attempts${broken ? " (GATE BROKEN: fails only outside the contract's scope)" : ""}; last verdict ${last?.verdict}: ${lastLine ?? ""}. Build so far: ${buildLine(state)}. The run continues. Diagnose it now (tail .codegen/runs/${path.basename(runDir)}/${id}/gate-${attempts.length}.txt) and leave its contract or gate fixed and committed; launch nothing while the run is alive.`,
     )
     return
   }
+  const patch = path.join(logs, "candidate.diff")
+  const landing = landContract({
+    id,
+    wt,
+    base,
+    patch,
+    branch,
+    integration,
+    integrationHead,
+    integrationDir,
+    message: `codegen(${id}): ${contract.objective ?? entry.title ?? id}\n\nmodel: ${last.model}`,
+  })
+  if (!landing.landed) {
+    state[id] = {
+      status: "MERGE_CONFLICT",
+      model: last.model,
+      attempts,
+      reason: landing.reason,
+      branch,
+      patch: path.relative(ROOT, patch),
+    }
+    record("MERGE_CONFLICT", { model: last.model, models, attempts: attempts.length })
+    log(`  ${id}: MERGE_CONFLICT, see ${path.relative(ROOT, patch)}`)
+    rmSync(wt, { recursive: true, force: true })
+    return
+  }
+  state[id] = {
+    status: "PASS",
+    model: last.model,
+    attempts,
+    files: last.files,
+    duration_ms: Date.now() - new Date(state[id].started ?? Date.now()).getTime(),
+  }
+  record("PASS", { model: last.model, models, attempts: attempts.length, files: last.files.length })
+  log(`  ${id}: merged into ${integration}`)
   rmSync(wt, { recursive: true, force: true })
 }
 

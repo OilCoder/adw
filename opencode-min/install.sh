@@ -4,7 +4,7 @@ set -euo pipefail
 target=${1:?usage: install.sh <project-dir>}
 src=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 mkdir -p "$target/.opencode" "$target/.codegen/research" "$target/.codegen/contracts"
-cp -r "$src/.opencode/agents" "$src/.opencode/instructions" "$src/.opencode/codegen.mjs" "$src/.opencode/board.mjs" "$src/.opencode/opencode-db.mjs" "$target/.opencode/"
+cp -r "$src/.opencode/agents" "$src/.opencode/instructions" "$src"/.opencode/*.mjs "$target/.opencode/"
 [[ -f "$target/.opencode/models.json" ]] || cp "$src/.opencode/models.json" "$target/.opencode/"
 [[ -f "$target/opencode.json" ]] || cp "$src/opencode.json" "$target/"
 touch "$target/.gitignore"
