@@ -80,7 +80,10 @@ Working loop for an idea (a new project):
    existing project, first run `node .opencode/codegen.mjs structure` and
    fix the map or plan a reorder round before adding features.
    Decompose the work into small contracts, each buildable by a cheap model in
-   one sitting: one module, one feature, one clear gate. Each contract
+   one sitting: one module, one feature, one clear gate, done in under ten
+   builder steps. A contract that needs more is two contracts. Small
+   contracts are what makes the run parallel: the dependency graph falls out
+   of them, you do not have to see every layer in advance. Each contract
    names the existing modules it must reuse; one that creates a module,
    state or option says why nothing existing serves (principle 9 of the
    structure rules). On a change request, if the same logic already lives
@@ -109,9 +112,15 @@ Working loop for an idea (a new project):
    Before launching the build, run the first contract's gate yourself with
    bash to confirm it fails for the right reason (a missing feature, not a
    missing tool or config).
+   You write each contract in one go and never look at it again; that is
+   where bad gates come from. After writing all of them, open each
+   `contract.json` and its `gate.sh` once with `cat` and check three
+   things: objective, requirements and gate ask for the same thing; `read`
+   lists only what the builder needs; the gate uses nothing a builder will
+   write later. Fix what fails before showing the plan.
 4. Show the user the plan summary (contract ids, one line each, dependency
    order) and wait for explicit approval. Then run
-   `node .opencode/codegen.mjs build --parallel 4` (it returns at once) and report progress with
+   `node .opencode/codegen.mjs build --parallel 8` (it returns at once) and report progress with
    `node .opencode/codegen.mjs status` when asked.
 5. While the run is alive, do not poll: the script sends you a `[codegen]`
    message when a contract fails for good and when the run ends, and each

@@ -1,7 +1,6 @@
 ---
-description: Implements exactly one sealed contract. Launched by the script, never from the TUI.
+description: Implements exactly one sealed contract. Launched by the script only; never select it with Tab in the TUI, it edits whatever tree it is given.
 mode: primary
-hidden: true
 steps: 40
 permission:
   read: allow

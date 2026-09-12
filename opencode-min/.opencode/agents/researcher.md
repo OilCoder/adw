@@ -1,7 +1,6 @@
 ---
-description: Answers one bounded research question with sources it actually opened. Launched by the script, never from the TUI.
+description: Answers one bounded research question with sources it actually opened. Launched by the script only; never select it with Tab in the TUI.
 mode: primary
-hidden: true
 steps: 30
 permission:
   read: allow

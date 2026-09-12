@@ -2,7 +2,7 @@
 // Minimal code-generation loop for OpenCode.
 //
 //   node .opencode/codegen.mjs research [--only q1,q2] [--reject q3,q4] [--wait]
-//   node .opencode/codegen.mjs build [--parallel N (default 4)] [--only c1,c2] [--resume] [--wait]
+//   node .opencode/codegen.mjs build [--parallel N (default 4; the supervisor passes 8)] [--only c1,c2] [--resume] [--wait]
 //   research and build detach from the terminal that launched them (a TUI shell
 //   kills long commands); --wait keeps them in the foreground.
 //   node .opencode/codegen.mjs status
@@ -42,6 +42,13 @@ const STATE = path.join(ROOT, ".codegen")
 // independent project and nothing the builder does can reach the user's tree.
 const SANDBOXES = path.join(path.dirname(ROOT), `.${path.basename(ROOT)}-codegen-sandboxes`)
 const MODELS = JSON.parse(readFileSync(path.join(ROOT, ".opencode", "models.json"), "utf8"))
+// A model the ladder names but opencode.json's whitelist hides is refused by
+// OpenCode and burns an attempt; both files must agree before anything runs.
+{
+  const providers = JSON.parse(readFileSync(path.join(ROOT, "opencode.json"), "utf8")).provider ?? {}
+  const hidden = [...new Set([...(MODELS.researcher ?? []), ...(MODELS.builder ?? [])])].filter((m) => { const [p, id] = m.split("/"); const w = providers[p]?.whitelist; return Array.isArray(w) && !w.includes(id) })
+  if (hidden.length) { console.error(`codegen: models.json names models that opencode.json does not whitelist: ${hidden.join(", ")}; add them to provider.<id>.whitelist or drop them from the ladder`); process.exit(1) }
+}
 // Step caps from the agents' front matter: a run that hit its cap did not finish.
 const STEP_CAP = Object.fromEntries(["researcher", "builder"].map((a) => [a, Number((readFileSync(path.join(ROOT, ".opencode", "agents", `${a}.md`), "utf8").match(/^steps:\s*(\d+)/m) ?? [])[1] ?? Infinity)]))
 const TIMEOUTS = MODELS.timeouts_seconds ?? {}
@@ -114,16 +121,19 @@ async function runAgent({ agent, model, prompt, cwd, timeoutSeconds, logPrefix, 
     cwd, timeoutSeconds, stdoutFile: `${logPrefix}.events.jsonl`, stderrFile: `${logPrefix}.stderr.txt`, env,
   })
   const texts = []
-  let steps = 0
+  let steps = 0, writes = 0, edits = 0
   for (const line of result.stdout.split("\n")) {
     if (!line.trim()) continue
     try {
       const event = JSON.parse(line)
       if (event.type === "step_start") steps++
       if (event.type === "text" && event.part?.text) texts.push(event.part.text)
+      if (event.type === "tool_use") { if (event.part?.tool === "write") writes++; else if (event.part?.tool === "edit") edits++ }
     } catch { /* not json */ }
   }
-  return { ...result, steps, finalText: texts.at(-1) ?? "" }
+  // oneShot: the agent wrote its output once and never edited it (measured:
+  // a quarter to a half of research reports; those are the shallow ones).
+  return { ...result, steps, finalText: texts.at(-1) ?? "", oneShot: writes === 1 && edits === 0 }
 }
 
 // Runs up to `limit` tasks at a time. `next()` returns a task or null when
@@ -305,8 +315,8 @@ async function research(args) {
         // is PARTIAL, for the supervisor to accept or split.
         const closed = !r.timedOut && r.steps < STEP_CAP.researcher && /^## Summary for contracts/m.test(text) && /^DONE\b/.test(r.finalText.trim().split("\n").at(-1))
         const status = written ? (closed ? "DONE" : "PARTIAL") : (r.timedOut ? "TIMEOUT" : "NO_REPORT")
-        results[q.id] = { status, model, attempt, steps: r.steps, report: written ? `.codegen/${output}` : null, final: r.finalText.slice(-400), run: runId, at: new Date().toISOString(), rejected: exhausted }
-        log(`  ${q.id}: ${status} (${r.steps} steps)`)
+        results[q.id] = { status, model, attempt, steps: r.steps, one_shot: written && r.oneShot, report: written ? `.codegen/${output}` : null, final: r.finalText.slice(-400), run: runId, at: new Date().toISOString(), rejected: exhausted }
+        log(`  ${q.id}: ${status} (${r.steps} steps${written && r.oneShot ? ", written in one go" : ""})`)
         if (written) break
         exhausted.push(model)
       }
@@ -314,7 +324,7 @@ async function research(args) {
       results[q.id] ??= { status: "NO_MODELS", model: null, attempt: 0, steps: 0, report: null, final: "", run: runId, at: new Date().toISOString(), rejected: exhausted }
       if (results[q.id].status !== "DONE" && results[q.id].status !== "PARTIAL") { results[q.id].rejected = exhausted; log(`  ${q.id}: ${results[q.id].status}${exhausted.length ? ` (tried ${exhausted.map(short).join(", ")})` : ""}`) }
       const res = results[q.id]
-      journal({ kind: "research", id: q.id, question: q.question, status: res.status, model: res.model, models: res.report ? exhausted.concat([res.model]) : exhausted, steps: res.steps, report: res.report })
+      journal({ kind: "research", id: q.id, question: q.question, status: res.status, model: res.model, models: res.report ? exhausted.concat([res.model]) : exhausted, steps: res.steps, one_shot: res.one_shot, report: res.report })
       if (res.status !== "DONE") notify(`research ${q.id}: ${res.status} with ${short(res.model) ?? "no model"}${res.report ? `, report at ${res.report}` : ", no report"}${res.final ? `. Last words: ${res.final.replace(/\s+/g, " ").trim().slice(-160)}` : ""}. Accept it or split it into new ids; the other questions keep running.`)
       writeBoard()
     }
@@ -324,14 +334,14 @@ async function research(args) {
   writeJson(path.join(STATE, "runs", "current-research.json"), { run: runId, pid: null, finished: new Date().toISOString() })
   writeBoard()
   const tally = Object.values(results).reduce((t, r) => ((t[r.status] = (t[r.status] ?? 0) + 1), t), {})
-  notify(`research run ended: ${Object.entries(tally).map(([k, v]) => `${v} ${k}`).join(", ")}${Object.entries(results).filter(([, r]) => r.status !== "DONE").length ? `; not DONE: ${Object.entries(results).filter(([, r]) => r.status !== "DONE").map(([id, r]) => `${id} (${r.status})`).join(", ")}` : ""}. Judge the new reports and continue.`)
+  notify(`research run ended: ${Object.entries(tally).map(([k, v]) => `${v} ${k}`).join(", ")}${Object.entries(results).filter(([, r]) => r.one_shot).length ? `; written in one go, never re-read (judge harder): ${Object.entries(results).filter(([, r]) => r.one_shot).map(([id]) => id).join(", ")}` : ""}${Object.entries(results).filter(([, r]) => r.status !== "DONE").length ? `; not DONE: ${Object.entries(results).filter(([, r]) => r.status !== "DONE").map(([id, r]) => `${id} (${r.status})`).join(", ")}` : ""}. Judge the new reports and continue.`)
   printResearch(results)
 }
 
 function printResearch(results) {
   console.log("\nResearch summary")
   for (const [id, r] of Object.entries(results)) {
-    console.log(`  ${r.status.padEnd(9)} ${id}  ${r.report ?? "(no report)"}  [${short(r.model)}]${r.rejected?.length ? `  skipped: ${r.rejected.map(short).join(", ")}` : ""}`)
+    console.log(`  ${r.status.padEnd(9)} ${id}  ${r.report ?? "(no report)"}  [${short(r.model)}]${r.one_shot ? "  written in one go" : ""}${r.rejected?.length ? `  skipped: ${r.rejected.map(short).join(", ")}` : ""}`)
     if (r.status === "PARTIAL" && r.final) console.log(`            last words: ${r.final.replace(/\s+/g, " ").trim().slice(-300)}`)
   }
 }

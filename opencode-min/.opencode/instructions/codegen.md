@@ -3,8 +3,11 @@
 Everything the system needs lives in `.codegen/` and is driven by one script,
 `node .opencode/codegen.mjs`. The supervisor writes the files; the script runs
 the agents. Models for scripted agents come from `.opencode/models.json`
-(OpenCode Go, cheapest first, edited by hand). The TUI runs on the user's
-model. Each contract or question starts at the cheapest model and climbs at
+(OpenCode Go, cheapest first, edited by hand; every model there must also
+be in the `opencode-go` whitelist of `opencode.json`, or the script refuses
+to start). The TUI runs on the user's model. Researcher and builder are
+primary agents (OpenCode's `run --agent` refuses subagents), so they show
+up in the TUI's Tab cycle: never select them there. Each contract or question starts at the cheapest model and climbs at
 most `max_models_per_item` rungs, two attempts per rung. If a gate
 fails only in files outside `allowed_to_modify` (its own test file, another
 domain, missing types elsewhere), the contract stops at that attempt with
@@ -43,7 +46,9 @@ cheap one keeps failing in a project, move it down in `models.json`.
   question, writes `.codegen/research/<id>.md`, records DONE (the model said
   so in time), PARTIAL (a report exists but was cut or left unfinished),
   TIMEOUT / NO_REPORT (nothing usable; that model is skipped for the
-  question from then on) or NO_MODELS. `--reject` sets a report aside
+  question from then on) or NO_MODELS. A report the model wrote in one
+  `write` and never edited is flagged "written in one go" in `status`, the
+  journal and the end-of-run notice: judge those harder. `--reject` sets a report aside
   (`<id>.rejected-N.md`) and reruns the question from the next rung; the
   supervisor is the judge of research quality, the gate is for code. It
   refuses to reject a PARTIAL or to reject the same question a third time:

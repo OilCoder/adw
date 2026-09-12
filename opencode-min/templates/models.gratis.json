@@ -1,15 +1,18 @@
 {
-  "_comment": "OpenCode Zen free models only (cost 0), ordered by measured pass rate 2026-09-11. big-pickle failed 0/3 as researcher, kept as builder. Rate limits are shared across projects: with two free projects at once the ladder can end in NO_MODELS.",
+  "_comment": "OpenCode Zen free models only (cost 0), the five that answered and passed the smoke on 2026-09-12 in under 25 s (nemotron-3.5-lightning and nemotron-3-ultra also pass but are slow). Rate limits are shared across projects: two free projects at once can end in NO_MODELS. Requires 'opencode' in enabled_providers and these ids in provider.opencode.whitelist.",
   "researcher": [
     "opencode/mimo-v2.5-free",
     "opencode/muse-spark-1.3-contributor-free",
-    "opencode/nemotron-3.5-lightning-free"
+    "opencode/big-pickle",
+    "opencode/ling-3.0-flash-fin-free",
+    "opencode/muse-spark-1.2-contributor-free"
   ],
   "builder": [
     "opencode/mimo-v2.5-free",
+    "opencode/muse-spark-1.3-contributor-free",
     "opencode/big-pickle",
-    "opencode/nemotron-3.5-lightning-free",
-    "opencode/muse-spark-1.3-contributor-free"
+    "opencode/ling-3.0-flash-fin-free",
+    "opencode/muse-spark-1.2-contributor-free"
   ],
   "max_models_per_item": 3,
   "timeouts_seconds": {

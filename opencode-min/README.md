@@ -3,7 +3,7 @@
 Minimal code-generation harness for OpenCode. One script, three agents, one
 hand-edited model list. Replaces the `opencode/` system (7,500 lines of
 runners, admission, metalog, research verification, session tracking) with
-about 900 lines (script 680, board 210) that do the same core job:
+about 1,100 lines (script 750, board 250, db 90) that do the same core job:
 
 ```text
 idea → research questions (parallel) → plan + contracts + gates → builders (parallel, sandboxed) → independent gate → integration branch
@@ -14,8 +14,8 @@ idea → research questions (parallel) → plan + contracts + gates → builders
 | Role | Runs | Model |
 |---|---|---|
 | Supervisor | the TUI, talking with you | the TUI model (OpenAI subscription) |
-| Researcher | `codegen.mjs research`, one per question, all at once | `models.json` → `researcher` (OpenCode Go) |
-| Builder | `codegen.mjs build`, one per contract, N at a time | `models.json` → `builder` (OpenCode Go) |
+| Researcher | `codegen.mjs research`, one per question, all at once | `models.json` → `researcher` (OpenCode Go, same ladder as builders: cheap models research well) |
+| Builder | `codegen.mjs build`, one per contract, N at a time | `models.json` → `builder` (OpenCode Go, cheapest first; three rungs that all fail mean the contract or gate is wrong) |
 | Gate | the script, deterministic | none |
 
 The supervisor decomposes the idea, writes questions, plan, contracts and
@@ -31,7 +31,11 @@ bash install.sh /path/to/project     # copies .opencode/, opencode.json if absen
 cd /path/to/project && opencode      # supervisor is the default agent
 ```
 
-Edit `.opencode/models.json` to choose models, cheapest first.
+Edit `.opencode/models.json` to choose models, cheapest first, and keep the
+`opencode-go` whitelist in `opencode.json` in step with it: OpenCode only
+exposes whitelisted models, and the script refuses to start when the two
+files disagree. `install.sh` never overwrites an existing `opencode.json`,
+so after updating the harness in a project check its whitelist by hand.
 
 ## Check it works
 
@@ -41,6 +45,20 @@ bash smoke.sh opencode-go/glm-5.3-flash         # one contract, a given model
 FIXTURE=parallel-basic CMD="build --parallel 3" bash smoke.sh   # three contracts, one depends on two
 FIXTURE=parallel-basic CMD=research bash smoke.sh               # one real research question
 ```
+
+## Behaviour freeze (no models, seconds)
+
+```bash
+bash tests/check.sh            # syntax, prompt/permission lint, board golden, 22 scenario goldens
+bash tests/golden.sh --update  # after an intended change of behaviour, rewrite the goldens
+bash tests/golden-board.sh --update   # after an intended change of the board's HTML
+```
+
+`tests/fake-opencode/opencode` stands in for the real binary and plays scripted
+builders and researchers from `tests/scenarios/*.json`; every verdict the script can
+give (PASS, GATE_FAIL, OUT_OF_SCOPE, STRUCTURE, TIMEOUT, GATE BROKEN, SKIPPED, PARTIAL,
+one-shot, reject refusals, resume, merge) has a scenario whose normalized outputs
+live in `tests/golden/`. Run `check.sh` before and after touching any `.mjs`.
 
 ## Following a run
 

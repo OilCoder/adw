@@ -30,8 +30,10 @@ export function boardData({ root, sandboxes, plan, report, current, research, al
   const passed = contracts.filter((c) => c.s.status === "PASS").length
   const running = contracts.filter((c) => c.s.status === "RUNNING")
   const failed = contracts.filter((c) => !["PASS", "RUNNING", "PENDING", "NOT_SELECTED", "SKIPPED"].includes(c.s.status))
-  const sup = supervisorActivity(root)
-  const costs = agentCosts(root, sandboxes)
+  // Tests pass fixed `sup` and `costs`; the script leaves them out and the
+  // board reads OpenCode's database.
+  const sup = "sup" in arguments[0] ? arguments[0].sup : supervisorActivity(root)
+  const costs = "costs" in arguments[0] ? arguments[0].costs : agentCosts(root, sandboxes)
   const researchResults = research?.results ?? {}
   const researchRunning = researchAlive ? (researchRun?.questions ?? []).filter((id) => !researchResults[id] || new Date(researchResults[id].at ?? 0) < new Date(researchRun.started)) : []
 
@@ -100,7 +102,7 @@ export function renderBoard(args) {
   for (const e of events) {
     const at = new Date(e.at).getTime()
     if (e.kind === "contract") entries.push({ at, shape: "dot", cls: e.status === "PASS" ? "ok" : "bad", html: `<b>${esc(e.id)}</b> · builder · ${esc((e.models ?? [e.model]).map(short).join(" › "))} · ${esc(cut(e.title ?? e.objective, 120))} <span class="m">${e.status === "PASS" ? `${e.attempts} intento${e.attempts > 1 ? "s" : ""}, ${e.files} archivos` : `${esc(LABEL[e.status] ?? e.status)} tras ${e.attempts} intentos${e.detail ? ": " + esc(cut(e.detail, 100)) : ""}`}</span>` })
-    else if (e.kind === "research") entries.push({ at, shape: "sq", cls: cls(e.status), html: `<b>${esc(e.id)}</b> · researcher · ${esc((e.models ?? [e.model]).map(short).join(" › "))} · ${esc(cut(e.question, 120))} <span class="m">${esc(LABEL[e.status] ?? e.status)}, ${e.steps} pasos</span>` })
+    else if (e.kind === "research") entries.push({ at, shape: "sq", cls: cls(e.status), html: `<b>${esc(e.id)}</b> · researcher · ${esc((e.models ?? [e.model]).map(short).join(" › "))} · ${esc(cut(e.question, 120))} <span class="m">${esc(LABEL[e.status] ?? e.status)}, ${e.steps} pasos${e.one_shot ? ", escrito de una vez" : ""}</span>` })
     else if (e.kind === "reject") entries.push({ at, shape: "sq", cls: "bad", html: `<b>${esc(e.id)}</b> · informe de ${esc(short(e.model))} rechazado por el supervisor, se relanza con el siguiente modelo` })
     else if (e.kind === "research-start") entries.push({ at, shape: "sq", cls: "run", html: `Research: ${e.questions.length} pregunta${e.questions.length > 1 ? "s" : ""} <span class="m">${esc(e.questions.map((q) => q.id).join(", "))}</span>` })
     else if (e.kind === "notify") entries.push({ at, shape: "dia", cls: e.delivered ? "wait" : "bad", html: `<b>Aviso al supervisor${e.delivered ? "" : ` (no entregado: ${esc(e.reason ?? "sin sesión")})`}:</b> ${esc(cut(e.text, 160))}` })
