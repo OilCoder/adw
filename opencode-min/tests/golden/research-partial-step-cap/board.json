@@ -27,6 +27,7 @@
   "cost": null,
   "supervisor": null,
   "quota": null,
+  "openai": null,
   "lastNotify": {
     
     "text": "research run ended: 1 PARTIAL; not DONE: las-null (PARTIAL). Judge the new reports and continue.",

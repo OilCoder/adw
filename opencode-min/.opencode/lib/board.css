@@ -36,7 +36,7 @@ svg.i{width:1em;height:1em;flex:none}
 /* quota */
 .quota{display:grid;grid-template-columns:34px 1fr;gap:4px 12px;padding:12px 16px;background:var(--surface);border:1px solid var(--line);border-radius:8px;margin-bottom:14px}
 .quota svg.i{width:26px;height:26px;color:var(--run);grid-row:span 2;margin-top:2px}
-.quota .rows{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.quota .rows{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.quota .rows.n2{grid-template-columns:repeat(2,1fr)}
 .quota .r{font-size:13px}.quota .r b{font-variant-numeric:tabular-nums;font-weight:600}
 .quota .r .bar{display:block;width:100%;margin:5px 0 3px}
 .quota .r .s{font-family:var(--mono);font-size:11px;color:var(--ink-3)}

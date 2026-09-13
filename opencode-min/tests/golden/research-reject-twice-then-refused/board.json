@@ -27,6 +27,7 @@
   "cost": null,
   "supervisor": null,
   "quota": null,
+  "openai": null,
   "lastNotify": {
     
     "text": "research run ended: 1 DONE. Judge the new reports and continue.",

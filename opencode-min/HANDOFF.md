@@ -409,3 +409,7 @@ Los seis módulos (`agent`, `sandbox`, `board`, `board-html`, `board.css`, `open
 `.opencode/lib/`; arriba quedan `codegen.mjs`, `models.json`, `agents/`, `instructions/`. Cambió solo
 `codegen.mjs` (imports y la ruta al tablero), `install.sh` (copia `lib/` y borra los planos viejos),
 `tests/check.sh` y `tests/golden-board.mjs`. Goldens sin regenerar. Los ocho proyectos reinstalados.
+
+## 2026-09-13: OpenAI quota on the board
+
+The TUI's supervisor runs on the OpenAI subscription, so the board shows its quota (5 hours, week) under the Go one: `openaiQuota()` in `lib/board.mjs`, same rules as `goQuota()` (cache, timeout, null on trouble; the token comes from OpenCode's `auth.json`, `openai` entry, and gives "sin datos" once expired until the TUI refreshes it). `board.json` gains `openai`. Garden's Consumo tab reads the same endpoint (`src/providers/openai-quota.mjs`).

@@ -71,6 +71,51 @@ export async function goQuota() {
   return quotaCache.value
 }
 
+// ---------- OpenAI (ChatGPT) quota ----------
+
+// The two windows Codex shows (5 hours, week), from the ChatGPT usage endpoint
+// with the OAuth token OpenCode keeps for the "openai" provider (the TUI's
+// supervisor runs on it). Same rules as goQuota: five-minute cache, three
+// seconds, null on anything wrong. An expired token gives null until the TUI
+// refreshes it.
+let openaiCache = { at: 0, value: null }
+export async function openaiQuota() {
+  if (Date.now() - openaiCache.at < 5 * 60000) return openaiCache.value
+  openaiCache = { at: Date.now(), value: null }
+  try {
+    const authFile = path.join(os.homedir(), ".local", "share", "opencode", "auth.json")
+    if (!existsSync(authFile)) return null
+    const a = JSON.parse(readFileSync(authFile, "utf8")).openai
+    if (a?.type !== "oauth" || !a.access || !a.accountId) return null
+    if (a.expires && a.expires < Date.now()) return null
+    const res = await fetch("https://chatgpt.com/backend-api/wham/usage", {
+      headers: { authorization: `Bearer ${a.access}`, "chatgpt-account-id": a.accountId },
+      signal: AbortSignal.timeout(3000),
+    })
+    if (!res.ok) return null
+    const u = await res.json()
+    const r = u.rate_limit
+    if (!r) return null
+    const win = (w) =>
+      w
+        ? {
+            percent: Number(w.used_percent ?? 0),
+            limited: Boolean(r.limit_reached) && Number(w.used_percent ?? 0) >= 100,
+            resetsAt: w.reset_at ? new Date(w.reset_at * 1000).toISOString() : null,
+          }
+        : null
+    openaiCache.value = {
+      at: new Date().toISOString(),
+      plan: u.plan_type ?? null,
+      rolling: win(r.primary_window),
+      weekly: win(r.secondary_window),
+    }
+  } catch {
+    /* offline, no token, bad answer: the board says "sin datos" */
+  }
+  return openaiCache.value
+}
+
 // ---------- Markdown, enough for a research report ----------
 
 // Headings, paragraphs, bullet and numbered lists, fenced code, inline code,
@@ -286,6 +331,7 @@ export function boardData(args) {
   )
   const contractFiles = args.contractFiles ?? {}
   const quota = args.quota ?? null
+  const openai = args.openai ?? null
 
   // ---- attempts and passes per model and role ----
   const perRole = { builder: {}, researcher: {} }
@@ -327,6 +373,7 @@ export function boardData(args) {
     reportsHtml,
     contractFiles,
     quota,
+    openai,
     perRole,
   }
 }
@@ -379,6 +426,7 @@ export function boardJson(args) {
         }
       : null,
     quota: d.quota,
+    openai: d.openai,
     lastNotify: lastNotify
       ? {
           at: lastNotify.at,

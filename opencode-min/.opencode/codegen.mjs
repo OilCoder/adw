@@ -41,7 +41,16 @@ import {
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { supervisorActivity } from "./lib/opencode-db.mjs"
-import { loadModels, ladderFor as ladder, short, git as gitIn, run, runAgent, pool, climb } from "./lib/agent.mjs"
+import {
+  loadModels,
+  ladderFor as ladder,
+  short,
+  git as gitIn,
+  run,
+  runAgent,
+  pool,
+  climb,
+} from "./lib/agent.mjs"
 import {
   exportSandbox,
   resetSandbox,
@@ -223,8 +232,9 @@ async function writeBoard() {
   let renderBoard
   let boardJson
   let goQuota
+  let openaiQuota
   try {
-    ;({ renderBoard, boardJson, goQuota } = await import(
+    ;({ renderBoard, boardJson, goQuota, openaiQuota } = await import(
       `${pathToFileURL(boardFile).href}?v=${statSync(boardFile).mtimeMs}`
     ))
   } catch (e) {
@@ -254,8 +264,8 @@ async function writeBoard() {
     : []
   const file = path.join(STATE, "board.html")
   // Research reports and contract files travel into the page (the board opens
-  // as a local file and cannot read them itself); the Go quota is one HTTP
-  // call with a cache, never fatal.
+  // as a local file and cannot read them itself); the Go and OpenAI quotas are one HTTP
+  // call each with a cache, never fatal.
   const reports = {}
   const researchDir = path.join(STATE, "research")
   if (existsSync(researchDir))
@@ -267,13 +277,14 @@ async function writeBoard() {
       .map((c) => [c.id, readJson(path.join(STATE, "contracts", c.id, "contract.json"), null)])
       .filter(([, v]) => v),
   )
-  const quota = await goQuota()
+  const [quota, openai] = await Promise.all([goQuota(), openaiQuota()])
   const args = {
     root: ROOT,
     sandboxes: SANDBOXES,
     reports,
     contractFiles,
     quota,
+    openai,
     plan,
     report,
     current,

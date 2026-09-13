@@ -88,8 +88,10 @@ every 10 s (builds and research also rewrite it on every state change). Open
 it in VS Code with the Live Preview extension or in a browser. Header: the
 supervisor's session title and slug, as the TUI's session list shows them.
 Strip: phase, supervisor, contracts, what waits for you, cost (API-equivalent).
-Then the OpenCode Go quota (5 hours, week, month; one HTTP call, cached five
-minutes, "sin datos" offline). Tabs in workflow order: **Ahora** (running
+Then the OpenCode Go quota (5 hours, week, month) and the OpenAI quota of the
+TUI's session (5 hours, week, from the ChatGPT usage endpoint with the OAuth token
+OpenCode keeps; one HTTP call each, cached five minutes, "sin datos" offline or
+with an expired token). Tabs in workflow order: **Ahora** (running
 now, the journal), **Research** (one table by run), **Contratos** (dependency
 graph and a board by state), **Modelos y coste** (ladders, one table per
 role). Click a contract, in the journal or on a card, for its detail in a

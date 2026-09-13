@@ -1,5 +1,5 @@
 // Draws .codegen/board.html from the facts in board.mjs: a self-refreshing
-// tabbed page. "Ahora" shows the phase, the Go quota, what is running and
+// tabbed page. "Ahora" shows the phase, the Go and OpenAI quotas, what is running and
 // the journal; then Research, Contratos (graph + board) and Modelos y coste.
 // One function per section, each returning a string; the styles are
 // board.css, inlined so the page stays a single file that opens from disk.
@@ -146,22 +146,48 @@ ${cell(
 </div>`
 }
 
-// ---- the Go quota: the three windows the TUI shows ----
+// ---- the quotas: OpenCode Go (5 hours, week, month) and OpenAI (5 hours, week) ----
+function quotaWindow(label, w) {
+  if (!w) return `<div class="r"><span>${label}</span> <b>–</b></div>`
+  const k = w.limited || w.percent >= 100 ? "bad" : w.percent >= 70 ? "run" : ""
+  const color = k === "bad" ? "var(--bad)" : k === "run" ? "var(--run)" : "var(--ok)"
+  const reset = w.resetsAt
+    ? `${w.limited ? "agotada · vuelve " : "se reinicia "}${dayShort(w.resetsAt)} ${hhmm(w.resetsAt)}`
+    : ""
+  return `<div class="r ${k}"><span>${label}</span> <b>${Math.round(w.percent)} %</b>${bar(w.percent, color, "100%")}<span class="s">${esc(reset)}</span></div>`
+}
+function quotaBlock(title, q, rows, empty, now) {
+  const body = q
+    ? `<div class="rows n${rows.length}">${rows.map(([l, w]) => quotaWindow(l, w)).join("")}</div>`
+    : `<div class="empty" style="padding:0">${empty}</div>`
+  return `<div class="quota">${icon("gauge")}<div class="k">${title}${q?.at ? ` · leída hace ${mins(now - Date.parse(q.at))}` : ""}</div>${body}</div>`
+}
 function quota(d, { now }) {
   const q = d.quota
-  const win = (label, w) => {
-    if (!w) return `<div class="r"><span>${label}</span> <b>–</b></div>`
-    const k = w.limited || w.percent >= 100 ? "bad" : w.percent >= 70 ? "run" : ""
-    const color = k === "bad" ? "var(--bad)" : k === "run" ? "var(--run)" : "var(--ok)"
-    const reset = w.resetsAt
-      ? `${w.limited ? "agotada · vuelve " : "se reinicia "}${dayShort(w.resetsAt)} ${hhmm(w.resetsAt)}`
-      : ""
-    return `<div class="r ${k}"><span>${label}</span> <b>${Math.round(w.percent)} %</b>${bar(w.percent, color, "100%")}<span class="s">${esc(reset)}</span></div>`
-  }
-  const body = q
-    ? `<div class="rows">${win("5 horas", q.rolling)}${win("Semana", q.weekly)}${win("Mes", q.monthly)}</div>`
-    : `<div class="empty" style="padding:0">Sin datos: sin clave de Go en auth.json o sin red.</div>`
-  return `<div class="quota">${icon("gauge")}<div class="k">Cuota OpenCode Go${q?.at ? ` · leída hace ${mins(now - Date.parse(q.at))}` : ""}</div>${body}</div>`
+  const o = d.openai
+  return (
+    quotaBlock(
+      "Cuota OpenCode Go",
+      q,
+      [
+        ["5 horas", q?.rolling],
+        ["Semana", q?.weekly],
+        ["Mes", q?.monthly],
+      ],
+      "Sin datos: sin clave de Go en auth.json o sin red.",
+      now,
+    ) +
+    quotaBlock(
+      `Cuota OpenAI${o?.plan ? ` · ${esc(o.plan)}` : ""}`,
+      o,
+      [
+        ["5 horas", o?.rolling],
+        ["Semana", o?.weekly],
+      ],
+      "Sin datos: sin sesión de OpenAI en auth.json, token caducado o sin red.",
+      now,
+    )
+  )
 }
 
 // ---- detail of one contract, for the modal ----
