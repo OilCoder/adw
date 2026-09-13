@@ -10,7 +10,11 @@ import path from "node:path"
 // file (.claude/agents/<role>.md): native front matter (`name`, `description`,
 // `maxTurns`) plus `allow` and `deny`, the permission rules the script hands to
 // claude -p as a settings file. The same file is the only place a role is
-// defined. A run that hit its `maxTurns` did not finish.
+// defined. A run that hit its `maxTurns` did not finish. A ladder entry is a
+// model or a group of models (an array): one rung either way. Builders race a
+// group (every model at once, the gate picks the winner); researchers try its
+// members one by one.
+export const flat = (ladder) => ladder.flat()
 export function loadModels(root) {
   const models = JSON.parse(readFileSync(path.join(root, ".claude", "models.json"), "utf8"))
   const agents = Object.fromEntries(["researcher", "builder"].map((a) => [a, loadAgent(root, a)]))
@@ -36,20 +40,30 @@ export function loadAgent(root, name) {
   }
 }
 
-// The ladder for one item: models.json in order, minus the ones excluded,
-// cut to max_models_per_item rungs.
+// The ladder for one item: models.json in order, minus the ones excluded
+// (inside a group too; an emptied group is no rung), cut to
+// max_models_per_item rungs.
 export function ladderFor(models, role, exclude = []) {
-  return (models[role] ?? []).filter((m) => !exclude.includes(m)).slice(0, models.max_models_per_item ?? 3)
+  return (models[role] ?? [])
+    .map((m) => (Array.isArray(m) ? m.filter((x) => !exclude.includes(x)) : m))
+    .filter((m) => (Array.isArray(m) ? m.length > 0 : !exclude.includes(m)))
+    .slice(0, models.max_models_per_item ?? 3)
 }
 
-export const short = (m) => String(m).replace(/^[^/]+\//, "")
+export const short = (m) => (Array.isArray(m) ? m.map(short).join(" | ") : String(m).replace(/^[^/]+\//, ""))
 
 export function git(args, cwd) {
   return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim()
 }
 
-// Runs a command, captures stdout/stderr to files, kills it after timeoutSeconds.
-export function run(cmd, args, { cwd, timeoutSeconds, stdoutFile, stderrFile, env = {}, cleanEnv = false }) {
+// Runs a command, captures stdout/stderr to files, kills it after
+// timeoutSeconds, or after silenceSeconds without a first byte of stdout (a
+// model that never starts), or when `signal` aborts (a race lost).
+export function run(
+  cmd,
+  args,
+  { cwd, timeoutSeconds, silenceSeconds, signal, stdoutFile, stderrFile, env = {}, cleanEnv = false },
+) {
   return new Promise((resolve) => {
     const child = spawn(cmd, args, {
       cwd,
@@ -57,19 +71,38 @@ export function run(cmd, args, { cwd, timeoutSeconds, stdoutFile, stderrFile, en
       env: cleanEnv ? env : { ...process.env, ...env },
     })
     let out = "",
-      err = ""
+      err = "",
+      why = null
+    const kill = (reason) => {
+      why ??= reason
+      child.kill("SIGKILL")
+    }
+    const silence = silenceSeconds ? setTimeout(() => kill("silent"), silenceSeconds * 1000) : null
     child.stdout.on("data", (d) => {
+      if (silence) clearTimeout(silence)
       out += d
     })
     child.stderr.on("data", (d) => {
       err += d
     })
-    const timer = setTimeout(() => child.kill("SIGKILL"), timeoutSeconds * 1000)
-    child.on("close", (code, signal) => {
+    const timer = setTimeout(() => kill("timeout"), timeoutSeconds * 1000)
+    const onAbort = () => kill("aborted")
+    signal?.addEventListener("abort", onAbort, { once: true })
+    child.on("close", (code, sig) => {
       clearTimeout(timer)
+      if (silence) clearTimeout(silence)
+      signal?.removeEventListener("abort", onAbort)
       if (stdoutFile) writeFileSync(stdoutFile, out)
       if (stderrFile) writeFileSync(stderrFile, err)
-      resolve({ code, signal, stdout: out, stderr: err, timedOut: signal === "SIGKILL" })
+      resolve({
+        code,
+        signal: sig,
+        stdout: out,
+        stderr: err,
+        timedOut: why === "timeout",
+        silent: why === "silent",
+        aborted: why === "aborted",
+      })
     })
   })
 }
@@ -81,7 +114,17 @@ export function run(cmd, args, { cwd, timeoutSeconds, stdoutFile, stderrFile, en
 // tool call is denied, never asked) plus its allow and deny rules, written to a
 // settings file next to the logs. CLAUDECODE is dropped from the environment
 // because a nested claude refuses to start while it is set.
-export async function runAgent({ agent, model, prompt, cwd, timeoutSeconds, logPrefix, env }) {
+export async function runAgent({
+  agent,
+  model,
+  prompt,
+  cwd,
+  timeoutSeconds,
+  silenceSeconds,
+  signal,
+  logPrefix,
+  env,
+}) {
   const settingsFile = `${logPrefix}.settings.json`
   writeFileSync(
     settingsFile,
@@ -115,6 +158,8 @@ export async function runAgent({ agent, model, prompt, cwd, timeoutSeconds, logP
     {
       cwd,
       timeoutSeconds,
+      silenceSeconds,
+      signal,
       stdoutFile: `${logPrefix}.events.jsonl`,
       stderrFile: `${logPrefix}.stderr.txt`,
       env: { ...stripped, ...env },
@@ -191,16 +236,18 @@ export async function pool(limit, next) {
   }
 }
 
-// Climbs a ladder: for each model (rung), `onRung(model)` then up to
-// `attemptsPerRung` calls of `attempt(model, n)`; an attempt that returns
-// "stop" ends the climb (the item is closed, for good or bad), "next" leaves
-// the rung at once (a rate-limited model), anything else moves on.
-// Researchers use one attempt per rung, builders two.
+// Climbs a ladder: for each rung (a model, or a group of models as an array),
+// `onRung(rung)` then up to `attemptsPerRung` calls of `attempt(rung, n)` (one
+// for a group); an attempt that returns "stop" ends the climb (the item is
+// closed, for good or bad), "next" leaves the rung at once (a model that never
+// answered or is rate limited), anything else moves on. Researchers use one
+// attempt per rung, builders two.
 export async function climb({ ladder, attemptsPerRung = 1, onRung = () => {}, attempt }) {
-  for (const model of ladder) {
-    onRung(model)
-    for (let n = 1; n <= attemptsPerRung; n++) {
-      const r = await attempt(model, n)
+  for (const rung of ladder) {
+    onRung(rung)
+    const tries = Array.isArray(rung) ? 1 : attemptsPerRung
+    for (let n = 1; n <= tries; n++) {
+      const r = await attempt(rung, n)
       if (r === "stop") return
       if (r === "next") break
     }

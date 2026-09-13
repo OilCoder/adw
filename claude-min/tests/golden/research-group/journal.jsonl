@@ -1,0 +1,3 @@
+{"at":"TS","kind":"notify","text":"research run ended: 1 DONE. Judge the new reports and continue.","delivered":true}
+{"at":"TS","kind":"research","id":"las-null","question":"In the LAS 2.0 well log standard, how is the NULL value declared and how should readers treat it? Give the exact section/mnemonic.","status":"DONE","model":"claude-sonnet-5","models":["claude-sonnet-5"],"steps":5,"one_shot":false,"report":".codegen/research/las-null.md"}
+{"at":"TS","kind":"research-start","run":"STAMP-research","questions":[{"id":"las-null","question":"In the LAS 2.0 well log standard, how is the NULL value declared and how should readers treat it? Give the exact section/mnemonic."}]}

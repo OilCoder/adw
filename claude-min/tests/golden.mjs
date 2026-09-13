@@ -48,7 +48,10 @@ for (const name of scenarios) {
   cpSync(path.join(HERE, "fixtures", sc.fixture), work, { recursive: true })
   for (const [rel, content] of Object.entries(sc.pre ?? {})) { mkdirSync(path.dirname(path.join(work, rel)), { recursive: true }); writeFileSync(path.join(work, rel), content) }
   sh(`bash "${SRC}/install.sh" "${work}" >/dev/null`, work)
-  if (sc.models) { const f = path.join(work, ".claude", "models.json"); const m = JSON.parse(readFileSync(f, "utf8")); writeFileSync(f, JSON.stringify({ ...m, ...sc.models, timeouts_seconds: { ...m.timeouts_seconds, ...(sc.models.timeouts_seconds ?? {}) } }, null, 2)) }
+  // The freeze tests the flat ladder (one model per rung) unless a scenario brings its own
+  // models: the installed models.json groups the free models, which would turn every
+  // scenario into a race.
+  { const f = path.join(work, ".claude", "models.json"); const m = JSON.parse(readFileSync(f, "utf8")); for (const role of ["researcher", "builder"]) m[role] = m[role].flat(); writeFileSync(f, JSON.stringify({ ...m, ...(sc.models ?? {}), timeouts_seconds: { ...m.timeouts_seconds, ...(sc.models?.timeouts_seconds ?? {}) } }, null, 2)) }
   sh(`git init -q && git add -A && git -c user.name=golden -c user.email=golden@localhost commit -qm fixture`, work)
   const scriptFile = path.join(tmp, "script.json")
   writeFileSync(scriptFile, JSON.stringify(sc.script ?? {}))

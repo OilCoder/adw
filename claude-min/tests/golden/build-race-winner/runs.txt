@@ -1,0 +1,13 @@
+$ codegen build --parallel 1  → exit 0
+  PASS            safe-divide [claude-sonnet-5, 2 attempt(s)]
+  safe-divide: GATE_FAIL (3 steps, 1 files, $0.010, claude-haiku-4-5)
+  safe-divide: PASS (4 steps, 1 files, $0.010, claude-sonnet-5)
+  safe-divide: attempt 1 racing claude-haiku-4-5 | claude-sonnet-5
+  safe-divide: merged into codegen/STAMP-build
+1/1 contracts passed their gate.
+Build STAMP-build on branch codegen/STAMP-build: 1/1 PASS
+Land it with: node .claude/codegen.mjs merge
+[codegen] build ended: 1/1 PASS. Tell the user it is ready to merge.
+board: .codegen/board.html
+build STAMP-build: 1 contracts, parallel 1, ladder claude-haiku-4-5 | claude-sonnet-5 > claude-opus-5
+

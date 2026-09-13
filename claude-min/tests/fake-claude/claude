@@ -9,7 +9,7 @@
 // The script comes from $FAKE_CLAUDE_SCRIPT (JSON): { "<agent>": { "<id>": [step, ...], "*": [...] } }
 // where <agent> is builder or researcher (told from the prompt), <id> the contract
 // or question id in the prompt, and the n-th call for that (agent, id) plays the
-// n-th step (the last one repeats).
+// n-th step (the last one repeats); "<id>@<model>" gives one model its own script (race scenarios).
 // A step: { "files": { "path": "content" | null }, "steps": 3, "tools": ["write"],
 //           "text": "final text", "sleep": 0, "rate_limited": false, "cost": 0.01 }.
 // Call counters live in $FAKE_CLAUDE_STATE.
@@ -32,8 +32,9 @@ const prompt = opt.prompt
 const agent = /Research question /.test(prompt) ? "researcher" : "builder"
 const id = (prompt.match(/contracts\/([^/]+)\/contract\.json/) ?? prompt.match(/Research question (\S+):/) ?? [])[1] ?? "*"
 const script = process.env.FAKE_CLAUDE_SCRIPT ? JSON.parse(readFileSync(process.env.FAKE_CLAUDE_SCRIPT, "utf8")) : {}
-const steps = script[agent]?.[id] ?? script[agent]?.["*"] ?? [{}]
-const counter = path.join(state, `${agent}.${id}.calls`)
+const key = script[agent]?.[`${id}@${opt.model}`] ? `${id}@${opt.model}` : id
+const steps = script[agent]?.[key] ?? script[agent]?.["*"] ?? [{}]
+const counter = path.join(state, `${agent}.${key}.calls`)
 const n = existsSync(counter) ? Number(readFileSync(counter, "utf8")) : 0
 writeFileSync(counter, String(n + 1))
 const step = steps[Math.min(n, steps.length - 1)]

@@ -74,6 +74,18 @@ Para reconstruir de nuevo desde opencode-min HEAD, repetir el método de
 arriba: copiar, renombrar rutas, re-aplicar la lista "What differs" del
 README, regenerar goldens y compararlos con los de opencode-min.
 
+## 2026-09-13 (tarde): grupos, carrera y corte por silencio, portados de opencode-min
+
+Mismo cambio que en opencode-min (ver su HANDOFF de la misma fecha): entrada de
+escalera = modelo o grupo; grupo = un peldaño; builders corren el grupo a la
+vez (`cloneSandbox`, `AbortController`, `LOST`), researchers lo prueban uno a
+uno; `timeouts_seconds.silence: 90` → `NO_RESPONSE`, que junto con
+`RATE_LIMITED` deja el peldaño al instante sin contar como fallo. La escalera
+por defecto sigue plana (haiku → sonnet); el mecanismo queda para cuando haya
+modelos que merezcan correr en paralelo. Cinco escenarios nuevos con nombres
+Claude; los 25 anteriores intactos; `golden.mjs` aplana la escalera instalada
+salvo que el escenario traiga `models`.
+
 ## Deriva conocida solo de pruebas
 
 `tests/golden.mjs` normaliza quitando la línea entera de `duration_ms`/`at`

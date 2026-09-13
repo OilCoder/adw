@@ -31,6 +31,8 @@ export const LABEL = {
   STRUCTURE: "rompe el mapa",
   NO_CHANGES: "sin cambios",
   TIMEOUT: "timeout",
+  NO_RESPONSE: "sin respuesta",
+  LOST: "perdió la carrera",
   NO_MODELS: "sin modelos",
   GATE_TRIVIAL: "gate trivial",
   MERGE_CONFLICT: "conflicto de merge",
@@ -46,7 +48,8 @@ export const LABEL = {
 export const esc = (s) =>
   String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c])
 export const cls = (st) => CLASS[st] ?? "bad"
-export const short = (m) => String(m ?? "").replace(/^[^/]+\//, "")
+export const short = (m) =>
+  Array.isArray(m) ? m.map(short).join(" | ") : String(m ?? "").replace(/^[^/]+\//, "")
 export const usd = (n) => `$${(n ?? 0).toFixed(2)}`
 export const day = (t) =>
   new Date(t).toLocaleDateString("es", { weekday: "short", day: "2-digit", month: "short" })
@@ -419,7 +422,7 @@ function modelsTab(d, { models, ladders = {} }) {
       .join("")
     return `<div class="panel"><table><tr><th>${title} · ${unit}</th><th class="num">Intentos</th><th class="num">Pasó</th><th class="num">Tasa</th><th class="num">Coste</th><th class="num">Sesiones</th><th class="num">Tiempo</th><th class="num">Por sesión</th></tr>${rows || `<tr><td colspan="8" class="empty">Sin datos todavía.</td></tr>`}</table></div>`
   }
-  const cards = `<div class="mcards"><div>${icon("wrench")}<div class="k">Escalera builder</div><div class="v mono">${esc((ladders.builder ?? []).map(short).join(" › "))}</div></div><div>${icon("flask")}<div class="k">Escalera researcher</div><div class="v mono">${esc((ladders.researcher ?? []).map(short).join(" › "))}</div></div><div>${icon("branch")}<div class="k">Regla</div><div class="v">2 intentos por peldaño · ${models?.max_models_per_item ?? 3} peldaños por ítem</div><div class="s">si un modelo te falla seguido, bájalo en models.json</div></div></div>`
+  const cards = `<div class="mcards"><div>${icon("wrench")}<div class="k">Escalera builder</div><div class="v mono">${esc((ladders.builder ?? []).map(short).join(" › "))}</div></div><div>${icon("flask")}<div class="k">Escalera researcher</div><div class="v mono">${esc((ladders.researcher ?? []).map(short).join(" › "))}</div></div><div>${icon("branch")}<div class="k">Regla</div><div class="v">2 intentos por peldaño · ${models?.max_models_per_item ?? 3} peldaños por ítem</div><div class="s">un grupo (a | b) corre a la vez y cuenta como un peldaño · si un modelo te falla seguido, bájalo en models.json</div></div></div>`
   return `${cards}${table("builder", "Builders", "contratos")}${table("researcher", "Researchers", "preguntas")}<div class="foot"><span>Intentos y tasa: report.json y research/status.json · coste, sesiones y tiempo: el evento final de cada llamada a claude -p</span><span>Coste equivalente API · no representa necesariamente un cobro real</span></div>`
 }
 

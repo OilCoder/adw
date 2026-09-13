@@ -7,8 +7,15 @@ the agents. Models for scripted agents come from `.claude/models.json`
 call on the user's subscription with the role and permissions of
 `.claude/agents/<role>.md`; the supervisor is the session the user opened
 (whatever `/model` says). The agent files are visible to this session as
-subagents: never delegate to them, the script runs them. Each contract or
-question starts at the cheapest model and climbs at
+subagents: never delegate to them, the script runs them. A ladder entry is a
+model or a group of models (an array): one rung either way. A builder rung
+that is a group is a race: every model of the group at once, each in its own
+copy of the sandbox, the first PASS lands and the others are killed (`LOST`);
+a researcher tries the group's members one by one. A model with no output at
+all after `timeouts_seconds.silence` (90 s), or one that only answers
+rate-limit retries, is dropped at once (`NO_RESPONSE` / `RATE_LIMITED`) and
+not remembered as a failure. Each contract or question starts at the
+cheapest rung and climbs at
 most `max_models_per_item` rungs, two attempts per rung. If a gate
 fails only in files outside `allowed_to_modify` (its own test file, another
 domain, missing types elsewhere), the contract stops at that attempt with
@@ -47,7 +54,8 @@ cheap one keeps failing in a project, move it down in `models.json`.
   question, writes `.codegen/research/<id>.md`, records DONE (the model said
   so in time), PARTIAL (a report exists but was cut or left unfinished),
   TIMEOUT / NO_REPORT (nothing usable; that model is skipped for the
-  question from then on) or NO_MODELS. A report the model wrote in one
+  question from then on), NO_RESPONSE (the model never started; not held
+  against it) or NO_MODELS. A report the model wrote in one
   `write` and never edited is flagged "written in one go" in `status`, the
   journal and the end-of-run notice: judge those harder. `--reject` sets a report aside
   (`<id>.rejected-N.md`) and reruns the question from the next rung; the
@@ -80,7 +88,9 @@ cheap one keeps failing in a project, move it down in `models.json`.
 
 Per contract: `PASS`, `INSTALL_FAILED`, `GATE_FAIL`, `OUT_OF_SCOPE`, `PROTECTED_TOUCHED`,
 `NO_CHANGES`, `TIMEOUT`, `RATE_LIMITED` (the model only answered rate-limit
-retries; the ladder moves on at once), `GATE_TRIVIAL`, `MERGE_CONFLICT`, `SKIPPED`
+retries; the ladder moves on at once), `NO_RESPONSE` (nothing at all in the
+silence window; same), `LOST` (a racer killed because another passed),
+`GATE_TRIVIAL`, `MERGE_CONFLICT`, `SKIPPED`
 (a dependency failed), `NOT_SELECTED` (left out by `--only`). Logs and every attempt's events are under
 `.codegen/runs/<run>/<id>/`.
 - `node .claude/codegen.mjs merge [--partial]`: fast-forwards the run's

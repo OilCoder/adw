@@ -1,0 +1,65 @@
+{
+  "fixture": "builder-basic",
+  "models": {
+    "builder": [
+      [
+        "claude-haiku-4-5",
+        "claude-sonnet-5"
+      ],
+      "claude-opus-5"
+    ],
+    "researcher": [
+      [
+        "claude-haiku-4-5",
+        "claude-sonnet-5"
+      ],
+      "claude-opus-5"
+    ],
+    "max_models_per_item": 2,
+    "timeouts_seconds": {
+      "builder": 20,
+      "researcher": 20,
+      "silence": 2
+    }
+  },
+  "script": {
+    "builder": {
+      "safe-divide@claude-haiku-4-5": [
+        {
+          "sleep": 5
+        }
+      ],
+      "safe-divide@claude-sonnet-5": [
+        {
+          "files": {
+            "calculator.py": "def safe_divide(dividend, divisor):\n    return dividend / divisor\n"
+          },
+          "tools": [
+            "edit"
+          ],
+          "steps": 3,
+          "text": "DONE"
+        }
+      ],
+      "safe-divide@claude-opus-5": [
+        {
+          "files": {
+            "calculator.py": "def safe_divide(dividend: int, divisor: int) -> float:\n    \"\"\"Divide two integers, rejecting division by zero.\"\"\"\n    if divisor == 0:\n        raise ValueError(\"divisor must not be zero\")\n    return dividend / divisor\n"
+          },
+          "tools": [
+            "edit"
+          ],
+          "steps": 4,
+          "text": "DONE"
+        }
+      ]
+    }
+  },
+  "runs": [
+    [
+      "build",
+      "--parallel",
+      "1"
+    ]
+  ]
+}

@@ -57,7 +57,13 @@ edits product files: `.claude/settings.json` (installed) denies it. Builders
 can only edit paths their contract allows; the script checks scope, protected
 paths and the gate after every attempt, retries once with the gate output as
 evidence, then moves to the next model in the list. A model that only answers
-rate-limit retries is skipped at once (`RATE_LIMITED`), not after the timeout.
+rate-limit retries, or prints nothing at all for `timeouts_seconds.silence`
+seconds (90), is skipped at once (`RATE_LIMITED` / `NO_RESPONSE`), not after
+the timeout, and not held against it. A ladder entry may be a group (a JSON
+array): one rung, raced by builders (each model in its own copy of the
+sandbox, the first PASS lands, the others are killed as `LOST`) and tried one
+by one by researchers; the default ladder has no group, the mechanism is the
+same as opencode-min's.
 
 ## Install into a project
 
@@ -85,7 +91,7 @@ variable for its own children.
 ## Behaviour freeze (no models, seconds)
 
 ```bash
-bash tests/check.sh            # syntax, prompt/permission lint, board golden, 25 scenario goldens
+bash tests/check.sh            # syntax, prompt/permission lint, board golden, 30 scenario goldens
 bash tests/golden.sh --update  # after an intended change of behaviour, rewrite the goldens
 bash tests/golden-board.sh --update   # after an intended change of the board's HTML
 ```
@@ -93,7 +99,7 @@ bash tests/golden-board.sh --update   # after an intended change of the board's 
 `tests/fake-claude/claude` stands in for the real binary, prints the same
 stream-json events, and plays scripted builders and researchers from
 `tests/scenarios/*.json` (the same scenarios as opencode-min, plus
-`build-rate-limited`); the verdicts PASS, GATE_FAIL, RATE_LIMITED,
+`build-rate-limited`, and the race / no-response / research-group ones); the verdicts PASS, GATE_FAIL, RATE_LIMITED, NO_RESPONSE, LOST,
 OUT_OF_SCOPE, PROTECTED_TOUCHED, STRUCTURE, NO_CHANGES, TIMEOUT, GATE_TRIVIAL,
 GATE BROKEN, MERGE_CONFLICT, SKIPPED, DONE, PARTIAL, NO_REPORT, NO_MODELS,
 one-shot, the reject refusals, resume and merge each have a scenario whose

@@ -54,6 +54,8 @@ import {
 } from "./lib/agent.mjs"
 import {
   exportSandbox,
+  cloneSandbox,
+  venvEnv,
   resetSandbox,
   installDeps,
   runGate,
@@ -374,82 +376,91 @@ async function researchOne(q, { runDir, runId, previous, results }) {
   let attempt = 0
   const rejected = previous[q.id]?.rejected ?? []
   const exhausted = [...rejected]
-  await climb({
-    ladder: ladderFor("researcher", rejected),
-    attempt: async (model) => {
-      attempt++
-      log(`  ${q.id}: attempt ${attempt} with ${model}`)
-      // The researcher works in an empty directory of its own: an allow rule
-      // with a path does not restrict Claude Code, it only skips the prompt,
-      // so the directory is the fence. The report is copied back afterwards.
-      const den = path.join(runDir, `${q.id}.${attempt}.work`)
-      rmSync(den, { recursive: true, force: true })
-      mkdirSync(den, { recursive: true })
-      const prompt = [
-        `Research question ${q.id}: ${q.question}`,
-        q.context ? `Context: ${q.context}` : "",
-        `Write the report to ./report.md in the current directory.`,
-      ]
-        .filter(Boolean)
-        .join("\n")
-      const r = await runAgent({
-        agent: AGENTS.researcher,
-        model,
-        prompt,
-        cwd: den,
-        timeoutSeconds: TIMEOUTS.researcher ?? 600,
-        logPrefix: path.join(runDir, `${q.id}.${attempt}`),
-      })
-      const draft = path.join(den, "report.md")
-      const text = existsSync(draft) ? readFileSync(draft, "utf8") : ""
-      if (text.trim().length > 200) {
-        mkdirSync(path.dirname(outputAbs), { recursive: true })
-        copyFileSync(draft, outputAbs)
-      }
-      const written = text.trim().length > 200
-      // DONE only when the model closed with it, in time, within its step cap
-      // and with the summary the supervisor reads; anything else with a file
-      // is PARTIAL, for the supervisor to accept or split.
-      const closed =
-        !r.timedOut &&
-        r.steps < STEP_CAP.researcher &&
-        /^## Summary for contracts/m.test(text) &&
-        // Claude likes to bold or quote its last line: strip that before reading it.
-        /^DONE\b/.test(
-          r.finalText
-            .trim()
-            .split("\n")
-            .at(-1)
-            .replace(/^[\s*_`>]+/, ""),
-        )
-      const status = written
-        ? closed
-          ? "DONE"
-          : "PARTIAL"
-        : r.rateLimited
-          ? "RATE_LIMITED"
+  // A group rung is its members one after another (no race: the supervisor
+  // judges reports, so one report per rung is enough).
+  const tryOne = async (model) => {
+    attempt++
+    log(`  ${q.id}: attempt ${attempt} with ${model}`)
+    // The researcher works in an empty directory of its own: an allow rule
+    // with a path does not restrict Claude Code, it only skips the prompt,
+    // so the directory is the fence. The report is copied back afterwards.
+    const den = path.join(runDir, `${q.id}.${attempt}.work`)
+    rmSync(den, { recursive: true, force: true })
+    mkdirSync(den, { recursive: true })
+    const prompt = [
+      `Research question ${q.id}: ${q.question}`,
+      q.context ? `Context: ${q.context}` : "",
+      `Write the report to ./report.md in the current directory.`,
+    ]
+      .filter(Boolean)
+      .join("\n")
+    const r = await runAgent({
+      agent: AGENTS.researcher,
+      model,
+      prompt,
+      cwd: den,
+      timeoutSeconds: TIMEOUTS.researcher ?? 600,
+      silenceSeconds: TIMEOUTS.silence ?? 90,
+      logPrefix: path.join(runDir, `${q.id}.${attempt}`),
+    })
+    const draft = path.join(den, "report.md")
+    const text = existsSync(draft) ? readFileSync(draft, "utf8") : ""
+    if (text.trim().length > 200) {
+      mkdirSync(path.dirname(outputAbs), { recursive: true })
+      copyFileSync(draft, outputAbs)
+    }
+    const written = text.trim().length > 200
+    // DONE only when the model closed with it, in time, within its step cap
+    // and with the summary the supervisor reads; anything else with a file
+    // is PARTIAL, for the supervisor to accept or split.
+    const closed =
+      !r.timedOut &&
+      r.steps < STEP_CAP.researcher &&
+      /^## Summary for contracts/m.test(text) &&
+      // Claude likes to bold or quote its last line: strip that before reading it.
+      /^DONE\b/.test(
+        r.finalText
+          .trim()
+          .split("\n")
+          .at(-1)
+          .replace(/^[\s*_`>]+/, ""),
+      )
+    const status = written
+      ? closed
+        ? "DONE"
+        : "PARTIAL"
+      : r.rateLimited
+        ? "RATE_LIMITED"
+        : r.silent
+          ? "NO_RESPONSE"
           : r.timedOut
             ? "TIMEOUT"
             : "NO_REPORT"
-      results[q.id] = {
-        status,
-        model,
-        attempt,
-        steps: r.steps,
-        cost: r.cost,
-        duration_ms: r.duration_ms,
-        one_shot: written && r.oneShot,
-        report: written ? `.codegen/${output}` : null,
-        final: r.finalText.slice(-400),
-        run: runId,
-        at: new Date().toISOString(),
-        rejected: exhausted,
-      }
-      log(`  ${q.id}: ${status} (${r.steps} steps${written && r.oneShot ? ", written in one go" : ""})`)
-      if (written) return "stop"
-      // A rate-limited model did no work: not a failure of the model for this
-      // question, so it is not remembered as one for later runs.
-      if (!r.rateLimited) exhausted.push(model)
+    results[q.id] = {
+      status,
+      model,
+      attempt,
+      steps: r.steps,
+      cost: r.cost,
+      duration_ms: r.duration_ms,
+      one_shot: written && r.oneShot,
+      report: written ? `.codegen/${output}` : null,
+      final: r.finalText.slice(-400),
+      run: runId,
+      at: new Date().toISOString(),
+      rejected: exhausted,
+    }
+    log(`  ${q.id}: ${status} (${r.steps} steps${written && r.oneShot ? ", written in one go" : ""})`)
+    if (written) return "stop"
+    // A rate-limited or silent model did no work: not a failure of the model
+    // for this question, so it is not remembered as one for later runs.
+    if (!r.rateLimited && !r.silent) exhausted.push(model)
+  }
+  await climb({
+    ladder: ladderFor("researcher", rejected),
+    attempt: async (rung) => {
+      for (const model of Array.isArray(rung) ? rung : [rung])
+        if ((await tryOne(model)) === "stop") return "stop"
     },
   })
   // Models that failed without a report stay skipped for this question in later runs.
@@ -701,88 +712,163 @@ async function buildOne(entry, { runDir, integration, integrationDir, state, rep
 
   const attempts = []
   let evidence = "",
-    broken = false
+    broken = false,
+    winner = null,
+    won = null
   const map = loadStructure()
   const baseFiles = new Set(git(["ls-files"], wt).split("\n"))
+  // One attempt of one model in one sandbox: run the builder, judge the tree.
+  const tryOne = async ({ model, dir, attempt, signal }) => {
+    const prompt = [
+      `Execute the contract at .codegen/contracts/${id}/contract.json. Its gate is bash .codegen/contracts/${id}/gate.sh.`,
+      "Read .codegen/structure.md first: every file you create or move must fit that map and the naming convention it fixes.",
+      evidence ? `Previous attempt failed the independent gate. Evidence:\n${evidence}` : "",
+      "Implement it now and finish with the four status lines.",
+    ]
+      .filter(Boolean)
+      .join("\n\n")
+    const dirEnv = dir === wt ? env : venvEnv(dir)
+    const r = await runAgent({
+      agent: AGENTS.builder,
+      model,
+      prompt,
+      cwd: dir,
+      timeoutSeconds: TIMEOUTS.builder ?? 900,
+      silenceSeconds: TIMEOUTS.silence ?? 90,
+      signal,
+      logPrefix: path.join(logs, `attempt-${attempt}`),
+      env: dirEnv,
+    })
+    const files = r.aborted ? [] : changedFiles(dir)
+    const scope = checkScope(contract, files)
+    let verdict, detail, structure
+    if (r.aborted) {
+      verdict = "LOST"
+      detail = "another model passed the gate first"
+    } else if (scope.touchedProtected.length) {
+      verdict = "PROTECTED_TOUCHED"
+      detail = scope.touchedProtected.join(", ")
+    } else if (scope.outside.length) {
+      verdict = "OUT_OF_SCOPE"
+      detail = scope.outside.join(", ")
+    } else if ((structure = checkStructure(map, files, dir, baseFiles)).length) {
+      verdict = "STRUCTURE"
+      detail = structure.join("\n")
+    } else if (files.length === 0) {
+      verdict = r.rateLimited
+        ? "RATE_LIMITED"
+        : r.silent
+          ? "NO_RESPONSE"
+          : r.timedOut
+            ? "TIMEOUT"
+            : "NO_CHANGES"
+      detail = r.finalText.slice(0, 500)
+    } else {
+      const gate = await runGate(
+        id,
+        dir,
+        path.join(logs, `gate-${attempt}.txt`),
+        dirEnv,
+        TIMEOUTS.gate ?? 300,
+      )
+      verdict = gate.pass ? "PASS" : "GATE_FAIL"
+      detail = gate.pass ? "" : gate.output
+    }
+    return {
+      attempt,
+      model,
+      verdict,
+      steps: r.steps,
+      cost: r.cost,
+      duration_ms: r.duration_ms,
+      files,
+      detail: detail.slice(-1500),
+    }
+  }
+  const judge = (a, dir, racing = false) => {
+    log(
+      `  ${id}: ${a.verdict} (${a.steps} steps, ${a.files.length} files${a.cost != null ? `, $${a.cost.toFixed(3)}` : ""}${racing ? `, ${short(a.model)}` : ""})`,
+    )
+    if (a.verdict === "PASS") {
+      winner = dir
+      won = a
+      return "stop"
+    }
+    if (a.verdict === "GATE_FAIL" && gateBroken(a.detail, dir, contract)) {
+      broken = true
+      log(
+        `  ${id}: the gate fails only in files outside the contract's scope; no builder can fix that, stopping`,
+      )
+      return "stop"
+    }
+  }
   await climb({
     ladder: ladderFor("builder"),
     attemptsPerRung: 2,
     onRung: () => resetSandbox(wt, base),
-    attempt: async (model) => {
-      const attempt = attempts.length + 1
-      Object.assign(state[id], { model, attempt })
-      report()
-      log(`  ${id}: attempt ${attempt} with ${model}`)
-      const prompt = [
-        `Execute the contract at .codegen/contracts/${id}/contract.json. Its gate is bash .codegen/contracts/${id}/gate.sh.`,
-        "Read .codegen/structure.md first: every file you create or move must fit that map and the naming convention it fixes.",
-        evidence ? `Previous attempt failed the independent gate. Evidence:\n${evidence}` : "",
-        "Implement it now and finish with the four status lines.",
-      ]
-        .filter(Boolean)
-        .join("\n\n")
-      const r = await runAgent({
-        agent: AGENTS.builder,
-        model,
-        prompt,
-        cwd: wt,
-        timeoutSeconds: TIMEOUTS.builder ?? 900,
-        logPrefix: path.join(logs, `attempt-${attempt}`),
-        env,
-      })
-      const files = changedFiles(wt)
-      const scope = checkScope(contract, files)
-      let verdict, detail, structure
-      if (scope.touchedProtected.length) {
-        verdict = "PROTECTED_TOUCHED"
-        detail = scope.touchedProtected.join(", ")
-      } else if (scope.outside.length) {
-        verdict = "OUT_OF_SCOPE"
-        detail = scope.outside.join(", ")
-      } else if ((structure = checkStructure(map, files, wt, baseFiles)).length) {
-        verdict = "STRUCTURE"
-        detail = structure.join("\n")
-      } else if (files.length === 0) {
-        verdict = r.rateLimited ? "RATE_LIMITED" : r.timedOut ? "TIMEOUT" : "NO_CHANGES"
-        detail = r.finalText.slice(0, 500)
-      } else {
-        const gate = await runGate(id, wt, path.join(logs, `gate-${attempt}.txt`), env, TIMEOUTS.gate ?? 300)
-        verdict = gate.pass ? "PASS" : "GATE_FAIL"
-        detail = gate.pass ? "" : gate.output
+    attempt: async (rung) => {
+      if (Array.isArray(rung)) {
+        // A race: every model of the group at once, each in its own copy of the
+        // sandbox; the first PASS wins and the others are killed (LOST). Attempts
+        // are recorded in the group's order, not in finishing order.
+        const first = attempts.length + 1
+        Object.assign(state[id], { model: rung, attempt: first })
+        report()
+        log(`  ${id}: attempt ${first} racing ${short(rung)}`)
+        const abort = new AbortController()
+        const racers = rung.map((model, i) => {
+          const dir = `${wt}-${i + 1}`
+          cloneSandbox(wt, dir)
+          return tryOne({ model, dir, attempt: first + i, signal: abort.signal }).then((a) => {
+            if (a.verdict === "PASS" && !winner) {
+              winner = dir
+              abort.abort()
+            }
+            return { a, dir }
+          })
+        })
+        const results = await Promise.all(racers)
+        let outcome
+        for (const { a, dir } of results) {
+          attempts.push(a)
+          if (a.verdict === "PASS" && dir !== winner) {
+            log(
+              `  ${id}: PASS too, not landed (${a.steps} steps, ${a.files.length} files, ${short(a.model)})`,
+            )
+            continue
+          }
+          const j = judge(a, dir, true)
+          outcome ??= j
+        }
+        if (outcome === "stop") return "stop"
+        const lost =
+          results.find(({ a }) => a.verdict === "GATE_FAIL") ?? results.find(({ a }) => a.verdict !== "LOST")
+        if (lost) evidence = `${lost.a.verdict}: ${lost.a.detail}`.slice(-3000)
+        for (const { dir } of results) if (dir !== winner) rmSync(dir, { recursive: true, force: true })
+        return
       }
-      attempts.push({
-        attempt,
-        model,
-        verdict,
-        steps: r.steps,
-        cost: r.cost,
-        duration_ms: r.duration_ms,
-        files,
-        detail: detail.slice(-1500),
-      })
-      log(
-        `  ${id}: ${verdict} (${r.steps} steps, ${files.length} files${r.cost != null ? `, $${r.cost.toFixed(3)}` : ""})`,
-      )
-      if (verdict === "PASS") return "stop"
-      if (verdict === "RATE_LIMITED") {
-        log(`  ${id}: ${short(model)} is rate limited, next model`)
+      const attempt = attempts.length + 1
+      Object.assign(state[id], { model: rung, attempt })
+      report()
+      log(`  ${id}: attempt ${attempt} with ${rung}`)
+      const a = await tryOne({ model: rung, dir: wt, attempt })
+      attempts.push(a)
+      const j = judge(a, wt)
+      if (j) return j
+      if (a.verdict === "RATE_LIMITED" || a.verdict === "NO_RESPONSE") {
+        log(
+          `  ${id}: ${short(rung)} ${a.verdict === "RATE_LIMITED" ? "is rate limited" : "never answered"}, next model`,
+        )
         return "next"
       }
-      if (verdict === "GATE_FAIL" && gateBroken(detail, wt, contract)) {
-        broken = true
-        log(
-          `  ${id}: the gate fails only in files outside the contract's scope; no builder can fix that, stopping`,
-        )
-        return "stop"
-      }
-      evidence = `${verdict}: ${detail}`.slice(-3000)
-      if (verdict === "PROTECTED_TOUCHED" || verdict === "OUT_OF_SCOPE" || verdict === "STRUCTURE")
+      evidence = `${a.verdict}: ${a.detail}`.slice(-3000)
+      if (a.verdict === "PROTECTED_TOUCHED" || a.verdict === "OUT_OF_SCOPE" || a.verdict === "STRUCTURE")
         resetSandbox(wt, base)
     },
   })
 
-  const last = attempts.at(-1)
-  const models = [...new Set(attempts.map((a) => a.model))]
+  const last = won ?? attempts.at(-1)
+  const models = [...new Set(attempts.filter((a) => a.verdict !== "LOST").map((a) => a.model))]
   if (last?.verdict !== "PASS") {
     state[id] = {
       status: "FAIL",
@@ -800,7 +886,7 @@ async function buildOne(entry, { runDir, integration, integrationDir, state, rep
   const patch = path.join(logs, "candidate.diff")
   const landing = landContract({
     id,
-    wt,
+    wt: winner ?? wt,
     base,
     patch,
     branch,
@@ -820,7 +906,7 @@ async function buildOne(entry, { runDir, integration, integrationDir, state, rep
     }
     record("MERGE_CONFLICT", { model: last.model, models, attempts: attempts.length })
     log(`  ${id}: MERGE_CONFLICT, see ${path.relative(ROOT, patch)}`)
-    rmSync(wt, { recursive: true, force: true })
+    for (const d of new Set([wt, winner ?? wt])) rmSync(d, { recursive: true, force: true })
     return
   }
   state[id] = {
@@ -832,7 +918,7 @@ async function buildOne(entry, { runDir, integration, integrationDir, state, rep
   }
   record("PASS", { model: last.model, models, attempts: attempts.length, files: last.files.length })
   log(`  ${id}: merged into ${integration}`)
-  rmSync(wt, { recursive: true, force: true })
+  for (const d of new Set([wt, winner ?? wt])) rmSync(d, { recursive: true, force: true })
 }
 
 // One line of build state, the same for status and for the supervisor notices.
