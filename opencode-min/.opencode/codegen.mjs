@@ -1007,6 +1007,8 @@ async function merge(args) {
     )
   const branch = git(["rev-parse", "--abbrev-ref", "HEAD"])
   if (branch !== current.user_branch) throw new Error(`checkout ${current.user_branch} first (on ${branch})`)
+  // The supervisor may have written wiki/ or .codegen/ after the build sealed them: seal again.
+  sealAndCheckTracked()
   // The script's own outputs (journal, board) never block a merge: they change on every event.
   if (
     git([

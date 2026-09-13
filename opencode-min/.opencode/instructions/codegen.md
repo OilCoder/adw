@@ -96,5 +96,6 @@ passed), `GATE_TRIVIAL`, `MERGE_CONFLICT`, `SKIPPED`
 (a dependency failed), `NOT_SELECTED` (left out by `--only`). Logs and every attempt's events are under
 `.codegen/runs/<run>/<id>/`.
 - `node .opencode/codegen.mjs merge [--partial]`: fast-forwards the run's
-  integration branch into the user's branch. Refuses while a build runs,
+  integration branch into the user's branch, sealing `.codegen/` and `wiki/`
+  first. Refuses while a build runs,
   when contracts are pending (unless `--partial`), or when the tree is dirty.
