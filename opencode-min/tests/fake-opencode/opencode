@@ -6,7 +6,8 @@
 //   opencode run --attach URL --session ID MSG               logs the notice
 //
 // The script comes from $FAKE_OPENCODE_SCRIPT (JSON): { "<agent>": { "<id>": [step, ...], "*": [...] } }
-// where <id> is the contract id or the research question id found in the prompt,
+// where <id> is the contract id or the research question id found in the prompt
+// (or "<id>@<model>" for one model's own script, used by the race scenarios),
 // and the n-th call for that (agent, id) plays the n-th step (the last one repeats).
 // A step: { "files": { "path": "content" | null }, "steps": 3, "tools": ["write"],
 //           "text": "final text", "sleep": 0 }.
@@ -35,8 +36,10 @@ if (opt.attach) {
 const agent = opt.agent ?? "build"
 const id = (prompt.match(/contracts\/([^/]+)\/contract\.json/) ?? prompt.match(/Research question (\S+):/) ?? [])[1] ?? "*"
 const script = process.env.FAKE_OPENCODE_SCRIPT ? JSON.parse(readFileSync(process.env.FAKE_OPENCODE_SCRIPT, "utf8")) : {}
-const steps = script[agent]?.[id] ?? script[agent]?.["*"] ?? [{}]
-const counter = path.join(state, `${agent}.${id}.calls`)
+// "<id>@<model>" (model without provider) wins over "<id>": a race gives each model its own script.
+const key = script[agent]?.[`${id}@${String(opt.model).replace(/^[^/]+\//, "")}`] ? `${id}@${String(opt.model).replace(/^[^/]+\//, "")}` : id
+const steps = script[agent]?.[key] ?? script[agent]?.["*"] ?? [{}]
+const counter = path.join(state, `${agent}.${key}.calls`)
 const n = existsSync(counter) ? Number(readFileSync(counter, "utf8")) : 0
 writeFileSync(counter, String(n + 1))
 const step = steps[Math.min(n, steps.length - 1)]

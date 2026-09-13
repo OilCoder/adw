@@ -7,8 +7,16 @@ the agents. Models for scripted agents come from `.opencode/models.json`
 be in the `opencode-go` whitelist of `opencode.json`, or the script refuses
 to start). The TUI runs on the user's model. Researcher and builder are
 primary agents (OpenCode's `run --agent` refuses subagents), so they show
-up in the TUI's Tab cycle: never select them there. Each contract or question starts at the cheapest model and climbs at
-most `max_models_per_item` rungs, two attempts per rung. If a gate
+up in the TUI's Tab cycle: never select them there. A ladder entry is a
+model or a group of models (an array): one rung either way, so a paid model
+is always reached. A builder rung that is a group is a race: every model of
+the group at once, each in its own copy of the sandbox, the first PASS lands
+and the others are killed (`LOST`); a researcher tries the group's members
+one by one. A model with no output at all after `timeouts_seconds.silence`
+(90 s) is dropped at once (`NO_RESPONSE`) and not remembered as a failure.
+Each contract or question starts at the cheapest rung and climbs at
+most `max_models_per_item` rungs, two attempts per rung (one for a
+group). If a gate
 fails only in files outside `allowed_to_modify` (its own test file, another
 domain, missing types elsewhere), the contract stops at that attempt with
 GATE BROKEN: fix the gate or the contract, no model can. There is no
@@ -46,7 +54,8 @@ cheap one keeps failing in a project, move it down in `models.json`.
   question, writes `.codegen/research/<id>.md`, records DONE (the model said
   so in time), PARTIAL (a report exists but was cut or left unfinished),
   TIMEOUT / NO_REPORT (nothing usable; that model is skipped for the
-  question from then on) or NO_MODELS. A report the model wrote in one
+  question from then on), NO_RESPONSE (the model never started; not held
+  against it) or NO_MODELS. A report the model wrote in one
   `write` and never edited is flagged "written in one go" in `status`, the
   journal and the end-of-run notice: judge those harder. `--reject` sets a report aside
   (`<id>.rejected-N.md`) and reruns the question from the next rung; the
@@ -82,7 +91,8 @@ cheap one keeps failing in a project, move it down in `models.json`.
 ## Results
 
 Per contract: `PASS`, `INSTALL_FAILED`, `GATE_FAIL`, `OUT_OF_SCOPE`, `PROTECTED_TOUCHED`,
-`NO_CHANGES`, `TIMEOUT`, `GATE_TRIVIAL`, `MERGE_CONFLICT`, `SKIPPED`
+`NO_CHANGES`, `TIMEOUT`, `NO_RESPONSE`, `LOST` (a racer killed because another
+passed), `GATE_TRIVIAL`, `MERGE_CONFLICT`, `SKIPPED`
 (a dependency failed), `NOT_SELECTED` (left out by `--only`). Logs and every attempt's events are under
 `.codegen/runs/<run>/<id>/`.
 - `node .opencode/codegen.mjs merge [--partial]`: fast-forwards the run's

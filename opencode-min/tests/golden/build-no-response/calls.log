@@ -1,0 +1,2 @@
+builder safe-divide call=1 model=opencode-go/mimo-v2.5 cwd=$SANDBOXES/safe-divide
+builder safe-divide call=1 model=opencode/mimo-v2.5-free cwd=$SANDBOXES/safe-divide

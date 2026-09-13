@@ -1,0 +1,52 @@
+{
+  "fixture": "parallel-basic",
+  "models": {
+    "builder": [
+      [
+        "opencode/mimo-v2.5-free",
+        "opencode/big-pickle"
+      ],
+      "opencode-go/mimo-v2.5"
+    ],
+    "researcher": [
+      [
+        "opencode/mimo-v2.5-free",
+        "opencode/big-pickle"
+      ],
+      "opencode-go/mimo-v2.5"
+    ],
+    "max_models_per_item": 2,
+    "timeouts_seconds": {
+      "builder": 20,
+      "researcher": 20,
+      "silence": 2
+    }
+  },
+  "script": {
+    "researcher": {
+      "las-null@mimo-v2.5-free": [
+        {
+          "sleep": 5
+        }
+      ],
+      "las-null@big-pickle": [
+        {
+          "files": {
+            ".codegen/research/las-null.md": "# las-null\n\n## Summary for contracts\n\n- NULL is declared in the ~Well section as the NULL mnemonic; readers replace it with missing.\n- Typical value -999.25; compare as float with tolerance.\n\n## Answer\n\nThe ~W section declares `NULL.` with a value such as -999.25, and every curve sample equal to it is missing data.\n\n## Evidence\n\n- https://example.org/las20 spec text, high confidence.\n\n## Open points\n\nNone.\n"
+          },
+          "tools": [
+            "write",
+            "edit"
+          ],
+          "steps": 5,
+          "text": "DONE .codegen/research/las-null.md"
+        }
+      ]
+    }
+  },
+  "runs": [
+    [
+      "research"
+    ]
+  ]
+}

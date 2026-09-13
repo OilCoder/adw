@@ -1,0 +1,35 @@
+{
+  "run": "STAMP-build",
+  "integration": "codegen/STAMP-build",
+  "user_branch": "master",
+  "contracts": {
+    "safe-divide": {
+      "status": "PASS",
+      "model": "opencode/mimo-v2.5-free",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "PASS",
+          "steps": 4,
+          "files": [
+            "calculator.py"
+          ],
+          "detail": ""
+        },
+        {
+          "attempt": 2,
+          "model": "opencode/big-pickle",
+          "verdict": "LOST",
+          "steps": 0,
+          "files": [],
+          "detail": "another model passed the gate first"
+        }
+      ],
+      "files": [
+        "calculator.py"
+      ],
+      
+    }
+  }
+}

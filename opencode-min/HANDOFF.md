@@ -413,3 +413,40 @@ Los seis módulos (`agent`, `sandbox`, `board`, `board-html`, `board.css`, `open
 ## 2026-09-13: OpenAI quota on the board
 
 The TUI's supervisor runs on the OpenAI subscription, so the board shows its quota (5 hours, week) under the Go one: `openaiQuota()` in `lib/board.mjs`, same rules as `goQuota()` (cache, timeout, null on trouble; the token comes from OpenCode's `auth.json`, `openai` entry, and gives "sin datos" once expired until the TUI refreshes it). `board.json` gains `openai`. Garden's Consumo tab reads the same endpoint (`src/providers/openai-quota.mjs`).
+
+## 2026-09-13: carrera de modelos gratis, corte por silencio, grupo = un peldaño
+
+Fallo concreto (las-viewer-v6, 15:20-16:30): Zen caído; cuatro contratos con 6
+intentos `TIMEOUT (0 steps)` de 900 s cada uno (90 min por contrato, sin que
+nadie lo intentara) y, con cinco gratis delante y `max_models_per_item: 3`,
+ningún contrato llegaba nunca a un modelo de pago. Medido en la misma corrida:
+un gratis vivo da su primer evento a los 3-6 s.
+
+Cambios (decisión del usuario, pedidos explícitamente):
+- `models.json`: una entrada puede ser un grupo (array). Un grupo es un
+  peldaño. Los cinco gratis van como un grupo, luego Go por precio. Plantillas
+  igual. `timeouts_seconds.silence: 90`.
+- Builder: un grupo se corre a la vez (una copia del sandbox por corredor,
+  `cloneSandbox`: árbol + git, node_modules/.venv por hard links); el primer
+  PASS aterriza y `AbortController` mata al resto (`LOST`); si ninguno pasa, el
+  siguiente peldaño recibe la evidencia del primer GATE_FAIL. Intentos en el
+  orden del grupo, no de llegada. Un PASS que no aterrizó se registra PASS
+  ("PASS too, not landed") para la tasa del modelo.
+- Researcher: un grupo se prueba miembro a miembro, un intento cada uno.
+- `run()` con `silenceSeconds`: sin un byte de stdout en ese tiempo → kill,
+  veredicto `NO_RESPONSE`, se deja el peldaño al instante y no se recuerda como
+  fallo del modelo (`rejected` del research no lo incluye). `climb` entiende
+  "next".
+- Tablero: etiquetas `LOST`/`NO_RESPONSE`; ni uno ni otro cuentan como intento
+  en la tasa por modelo; la escalera muestra el grupo como `a | b | c`.
+- Pruebas: el falso acepta `<id>@<modelo>` para dar a cada corredor su guion;
+  `golden.mjs` aplana la escalera instalada salvo que el escenario traiga
+  `models` (los 24 escenarios originales siguen byte a byte); cinco escenarios
+  nuevos: race-winner, race-lost, race-then-paid, no-response, research-group.
+  Golden del tablero regenerado (texto de la escalera).
+- Supervisor: con grupo en la escalera, `--parallel` más bajo (4 con cinco).
+`.codegen/` solo cambia de forma aditiva: dos veredictos nuevos en `attempts`.
+Pendiente: portar a claude-min (corte por silencio y grupos; allí `RATE_LIMITED`
+ya cubre parte), memoria `opencode-min-ladder-design` superada (grupo = peldaño),
+instalar en v6 cuando su corrida termine y agrupar a mano su `models.json`
+(install.sh no lo toca).

@@ -5,7 +5,7 @@
 // git; no logging and no state files (codegen.mjs decides what to record).
 
 import { execFileSync } from "node:child_process"
-import { existsSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readFileSync, writeFileSync, rmSync, mkdirSync } from "node:fs"
 import path from "node:path"
 import { git, run } from "./agent.mjs"
 
@@ -44,6 +44,19 @@ export function exportSandbox({ root, integration, wt, id }) {
     wt,
   )
   return { integrationHead, base: git(["rev-parse", "HEAD"], wt) }
+}
+
+// A copy of a prepared sandbox for one racer: the tree with its git history,
+// node_modules and .venv as hard links (291 MB in las-viewer-v6; a builder that
+// edits them is out of scope anyway, and npm rewrites files instead of editing
+// them in place).
+export function cloneSandbox(from, to) {
+  rmSync(to, { recursive: true, force: true })
+  mkdirSync(to, { recursive: true })
+  execFileSync("bash", [
+    "-c",
+    `cd "${from}" && tar -c --exclude=./node_modules --exclude=./.venv . | tar -x -C "${to}" && for d in node_modules .venv; do [ -d "$d" ] && cp -al "$d" "${to}/$d"; done; true`,
+  ])
 }
 
 export function resetSandbox(wt, base) {
@@ -88,13 +101,14 @@ export async function installDeps(wt, logs, timeoutSeconds) {
     if (r.code !== 0)
       return { failed: `uv ${args.join(" ")}: ${r.stderr.slice(-800)}`, step: ` (uv ${args.join(" ")})` }
   }
-  return {
-    env: {
-      VIRTUAL_ENV: path.join(wt, ".venv"),
-      PATH: `${path.join(wt, ".venv", "bin")}:${process.env.PATH}`,
-    },
-  }
+  return { env: venvEnv(wt) }
 }
+
+// The venv of a sandbox, for a racer's copy (its path differs from the original's).
+export const venvEnv = (wt) =>
+  existsSync(path.join(wt, ".venv"))
+    ? { VIRTUAL_ENV: path.join(wt, ".venv"), PATH: `${path.join(wt, ".venv", "bin")}:${process.env.PATH}` }
+    : undefined
 
 // ---------- gate ----------
 

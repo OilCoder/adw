@@ -1,0 +1,42 @@
+{
+  "fixture": "builder-basic",
+  "models": {
+    "builder": [
+      "opencode/mimo-v2.5-free",
+      "opencode-go/mimo-v2.5"
+    ],
+    "max_models_per_item": 2,
+    "timeouts_seconds": {
+      "builder": 20,
+      "silence": 2
+    }
+  },
+  "script": {
+    "builder": {
+      "safe-divide@mimo-v2.5-free": [
+        {
+          "sleep": 5
+        }
+      ],
+      "safe-divide@mimo-v2.5": [
+        {
+          "files": {
+            "calculator.py": "def safe_divide(dividend: int, divisor: int) -> float:\n    \"\"\"Divide two integers, rejecting division by zero.\"\"\"\n    if divisor == 0:\n        raise ValueError(\"divisor must not be zero\")\n    return dividend / divisor\n"
+          },
+          "tools": [
+            "edit"
+          ],
+          "steps": 4,
+          "text": "DONE"
+        }
+      ]
+    }
+  },
+  "runs": [
+    [
+      "build",
+      "--parallel",
+      "1"
+    ]
+  ]
+}

@@ -44,6 +44,19 @@ files. Builders can only edit paths their contract allows; the script checks
 scope, protected paths and the gate after every attempt, retries once with the
 gate output as evidence, then moves to the next model in the list.
 
+A ladder entry is a model or a group of models (a JSON array): one rung
+either way, so `max_models_per_item` can never be eaten up by free models
+before a paid one is reached. A builder rung that is a group is a **race**:
+every model at once, each in its own copy of the prepared sandbox
+(node_modules and .venv hard-linked), the first PASS lands and the others
+are killed (`LOST`); if none passes, the next rung gets the gate evidence.
+A researcher tries a group's members one by one. A model that prints
+nothing at all for `timeouts_seconds.silence` seconds (90) is dropped at
+once as `NO_RESPONSE` and not held against it: las-viewer-v6 measured 3 to
+6 s to the first event when a free model is alive and 900 s of silence, six
+times per contract, when Zen is down. With a group of five in the ladder,
+each contract runs five processes: pass a smaller `--parallel`.
+
 ## Install into a project
 
 ```bash
@@ -69,16 +82,19 @@ FIXTURE=parallel-basic CMD=research bash smoke.sh               # one real resea
 ## Behaviour freeze (no models, seconds)
 
 ```bash
-bash tests/check.sh            # syntax, prompt/permission lint, board golden, 22 scenario goldens
+bash tests/check.sh            # syntax, prompt/permission lint, board golden, 29 scenario goldens
 bash tests/golden.sh --update  # after an intended change of behaviour, rewrite the goldens
 bash tests/golden-board.sh --update   # after an intended change of the board's HTML
 ```
 
 `tests/fake-opencode/opencode` stands in for the real binary and plays scripted
-builders and researchers from `tests/scenarios/*.json`; the verdicts PASS, GATE_FAIL,
-OUT_OF_SCOPE, PROTECTED_TOUCHED, STRUCTURE, NO_CHANGES, TIMEOUT, GATE_TRIVIAL, GATE BROKEN,
-MERGE_CONFLICT, SKIPPED, DONE, PARTIAL, NO_REPORT, NO_MODELS, one-shot, the reject refusals,
-resume and merge each have a scenario whose normalized outputs live in `tests/golden/`
+builders and researchers from `tests/scenarios/*.json` (the freeze flattens the
+installed ladder unless a scenario brings its own `models`, so the 24 original
+scenarios still test one model per rung); the verdicts PASS, GATE_FAIL,
+OUT_OF_SCOPE, PROTECTED_TOUCHED, STRUCTURE, NO_CHANGES, TIMEOUT, NO_RESPONSE, LOST,
+GATE_TRIVIAL, GATE BROKEN, MERGE_CONFLICT, SKIPPED, DONE, PARTIAL, NO_REPORT, NO_MODELS,
+one-shot, the reject refusals, resume, merge, the race (winner, loser killed, all lose
+then the paid rung) and a research group each have a scenario whose normalized outputs live in `tests/golden/`
 (INSTALL_FAILED and ERROR do not). Run `check.sh` before and after touching any `.mjs`.
 
 ## Following a run

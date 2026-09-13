@@ -1,0 +1,9 @@
+$ codegen research  → exit 0
+  DONE      las-null  .codegen/research/las-null.md  [big-pickle]
+  las-null: DONE (5 steps)
+  las-null: NO_RESPONSE (0 steps)
+  las-null: attempt 1 with opencode/mimo-v2.5-free
+  las-null: attempt 2 with opencode/big-pickle
+Research summary
+research STAMP-research: 1 questions, ladder mimo-v2.5-free | big-pickle > mimo-v2.5
+

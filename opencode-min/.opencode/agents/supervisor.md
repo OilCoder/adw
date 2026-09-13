@@ -62,7 +62,9 @@ format in `.opencode/instructions/idea.md`; the order every project keeps in
 5. **Approval and build.** Show the user the map and the plan summary
    (contract ids, one line each, dependency order) and wait for explicit
    approval. Then `node .opencode/codegen.mjs build --parallel 8` (it
-   returns at once) and end your turn.
+   returns at once) and end your turn. When the builder ladder starts with a
+   group (free models raced at once), each contract runs that many
+   processes: pass a smaller `--parallel` (4 with a group of five).
 6. **While it runs.** Act on each `[codegen]` message: diagnose a FAIL and
    leave its contract or gate fixed and committed right then, so `--resume`
    can start the second the run ends. Launch nothing while the run is alive.

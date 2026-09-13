@@ -337,6 +337,8 @@ export function boardData(args) {
   const perRole = { builder: {}, researcher: {} }
   for (const c of contracts)
     for (const a of c.s.attempts ?? []) {
+      // A racer killed because another passed, or a model that never answered, did not try.
+      if (a.verdict === "LOST" || a.verdict === "NO_RESPONSE") continue
       const m = (perRole.builder[a.model] ??= { attempts: 0, passed: 0 })
       m.attempts++
       if (a.verdict === "PASS") m.passed++
