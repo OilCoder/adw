@@ -203,24 +203,19 @@ function detach(command) {
 // Sandboxes are exports of committed content: the harness and the plan must
 // be in git or the builder finds no agent and no contract.
 function sealAndCheckTracked() {
-  const dirty = git([
-    "status",
-    "--porcelain",
-    "--",
-    ".codegen",
-    ".opencode",
-    "opencode.json",
-    ".gitignore",
-    ":!.codegen/journal.jsonl",
-  ])
+  // wiki/ is the supervisor's other folder; it has no git of its own, so the seal commits it too
+  const sealed = [".codegen", ".opencode", "opencode.json", ".gitignore"].concat(
+    existsSync(path.join(ROOT, "wiki")) ? ["wiki"] : [],
+  )
+  const dirty = git(["status", "--porcelain", "--", ...sealed, ":!.codegen/journal.jsonl"])
   if (dirty) {
-    git(["add", ".codegen", ".opencode", "opencode.json", ".gitignore"])
+    git(["add", ...sealed])
     git(["commit", "-q", "-m", "codegen: seal plan and harness"])
     journal({
       kind: "seal",
       contracts: readJson(path.join(STATE, "plan.json"), { contracts: [] }).contracts.length,
     })
-    log("sealed .codegen and the harness into a commit")
+    log(`sealed ${sealed.includes("wiki") ? ".codegen, wiki" : ".codegen"} and the harness into a commit`)
   }
 }
 
