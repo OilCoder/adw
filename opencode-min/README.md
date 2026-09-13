@@ -11,18 +11,22 @@ idea → research questions (parallel) → plan + contracts + gates → builders
 
 ## Files
 
+`.opencode/` keeps at the top only what is edited by hand (`codegen.mjs`, `models.json`, `agents/`,
+`instructions/`); the modules live in `.opencode/lib/`. The other entries there (`node_modules`,
+`package.json`, `package-lock.json`, `.gitignore`) are OpenCode's own plugin runtime, not the harness.
+
 | File | Does |
 |---|---|
 | `.opencode/codegen.mjs` | the commands (`research`, `build`, `status`, `merge`, `structure`, `board`) and every file under `.codegen/` |
-| `.opencode/agent.mjs` | runs a process with a timeout, one OpenCode agent, a task pool, and the model ladder |
-| `.opencode/sandbox.mjs` | one contract's sandbox: export, dependencies, gate, scope and structure checks, landing the diff |
-| `.opencode/board.mjs` | the board's facts (`boardData`, `boardJson`) |
-| `.opencode/board-html.mjs`, `board.css` | the board's HTML, one function per section, styles inlined. **A redesign touches only these two.** |
-| `.opencode/opencode-db.mjs` | read-only look at OpenCode's database: supervisor activity, cost per session |
+| `.opencode/lib/agent.mjs` | runs a process with a timeout, one OpenCode agent, a task pool, and the model ladder |
+| `.opencode/lib/sandbox.mjs` | one contract's sandbox: export, dependencies, gate, scope and structure checks, landing the diff |
+| `.opencode/lib/board.mjs` | the board's facts (`boardData`, `boardJson`) |
+| `.opencode/lib/board-html.mjs`, `lib/board.css` | the board's HTML, one function per section, styles inlined. **A redesign touches only these two.** |
+| `.opencode/lib/opencode-db.mjs` | read-only look at OpenCode's database: supervisor activity, cost per session |
 | `.opencode/agents/*.md`, `instructions/*.md` | the agents' prompts and the rules the supervisor reads |
 | `.opencode/models.json` | the ladder |
 
-The board reloads `board-html.mjs` and `board.css` whenever they change on disk,
+The board reloads `lib/board-html.mjs` and `lib/board.css` whenever they change on disk,
 so a build that runs for hours picks up a redesign without a restart.
 
 ## Roles and where they run

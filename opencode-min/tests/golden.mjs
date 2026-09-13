@@ -78,7 +78,8 @@ for (const name of scenarios) {
   const branches = sh(`git for-each-ref --format='%(refname:short)' refs/heads | sort`, work).stdout
   // Commit subjects per branch, sorted: parallel contracts land in any order.
   const log = sh(`for b in $(git for-each-ref --format='%(refname:short)' refs/heads | sort); do echo "== $b"; git log --format='%s' "$b" | sort; done`, work).stdout
-  out["git.txt"] = normalize(branches + log, work)
+  // Which parallel contract lands second (and names the merge commit) is not deterministic.
+  out["git.txt"] = normalize(branches + log, work).replace(/^codegen: merge \S+$/gm, "codegen: merge <contract>")
   const golden = path.join(HERE, "golden", name)
   const fresh = !existsSync(golden)
   if (update || fresh) { rmSync(golden, { recursive: true, force: true }); mkdirSync(golden, { recursive: true }); for (const [f, c] of Object.entries(out)) writeFileSync(path.join(golden, f), c); console.log(`${fresh ? "wrote" : "updated"} ${name}`) }

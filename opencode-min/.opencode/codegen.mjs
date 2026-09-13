@@ -23,9 +23,9 @@
 // Models come from .opencode/models.json, cheapest first, edited by hand: if a
 // model keeps failing you, move it down there.
 //
-// This file owns the commands and the state files. agent.mjs runs processes,
-// agents and the model ladder; sandbox.mjs prepares, judges and lands one
-// contract's sandbox; board.mjs draws.
+// This file owns the commands and the state files. lib/agent.mjs runs processes,
+// agents and the model ladder; lib/sandbox.mjs prepares, judges and lands one
+// contract's sandbox; lib/board.mjs draws.
 
 import { spawnSync, spawn, execFileSync } from "node:child_process"
 import {
@@ -40,8 +40,8 @@ import {
 } from "node:fs"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
-import { supervisorActivity } from "./opencode-db.mjs"
-import { loadModels, ladderFor as ladder, short, git as gitIn, run, runAgent, pool, climb } from "./agent.mjs"
+import { supervisorActivity } from "./lib/opencode-db.mjs"
+import { loadModels, ladderFor as ladder, short, git as gitIn, run, runAgent, pool, climb } from "./lib/agent.mjs"
 import {
   exportSandbox,
   resetSandbox,
@@ -54,7 +54,7 @@ import {
   inMap,
   checkStructure,
   landContract,
-} from "./sandbox.mjs"
+} from "./lib/sandbox.mjs"
 
 // node:sqlite (used by the board) is still flagged experimental in Node 22.
 process.removeAllListeners("warning")
@@ -216,10 +216,10 @@ function sealAndCheckTracked() {
 // .codegen/board.html: the dependency graph and a board by state, rewritten
 // on every state change so a browser tab can follow the run.
 async function writeBoard() {
-  // board.mjs is imported fresh whenever it changes on disk (and it does the
+  // lib/board.mjs is imported fresh whenever it changes on disk (and it does the
   // same with board-html.mjs and board.css), so a build that runs for hours
   // picks up a new board without a restart.
-  const boardFile = path.join(ROOT, ".opencode", "board.mjs")
+  const boardFile = path.join(ROOT, ".opencode", "lib", "board.mjs")
   let renderBoard
   let boardJson
   let goQuota

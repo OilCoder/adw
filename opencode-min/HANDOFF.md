@@ -402,3 +402,10 @@ cuentan como mensajes del usuario). `board.json` gana `supervisor.title`,
 escenarios aíslan `HOME` (sin BD ni auth). Verificado en navegador sobre
 las-viewer-v5: cuatro pestañas, ventana emergente, informe renderizado,
 camino iluminado, cuota real.
+
+## 2026-09-12 23:00 — módulos en `.opencode/lib/`
+
+Los seis módulos (`agent`, `sandbox`, `board`, `board-html`, `board.css`, `opencode-db`) viven en
+`.opencode/lib/`; arriba quedan `codegen.mjs`, `models.json`, `agents/`, `instructions/`. Cambió solo
+`codegen.mjs` (imports y la ruta al tablero), `install.sh` (copia `lib/` y borra los planos viejos),
+`tests/check.sh` y `tests/golden-board.mjs`. Goldens sin regenerar. Los ocho proyectos reinstalados.

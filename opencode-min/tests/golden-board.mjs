@@ -12,7 +12,7 @@ import { spawnSync } from "node:child_process"
 const HERE = path.dirname(new URL(import.meta.url).pathname)
 const SRC = path.dirname(HERE)
 const update = process.argv.includes("--update")
-const { renderBoard, boardJson } = await import(path.join(SRC, ".opencode", "board.mjs"))
+const { renderBoard, boardJson } = await import(path.join(SRC, ".opencode", "lib", "board.mjs"))
 
 const root = "/home/user/las-viewer-v5"
 const F = path.join(HERE, "fixtures", "board-state", ".codegen")
