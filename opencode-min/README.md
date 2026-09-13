@@ -55,7 +55,7 @@ nothing at all for `timeouts_seconds.silence` seconds (90) is dropped at
 once as `NO_RESPONSE` and not held against it: las-viewer-v6 measured 3 to
 6 s to the first event when a free model is alive and 900 s of silence, six
 times per contract, when Zen is down. With a group of five in the ladder,
-each contract runs five processes: pass a smaller `--parallel`.
+each contract runs five processes: `--parallel 5` is the measured ceiling on a 30 GB machine (about 600 MB per OpenCode process).
 
 ## Install into a project
 
