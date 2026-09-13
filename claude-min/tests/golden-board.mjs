@@ -36,12 +36,13 @@ const supBusy = { sessionId: "ses_fixed", title: "Desarrollo profesional de viso
 const supWaiting = { sessionId: "ses_fixed", title: "Desarrollo profesional de visor de registros", slug: "quiet-knight", last: { at: T(4), kind: "text", text: "El plan tiene 23 contratos en 4 capas. ¿Apruebas el build?" }, waiting: "El plan tiene 23 contratos en 4 capas. ¿Apruebas el build?", userMessages: [{ id: "m1", at: T(30), text: "resume el estado y dime qué falta" }] }
 const reports = Object.fromEntries(["web-stack", "las-standard"].map((id) => [id, readFileSync(path.join(F, "research", `${id}.md`), "utf8")]))
 const contractFiles = Object.fromEntries(["design-icons", "archive-change"].map((id) => [id, json(`contracts/${id}/contract.json`)]))
-const base = { root, reports, contractFiles, sandboxes: "/home/user/.las-viewer-v5-codegen-sandboxes", plan: json("plan.json"), report: json("runs/20260911T153542Z-build/report.json"), current: json("runs/current.json"), research: json("research/status.json"), researchRun: json("runs/current-research.json"), events, models, ladders: { builder: ladder("builder"), researcher: ladder("researcher") }, now, costs }
+const claude = { at: new Date(T(2)).toISOString(), plan: "max", rolling: { percent: 23.5, limited: false, resetsAt: new Date(T(-120)).toISOString() }, weekly: { percent: 41.2, limited: false, resetsAt: new Date(T(-5000)).toISOString() } }
+const base = { root, reports, contractFiles, claude, sandboxes: "/home/user/.las-viewer-v5-codegen-sandboxes", plan: json("plan.json"), report: json("runs/20260911T153542Z-build/report.json"), current: json("runs/current.json"), research: json("research/status.json"), researchRun: json("runs/current-research.json"), events, models, ladders: { builder: ladder("builder"), researcher: ladder("researcher") }, now, costs }
 const cases = {
   building: { ...base, alive: true, researchAlive: false, sup: supBusy, merged: false },
   waiting: { ...base, alive: false, researchAlive: false, sup: supWaiting, merged: false },
   researching: { ...base, alive: false, researchAlive: true, researchRun: { ...base.researchRun, pid: 1, started: new Date(T(12)).toISOString(), questions: ["net-pay-gaps", "web-stack"] }, sup: supBusy, merged: null },
-  idle: { ...(({ costs, ...rest }) => rest)(base), alive: false, researchAlive: false, sup: null, merged: true },
+  idle: { ...(({ costs, ...rest }) => rest)(base), claude: null, alive: false, researchAlive: false, sup: null, merged: true },
 }
 const golden = path.join(HERE, "golden", "board")
 mkdirSync(golden, { recursive: true })

@@ -42,6 +42,7 @@
   "supervisor": null,
   "quota": null,
   "openai": null,
+  "claude": null,
   "lastNotify": {
     "text": "research run ended: 1 PARTIAL; not DONE: las-null (PARTIAL). Judge the new reports and continue.",
     "delivered": true,

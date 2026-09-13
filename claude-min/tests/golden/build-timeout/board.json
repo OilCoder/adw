@@ -47,6 +47,7 @@
   "supervisor": null,
   "quota": null,
   "openai": null,
+  "claude": null,
   "lastNotify": {
     "text": "build ended: 0/1 PASS; failed: safe-divide (FAIL). Diagnose the failed ones, fix their contracts or gates, then build --resume.",
     "delivered": true,

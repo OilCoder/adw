@@ -149,6 +149,28 @@ ${cell(
 </div>`
 }
 
+// ---- the quota: the Claude subscription (5 hours, 7 days), from the status line ----
+function quotaWindow(label, w) {
+  if (!w) return `<div class="r"><span>${label}</span> <b>–</b></div>`
+  const k = w.limited || w.percent >= 100 ? "bad" : w.percent >= 70 ? "run" : ""
+  const color = k === "bad" ? "var(--bad)" : k === "run" ? "var(--run)" : "var(--ok)"
+  const reset = w.resetsAt
+    ? `${w.limited ? "agotada · vuelve " : "se reinicia "}${dayShort(w.resetsAt)} ${hhmm(w.resetsAt)}`
+    : ""
+  return `<div class="r ${k}"><span>${label}</span> <b>${Math.round(w.percent)} %</b>${bar(w.percent, color, "100%")}<span class="s">${esc(reset)}</span></div>`
+}
+function quota(d, { now }) {
+  const q = d.claude
+  const rows = [
+    ["5 horas", q?.rolling],
+    ["Semana", q?.weekly],
+  ]
+  const body = q
+    ? `<div class="rows n${rows.length}">${rows.map(([l, w]) => quotaWindow(l, w)).join("")}</div>`
+    : `<div class="empty" style="padding:0">Sin datos: activa la línea de estado de claude-min (templates/statusline.sh) en ~/.claude/settings.json; Claude Code entrega la cuota tras la primera respuesta de la sesión.</div>`
+  return `<div class="quota">${icon("gauge")}<div class="k">Cuota Claude${q?.plan ? ` · ${esc(q.plan)}` : ""}${q?.at ? ` · leída hace ${mins(now - Date.parse(q.at))}` : ""}</div>${body}</div>`
+}
+
 // ---- detail of one contract, for the modal ----
 function contractDetail(d, id) {
   const c = d.byId[id]
@@ -488,6 +510,7 @@ export function renderBoard(d, given) {
 ${css()}</style></head><body>${sprite()}<div class="wrap">
 ${header(d, args)}
 ${strip(d, args)}
+${quota(d, args)}
 <input type="radio" name="tb" id="t1" checked><input type="radio" name="tb" id="t2"><input type="radio" name="tb" id="t3"><input type="radio" name="tb" id="t4">
 <div class="tabs"><label for="t1">${icon("activity")}Ahora ${phaseCls === "run" ? badge(esc(phase), "run") : phaseCls === "you" ? badge("te espera", "bad") : ""}</label><label for="t2">${icon("flask")}Research ${badge(`${done}/${Object.keys(researchResults).length}`, researchAlive ? "run" : "")}</label><label for="t3">${icon("checksq")}Contratos ${badge(`${passed}/${contracts.length}`, passed === contracts.length && contracts.length ? "ok" : "")}</label><label for="t4">${icon("chart")}Modelos y coste</label></div>
 <div class="pane p1">${runningPanel(d, args)}${journal(d)}</div>

@@ -6,7 +6,9 @@
 // subscription charges nothing per call.
 // Redesigning the board means touching board-html.mjs and board.css, not this.
 
-import { statSync } from "node:fs"
+import { statSync, existsSync, readFileSync } from "node:fs"
+import os from "node:os"
+import path from "node:path"
 import { pathToFileURL } from "node:url"
 
 // ---------- formatting used by the facts (board-html.mjs imports these; a change here needs a restart, unlike board-html.mjs and board.css) ----------
@@ -28,6 +30,33 @@ export const cut = (s, n) => {
 
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c])
+
+// ---------- Claude subscription quota ----------
+
+// The two windows Claude Code shows (5 hours, 7 days). The only official
+// source is the `rate_limits` object Claude Code pipes to the status line
+// (Pro/Max, after the first API response); templates/statusline.sh keeps the
+// latest copy in ~/.claude/usage.json. Null when that file is missing or
+// older than a day: the board never guesses.
+export function claudeQuota() {
+  try {
+    const file = path.join(os.homedir(), ".claude", "usage.json")
+    if (!existsSync(file)) return null
+    const u = JSON.parse(readFileSync(file, "utf8"))
+    if (!u.at || Date.now() - Date.parse(u.at) > 24 * 3600000) return null
+    const win = (w) =>
+      w && w.used_percentage != null
+        ? {
+            percent: Number(w.used_percentage),
+            limited: Number(w.used_percentage) >= 100,
+            resetsAt: w.resets_at ? new Date(w.resets_at * 1000).toISOString() : null,
+          }
+        : null
+    return { at: u.at, plan: u.plan ?? null, rolling: win(u.rate_limits?.five_hour), weekly: win(u.rate_limits?.seven_day) }
+  } catch {
+    return null
+  }
+}
 
 // ---------- cost and time from the attempts ----------
 
@@ -268,6 +297,8 @@ export function boardData(args) {
     Object.entries(args.reports ?? {}).map(([id, md]) => [id, renderMarkdown(md)]),
   )
   const contractFiles = args.contractFiles ?? {}
+  // Tests pass a fixed `claude`; the script leaves it out and the board reads ~/.claude/usage.json.
+  const claude = "claude" in args ? args.claude : claudeQuota()
 
   // ---- attempts and passes per model and role ----
   const perRole = { builder: {}, researcher: {} }
@@ -310,6 +341,7 @@ export function boardData(args) {
     runDate,
     reportsHtml,
     contractFiles,
+    claude,
     perRole,
   }
 }
@@ -367,6 +399,7 @@ export function boardJson(args) {
     // null or true.
     quota: null,
     openai: null,
+    claude: d.claude,
     lastNotify: lastNotify
       ? { at: lastNotify.at, text: lastNotify.text, delivered: true, port: null, reason: null }
       : null,

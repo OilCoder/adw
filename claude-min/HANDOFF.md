@@ -86,6 +86,21 @@ modelos que merezcan correr en paralelo. Cinco escenarios nuevos con nombres
 Claude; los 25 anteriores intactos; `golden.mjs` aplana la escalera instalada
 salvo que el escenario traiga `models`.
 
+## 2026-09-13 (tarde): cuota de Claude en el tablero
+
+Pedido del usuario: ver cómo va de cuota. Única fuente oficial (docs
+statusline.md): el objeto `rate_limits` (`five_hour`, `seven_day`,
+`used_percentage`, `resets_at`) que Claude Code pasa por stdin al comando de la
+línea de estado, solo Pro/Max y tras la primera respuesta de la sesión. No se
+llama a ningún endpoint con el token OAuth (indocumentado; el clasificador de
+permisos lo bloquea como exploración de credenciales). `templates/statusline.sh`
+imprime una línea corta y guarda `~/.claude/usage.json`; `board.mjs`
+`claudeQuota()` lo lee (null si falta o tiene más de un día); bloque "Cuota
+Claude" bajo la franja; `board.json.claude` (aditivo). Activado en
+`~/.claude/settings.json` del usuario (`statusLine`, `refreshInterval: 60`).
+Limitación: se refresca con las respuestas del supervisor, no con las llamadas
+`claude -p` de los builders.
+
 ## Deriva conocida solo de pruebas
 
 `tests/golden.mjs` normaliza quitando la línea entera de `duration_ms`/`at`

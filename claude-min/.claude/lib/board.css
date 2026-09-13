@@ -21,6 +21,15 @@ svg.i{width:1em;height:1em;flex:none}
 .hdr .slug{font-family:var(--mono);background:var(--surface-2);padding:0 6px;border-radius:3px}
 .hdr .right{font-family:var(--mono);font-size:12px;color:var(--ink-3);display:flex;align-items:center;gap:6px;padding-top:4px}
 .hdr .right svg.i{width:16px;height:16px}
+/* quota */
+.quota{display:grid;grid-template-columns:34px 1fr;gap:4px 12px;padding:12px 16px;background:var(--surface);border:1px solid var(--line);border-radius:8px;margin-bottom:14px}
+.quota svg.i{width:26px;height:26px;color:var(--run);grid-row:span 2;margin-top:2px}
+.quota .rows{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.quota .rows.n2{grid-template-columns:repeat(2,1fr)}
+.quota .r{font-size:13px}.quota .r b{font-variant-numeric:tabular-nums;font-weight:600}
+.quota .r .bar{display:block;width:100%;margin:5px 0 3px}
+.quota .r .s{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.quota .r.bad b{color:var(--bad)}.quota .r.run b{color:var(--run)}
+.quota .empty{color:var(--ink-3);font-size:13px}
 /* strip */
 .strip{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1fr;border:1px solid var(--line);border-radius:8px;background:var(--surface);margin-bottom:12px}
 .strip>div{display:grid;grid-template-columns:34px 1fr;gap:4px 10px;padding:14px 16px;border-right:1px solid var(--line-2);min-width:0}
@@ -148,4 +157,4 @@ tr.rx{cursor:pointer}tr.rx:hover td{background:var(--surface-2)}
 .md code{font-family:var(--mono);font-size:.92em;background:var(--surface-2);padding:1px 4px;border-radius:3px}
 .md a{color:var(--accent);word-break:break-all}
 .md table{margin:6px 0 10px}.md td,.md th{padding:4px 8px;font-size:12.5px}
-@media (max-width:900px){.strip,.board,.cards,.mcards{grid-template-columns:repeat(2,1fr)}.hdr{grid-template-columns:44px 1fr}.hdr .right{grid-column:2}.col:nth-child(2){border-right:0}}
+@media (max-width:900px){.strip,.board,.cards,.quota .rows,.mcards{grid-template-columns:repeat(2,1fr)}.hdr{grid-template-columns:44px 1fr}.hdr .right{grid-column:2}.col:nth-child(2){border-right:0}}

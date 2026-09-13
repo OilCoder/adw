@@ -52,6 +52,7 @@
   "supervisor": null,
   "quota": null,
   "openai": null,
+  "claude": null,
   "lastNotify": {
     "text": "build ended: 3/3 PASS. Tell the user it is ready to merge.",
     "delivered": true,

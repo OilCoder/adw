@@ -42,6 +42,7 @@
   "supervisor": null,
   "quota": null,
   "openai": null,
+  "claude": null,
   "lastNotify": {
     "text": "research run ended: 1 NO_REPORT; not DONE: las-null (NO_REPORT). Judge the new reports and continue.",
     "delivered": true,
