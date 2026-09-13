@@ -6,7 +6,7 @@ src=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 mkdir -p "$target/.opencode" "$target/.codegen/research" "$target/.codegen/contracts"
 cp -r "$src/.opencode/agents" "$src/.opencode/instructions" "$src/.opencode/lib" "$src/.opencode/codegen.mjs" "$target/.opencode/"
 # modules used to sit flat next to codegen.mjs (before 2026-09-12); remove those copies so nothing stale is left
-rm -f "$target"/.opencode/{agent,sandbox,board,board-html,opencode-db}.mjs "$target/.opencode/board.css"
+rm -f "$target"/.opencode/{agent,sandbox,board,board-html,opencode-db}.mjs "$target/.opencode/board.css" "$target/.opencode/codegen.md"
 [[ -f "$target/.opencode/models.json" ]] || cp "$src/.opencode/models.json" "$target/.opencode/"
 [[ -f "$target/opencode.json" ]] || cp "$src/opencode.json" "$target/"
 touch "$target/.gitignore"
