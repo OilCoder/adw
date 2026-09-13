@@ -443,6 +443,9 @@ export function boardJson(args) {
 // it reads board.css on every call), so a build that runs for hours picks up
 // a redesign without a restart.
 export async function renderBoard(args) {
+  // A codegen.mjs loaded before 2026-09-13 (a build that has been running for
+  // hours) reloads this module but does not fetch the OpenAI quota: do it here.
+  if (args.openai === undefined) args = { ...args, openai: await openaiQuota() }
   const file = new URL("./board-html.mjs", import.meta.url)
   const { renderBoard: draw } = await import(
     `${pathToFileURL(file.pathname).href}?v=${statSync(file).mtimeMs}`
