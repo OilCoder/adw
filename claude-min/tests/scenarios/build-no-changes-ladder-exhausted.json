@@ -1,0 +1,21 @@
+{
+  "fixture": "builder-basic",
+  "script": {
+    "builder": {
+      "safe-divide": [
+        {
+          "files": {},
+          "steps": 2,
+          "text": "BLOCKED\nnone\nnot run\nmissing decision"
+        }
+      ]
+    }
+  },
+  "runs": [
+    [
+      "build",
+      "--parallel",
+      "1"
+    ]
+  ]
+}

@@ -1,0 +1,13 @@
+$ codegen research  → exit 0
+            last words: PARTIAL ./report.md missing summary
+  PARTIAL   las-null  .codegen/research/las-null.md  [claude-haiku-4-5]  written in one go
+  las-null: PARTIAL (3 steps, written in one go)
+  las-null: attempt 1 with claude-haiku-4-5
+Research summary
+[codegen] research las-null: PARTIAL with claude-haiku-4-5, report at .codegen/research/las-null.md. Last words: PARTIAL ./report.md missing summary. Accept it or split it into new ids; the other questions keep running.
+[codegen] research run ended: 1 PARTIAL; written in one go, never re-read (judge harder): las-null; not DONE: las-null (PARTIAL). Judge the new reports and continue.
+research STAMP-research: 1 questions, ladder claude-haiku-4-5 > claude-sonnet-5
+
+$ codegen research --reject las-null  → exit 1
+codegen: cannot reject las-null: it is PARTIAL; the question is too big for one sitting. Split it into new ids by what is missing and run those.
+

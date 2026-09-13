@@ -1,0 +1,17 @@
+{
+  "run": "STAMP-research",
+  "results": {
+    "las-null": {
+      "status": "PARTIAL",
+      "model": "claude-haiku-4-5",
+      "attempt": 1,
+      "steps": 3,
+      "cost": 0.01,
+      "one_shot": true,
+      "report": ".codegen/research/las-null.md",
+      "final": "DONE ./report.md",
+      "run": "STAMP-research",
+      "rejected": []
+    }
+  }
+}

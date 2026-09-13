@@ -1,0 +1,36 @@
+{
+  "fixture": "builder-basic",
+  "pre": {
+    ".codegen/contracts/safe-divide/contract.json": "{\n  \"objective\": \"Implement safe_divide in calculator.py.\",\n  \"read\": [\n    \"calculator.py\",\n    \"tests/test_calculator.py\"\n  ],\n  \"allowed_to_modify\": [\n    \"*.py\"\n  ],\n  \"protected\": [\n    \"tests/**\"\n  ],\n  \"requirements\": [\n    {\n      \"id\": \"R1\",\n      \"statement\": \"Return normal Python division as a float.\"\n    },\n    {\n      \"id\": \"R2\",\n      \"statement\": \"Raise ValueError with the exact message 'divisor must not be zero' when the divisor is zero.\"\n    },\n    {\n      \"id\": \"R3\",\n      \"statement\": \"Preserve the public function signature.\"\n    }\n  ],\n  \"gate\": \"bash .codegen/contracts/safe-divide/gate.sh\"\n}\n"
+  },
+  "script": {
+    "builder": {
+      "safe-divide": [
+        {
+          "files": {
+            "calculator.py": "def safe_divide(dividend: int, divisor: int) -> float:\n    \"\"\"Divide two integers, rejecting division by zero.\"\"\"\n    if divisor == 0:\n        raise ValueError(\"divisor must not be zero\")\n    return dividend / divisor\n",
+            "tmp.py": "x = 1\n"
+          }
+        },
+        {
+          "files": {
+            "calculator.py": "def safe_divide(dividend: int, divisor: int) -> float:\n    \"\"\"Divide two integers, rejecting division by zero.\"\"\"\n    if divisor == 0:\n        raise ValueError(\"divisor must not be zero\")\n    return dividend / divisor\n"
+          },
+          "tools": [
+            "read",
+            "edit"
+          ],
+          "steps": 5,
+          "text": "DONE\ncalculator.py\ngate PASS\nnone"
+        }
+      ]
+    }
+  },
+  "runs": [
+    [
+      "build",
+      "--parallel",
+      "1"
+    ]
+  ]
+}

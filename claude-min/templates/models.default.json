@@ -1,20 +1,7 @@
 {
-  "_comment": "Claude models, cheapest first (API-equivalent price per million in/out: haiku 1/5, sonnet 2/10, opus 5/25). Every call runs through `claude -p` with the user's subscription; the cost shown is what the API would have charged. Each contract or question starts at the first model and climbs at most max_models_per_item rungs, two attempts per rung. Edit by hand.",
-  "researcher": [
-    "claude-haiku-4-5",
-    "claude-sonnet-5",
-    "claude-opus-5"
-  ],
-  "builder": [
-    "claude-haiku-4-5",
-    "claude-sonnet-5",
-    "claude-opus-5"
-  ],
-  "max_models_per_item": 3,
-  "timeouts_seconds": {
-    "researcher": 600,
-    "builder": 900,
-    "gate": 300,
-    "install": 600
-  }
+  "_comment": "Claude models, cheapest first (API-equivalent price per million in/out: haiku 1/5, sonnet 2/10, opus 5/25). Every call runs through `claude -p` with the user's subscription; the cost shown is what the API would have charged, the subscription charges quota. Haiku is the only really cheap model, so it does the building and the research; Sonnet is the rescue rung. Opus is deliberately out: the supervisor (this session) is already the strong model, and a contract that Haiku and Sonnet both fail is a wrong contract or gate. Each contract or question starts at the first model and climbs at most max_models_per_item rungs, two attempts per rung. Edit by hand.",
+  "researcher": ["claude-haiku-4-5", "claude-sonnet-5"],
+  "builder": ["claude-haiku-4-5", "claude-sonnet-5"],
+  "max_models_per_item": 2,
+  "timeouts_seconds": { "researcher": 600, "builder": 900, "gate": 300, "install": 600 }
 }

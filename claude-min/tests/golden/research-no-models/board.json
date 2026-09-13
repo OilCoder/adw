@@ -1,0 +1,36 @@
+{
+  "phase": "parado",
+  "phaseCls": "",
+  "phaseSub": "sin actividad registrada",
+  "alive": false,
+  "researchAlive": false,
+  "waiting": null,
+  "build": {
+    "run": null,
+    "passed": 0,
+    "total": 3,
+    "failed": [],
+    "gateBroken": [],
+    "pending": 3,
+    "running": [],
+    "integration": null,
+    "closedBy": {}
+  },
+  "research": {
+    "total": 1,
+    "done": 0,
+    "partial": 0,
+    "rejected": 0,
+    "alive": false
+  },
+  "cost": null,
+  "supervisor": null,
+  "quota": null,
+  "openai": null,
+  "lastNotify": {
+    "text": "research run ended: 1 NO_MODELS; not DONE: las-null (NO_MODELS). Judge the new reports and continue.",
+    "delivered": true,
+    "port": null,
+    "reason": null
+  }
+}

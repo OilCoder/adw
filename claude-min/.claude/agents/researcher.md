@@ -24,5 +24,6 @@ working directory, which is empty and yours).
    per source: URL, what it says, how confident you are), `## Open points`
    (what you could not confirm). A report without the summary is PARTIAL.
 4. Prefer primary sources: standards, official docs, textbooks, papers.
-5. Finish with one line: `DONE <path>` or `PARTIAL <path> <what is missing>`.
+5. Finish with one line, alone and unformatted (no bold, no closing
+   paragraph after it): `DONE <path>` or `PARTIAL <path> <what is missing>`.
    Without that line the report counts as PARTIAL.

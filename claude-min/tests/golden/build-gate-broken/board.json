@@ -1,0 +1,58 @@
+{
+  "phase": "parado",
+  "phaseCls": "",
+  "phaseSub": "sin actividad registrada",
+  "alive": false,
+  "researchAlive": false,
+  "waiting": null,
+  "build": {
+    "run": "STAMP-build",
+    "passed": 0,
+    "total": 1,
+    "failed": [
+      "safe-divide"
+    ],
+    "gateBroken": [
+      "safe-divide"
+    ],
+    "pending": 0,
+    "running": [],
+    "integration": {
+      "branch": "codegen/STAMP-build",
+      "merged": null
+    },
+    "closedBy": {}
+  },
+  "research": {
+    "total": 0,
+    "done": 0,
+    "partial": 0,
+    "rejected": 0,
+    "alive": false
+  },
+  "cost": {
+    "total": 0.01,
+    "byRole": {
+      "builder": 0.01,
+      "researcher": 0
+    },
+    "byModel": {
+      "builder": {
+        "claude-haiku-4-5": {
+          "sessions": 1,
+          "cost": 0.01,
+        }
+      },
+      "researcher": {}
+    }
+  },
+  "supervisor": null,
+  "quota": null,
+  "openai": null,
+  "lastNotify": {
+    "text": "build ended: 0/1 PASS; failed: safe-divide (FAIL). Diagnose the failed ones, fix their contracts or gates, then build --resume.",
+    "delivered": true,
+    "port": null,
+    "reason": null
+  }
+}

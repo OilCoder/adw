@@ -1,0 +1,31 @@
+{
+  "run": "STAMP-build",
+  "integration": "codegen/STAMP-build",
+  "user_branch": "master",
+  "contracts": {
+    "safe-divide": {
+      "status": "FAIL",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "claude-haiku-4-5",
+          "verdict": "TIMEOUT",
+          "steps": 0,
+          "cost": null,
+          "files": [],
+          "detail": ""
+        },
+        {
+          "attempt": 2,
+          "model": "claude-haiku-4-5",
+          "verdict": "TIMEOUT",
+          "steps": 0,
+          "cost": null,
+          "files": [],
+          "detail": ""
+        }
+      ],
+      "reason": "TIMEOUT: "
+    }
+  }
+}

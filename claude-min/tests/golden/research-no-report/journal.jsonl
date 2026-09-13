@@ -1,0 +1,4 @@
+{"at":"TS","kind":"notify","text":"research las-null: NO_REPORT with claude-sonnet-5, no report. Last words: I could not find it.. Accept it or split it into new ids; the other questions keep running.","delivered":true}
+{"at":"TS","kind":"notify","text":"research run ended: 1 NO_REPORT; not DONE: las-null (NO_REPORT). Judge the new reports and continue.","delivered":true}
+{"at":"TS","kind":"research","id":"las-null","question":"In the LAS 2.0 well log standard, how is the NULL value declared and how should readers treat it? Give the exact section/mnemonic.","status":"NO_REPORT","model":"claude-sonnet-5","models":["claude-haiku-4-5","claude-sonnet-5"],"steps":3,"one_shot":false,"report":null}
+{"at":"TS","kind":"research-start","run":"STAMP-research","questions":[{"id":"las-null","question":"In the LAS 2.0 well log standard, how is the NULL value declared and how should readers treat it? Give the exact section/mnemonic."}]}

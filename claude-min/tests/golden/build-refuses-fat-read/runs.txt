@@ -1,0 +1,3 @@
+$ codegen build --parallel 1  → exit 1
+codegen: plan: safe-divide read list is too big for a cheap model (src/**): at most 5 concrete files, never a glob, the idea or a research report; quote what the builder needs in the contract instead
+

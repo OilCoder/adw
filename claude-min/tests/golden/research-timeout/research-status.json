@@ -1,0 +1,20 @@
+{
+  "run": "STAMP-research",
+  "results": {
+    "las-null": {
+      "status": "TIMEOUT",
+      "model": "claude-sonnet-5",
+      "attempt": 2,
+      "steps": 0,
+      "cost": null,
+      "one_shot": false,
+      "report": null,
+      "final": "",
+      "run": "STAMP-research",
+      "rejected": [
+        "claude-haiku-4-5",
+        "claude-sonnet-5"
+      ]
+    }
+  }
+}

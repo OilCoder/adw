@@ -3,7 +3,12 @@
 Everything the system needs lives in `.codegen/` and is driven by one script,
 `node .claude/codegen.mjs`. The supervisor writes the files; the script runs
 the agents. Models for scripted agents come from `.claude/models.json`
-(Claude models, cheapest first, edited by hand). The supervisor is the Claude Code session itself. Each contract or question starts at the cheapest model and climbs at
+(Claude models, cheapest first, edited by hand). Every agent is a `claude -p`
+call on the user's subscription with the role and permissions of
+`.claude/agents/<role>.md`; the supervisor is the session the user opened
+(whatever `/model` says). The agent files are visible to this session as
+subagents: never delegate to them, the script runs them. Each contract or
+question starts at the cheapest model and climbs at
 most `max_models_per_item` rungs, two attempts per rung. If a gate
 fails only in files outside `allowed_to_modify` (its own test file, another
 domain, missing types elsewhere), the contract stops at that attempt with
@@ -41,8 +46,10 @@ cheap one keeps failing in a project, move it down in `models.json`.
 - `node .claude/codegen.mjs research [--only id,id] [--reject id,id]`: runs every
   question, writes `.codegen/research/<id>.md`, records DONE (the model said
   so in time), PARTIAL (a report exists but was cut or left unfinished),
-  TIMEOUT / NO_REPORT / RATE_LIMITED (nothing usable; that model is skipped
-  for the question from then on) or NO_MODELS. `--reject` sets a report aside
+  TIMEOUT / NO_REPORT (nothing usable; that model is skipped for the
+  question from then on) or NO_MODELS. A report the model wrote in one
+  `write` and never edited is flagged "written in one go" in `status`, the
+  journal and the end-of-run notice: judge those harder. `--reject` sets a report aside
   (`<id>.rejected-N.md`) and reruns the question from the next rung; the
   supervisor is the judge of research quality, the gate is for code. It
   refuses to reject a PARTIAL or to reject the same question a third time:
@@ -54,11 +61,12 @@ cheap one keeps failing in a project, move it down in `models.json`.
   contract in its own worktree, checks scope and protected paths, reruns the
   gate independently, retries once with the gate output as evidence, then
   moves to the next model, merges passing contracts into the branch.
-  The script prints `[codegen] …` lines when a question ends without DONE,
-  a contract fails for good, or a run ends; they also go to the journal.
-  The supervisor sees them when its background Bash call returns.
-  Both commands run in the foreground; the supervisor launches them with
-  its Bash tool in the background and is woken when they exit.
+  The script writes `[codegen] …` lines in its output (and in the journal,
+  so the board shows them) when a question ends without DONE, a contract
+  fails for good, or a run ends. Both commands run in the foreground: the
+  supervisor starts them with the Bash tool in the background and the tool
+  wakes it with the whole output when they exit; meanwhile `status` shows
+  the state line and the failures so far.
   `--resume` continues the current run on its integration branch: contracts
   that already passed stay passed, the user's new commits (fixed gates,
   harness updates) are merged into that branch first, and `--only` limits
@@ -71,7 +79,8 @@ cheap one keeps failing in a project, move it down in `models.json`.
 ## Results
 
 Per contract: `PASS`, `INSTALL_FAILED`, `GATE_FAIL`, `OUT_OF_SCOPE`, `PROTECTED_TOUCHED`,
-`NO_CHANGES`, `TIMEOUT`, `RATE_LIMITED` (the model answered nothing but retries; next rung at once), `GATE_TRIVIAL`, `MERGE_CONFLICT`, `SKIPPED`
+`NO_CHANGES`, `TIMEOUT`, `RATE_LIMITED` (the model only answered rate-limit
+retries; the ladder moves on at once), `GATE_TRIVIAL`, `MERGE_CONFLICT`, `SKIPPED`
 (a dependency failed), `NOT_SELECTED` (left out by `--only`). Logs and every attempt's events are under
 `.codegen/runs/<run>/<id>/`.
 - `node .claude/codegen.mjs merge [--partial]`: fast-forwards the run's

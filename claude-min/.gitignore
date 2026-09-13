@@ -1,4 +1,3 @@
-.opencode/node_modules/
 .codegen/runs/
-
 .codegen/board.html
+.claude/settings.local.json

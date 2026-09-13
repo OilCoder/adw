@@ -1,0 +1,72 @@
+#!/usr/bin/env node
+// A stand-in for the real `claude` binary, for tests/golden.sh: no model, no
+// network, deterministic. Put tests/fake-claude first in PATH.
+//
+//   claude -p PROMPT --model M --output-format stream-json --verbose --max-turns N
+//          --permission-mode default --settings FILE --system-prompt TEXT
+//
+// plays a scripted step and prints stream-json events like the real one.
+// The script comes from $FAKE_CLAUDE_SCRIPT (JSON): { "<agent>": { "<id>": [step, ...], "*": [...] } }
+// where <agent> is builder or researcher (told from the prompt), <id> the contract
+// or question id in the prompt, and the n-th call for that (agent, id) plays the
+// n-th step (the last one repeats).
+// A step: { "files": { "path": "content" | null }, "steps": 3, "tools": ["write"],
+//           "text": "final text", "sleep": 0, "rate_limited": false, "cost": 0.01 }.
+// Call counters live in $FAKE_CLAUDE_STATE.
+
+import { readFileSync, writeFileSync, mkdirSync, existsSync, appendFileSync, rmSync } from "node:fs"
+import path from "node:path"
+
+const argv = process.argv.slice(2)
+const state = process.env.FAKE_CLAUDE_STATE ?? "/tmp/fake-claude-state"
+mkdirSync(state, { recursive: true })
+
+const opt = {}
+for (let i = 0; i < argv.length; i++) {
+  if (argv[i] === "-p") { opt.prompt = argv[i + 1]; i++ }
+  else if (argv[i] === "--verbose") opt.verbose = true
+  else if (argv[i].startsWith("--")) { opt[argv[i].slice(2)] = argv[i + 1]; i++ }
+}
+if (opt.prompt === undefined) { console.error("fake claude: only -p is supported"); process.exit(2) }
+const prompt = opt.prompt
+const agent = /Research question /.test(prompt) ? "researcher" : "builder"
+const id = (prompt.match(/contracts\/([^/]+)\/contract\.json/) ?? prompt.match(/Research question (\S+):/) ?? [])[1] ?? "*"
+const script = process.env.FAKE_CLAUDE_SCRIPT ? JSON.parse(readFileSync(process.env.FAKE_CLAUDE_SCRIPT, "utf8")) : {}
+const steps = script[agent]?.[id] ?? script[agent]?.["*"] ?? [{}]
+const counter = path.join(state, `${agent}.${id}.calls`)
+const n = existsSync(counter) ? Number(readFileSync(counter, "utf8")) : 0
+writeFileSync(counter, String(n + 1))
+const step = steps[Math.min(n, steps.length - 1)]
+
+const emit = (e) => process.stdout.write(JSON.stringify(e) + "\n")
+const cwd = process.cwd()
+// The settings file the harness wrote: recorded so a golden proves which permissions each role got.
+const settings = opt.settings && existsSync(opt.settings) ? JSON.parse(readFileSync(opt.settings, "utf8")) : null
+appendFileSync(
+  path.join(state, "calls.log"),
+  `${agent} ${id} call=${n + 1} model=${opt.model} max-turns=${opt["max-turns"]} mode=${opt["permission-mode"]} allow=${settings?.permissions?.allow?.length ?? "?"} deny=${settings?.permissions?.deny?.length ?? "?"} cwd=${cwd.includes("codegen-sandboxes") ? "sandbox" : cwd.includes(".work") ? "den" : "project"}\n`,
+)
+
+if (step.sleep) await new Promise((r) => setTimeout(r, step.sleep * 1000))
+emit({ type: "system", subtype: "init", model: opt.model, cwd })
+if (step.rate_limited) {
+  for (let i = 0; i < 3; i++) emit({ type: "rate_limit_event", rate_limit_info: { status: "rejected" } })
+  emit({ type: "result", subtype: "error_during_execution", total_cost_usd: 0, duration_ms: 10, num_turns: 0 })
+  process.exit(1)
+}
+
+const files = step.files ?? {}
+const tool = (t) => ({ write: "Write", edit: "Edit", read: "Read", bash: "Bash" })[t] ?? "Read"
+const tools = step.tools ?? Object.keys(files).map(() => "write")
+const total = step.steps ?? 3
+for (let s = 0; s < total; s++)
+  emit({ type: "assistant", message: { content: [{ type: "tool_use", id: `t${s}`, name: tool(tools[s] ?? "read"), input: {} }] } })
+for (const [rel, content] of Object.entries(files)) {
+  const abs = path.join(cwd, rel)
+  if (content === null) { rmSync(abs, { force: true }); continue }
+  mkdirSync(path.dirname(abs), { recursive: true })
+  writeFileSync(abs, content)
+}
+const text = step.text ?? "DONE"
+emit({ type: "assistant", message: { content: [{ type: "text", text }] } })
+emit({ type: "result", subtype: "success", result: text, total_cost_usd: step.cost ?? 0.01, duration_ms: 1000, num_turns: total + 1 })

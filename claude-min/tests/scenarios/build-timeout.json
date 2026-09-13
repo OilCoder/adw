@@ -1,0 +1,26 @@
+{
+  "fixture": "builder-basic",
+  "models": {
+    "max_models_per_item": 1,
+    "timeouts_seconds": {
+      "builder": 2
+    }
+  },
+  "script": {
+    "builder": {
+      "safe-divide": [
+        {
+          "sleep": 6,
+          "files": {}
+        }
+      ]
+    }
+  },
+  "runs": [
+    [
+      "build",
+      "--parallel",
+      "1"
+    ]
+  ]
+}

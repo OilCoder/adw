@@ -1,0 +1,56 @@
+{
+  "phase": "parado",
+  "phaseCls": "",
+  "phaseSub": "sin actividad registrada",
+  "alive": false,
+  "researchAlive": false,
+  "waiting": null,
+  "build": {
+    "run": "STAMP-build",
+    "passed": 1,
+    "total": 1,
+    "failed": [],
+    "gateBroken": [],
+    "pending": 0,
+    "running": [],
+    "integration": {
+      "branch": "codegen/STAMP-build",
+      "merged": false
+    },
+    "closedBy": {
+      "claude-haiku-4-5": 1
+    }
+  },
+  "research": {
+    "total": 0,
+    "done": 0,
+    "partial": 0,
+    "rejected": 0,
+    "alive": false
+  },
+  "cost": {
+    "total": 0.02,
+    "byRole": {
+      "builder": 0.02,
+      "researcher": 0
+    },
+    "byModel": {
+      "builder": {
+        "claude-haiku-4-5": {
+          "sessions": 2,
+          "cost": 0.02,
+        }
+      },
+      "researcher": {}
+    }
+  },
+  "supervisor": null,
+  "quota": null,
+  "openai": null,
+  "lastNotify": {
+    "text": "build ended: 1/1 PASS. Tell the user it is ready to merge.",
+    "delivered": true,
+    "port": null,
+    "reason": null
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "fixture": "parallel-basic",
+  "pre": {
+    "shared.txt": "base\n",
+    ".codegen/contracts/stats-mean/contract.json": "{\n  \"objective\": \"Implement mean in stats.py; raise ValueError('values must not be empty') on an empty list.\",\n  \"read\": [\n    \"stats.py\",\n    \"tests/test_stats.py\"\n  ],\n  \"allowed_to_modify\": [\n    \"stats.py\",\n    \"shared.txt\"\n  ],\n  \"protected\": [\n    \"tests/**\"\n  ],\n  \"requirements\": [\n    {\n      \"id\": \"R1\",\n      \"statement\": \"Implement mean in stats.py; raise ValueError('values must not be empty') on an empty list.\"\n    },\n    {\n      \"id\": \"R2\",\n      \"statement\": \"Preserve the public signature.\"\n    }\n  ],\n  \"gate\": \"bash .codegen/contracts/stats-mean/gate.sh\"\n}\n",
+    ".codegen/contracts/geometry-area/contract.json": "{\n  \"objective\": \"Implement rect_area in geometry.py; raise ValueError('sides must not be negative') when a side is negative.\",\n  \"read\": [\n    \"geometry.py\",\n    \"tests/test_geometry.py\"\n  ],\n  \"allowed_to_modify\": [\n    \"geometry.py\",\n    \"shared.txt\"\n  ],\n  \"protected\": [\n    \"tests/**\"\n  ],\n  \"requirements\": [\n    {\n      \"id\": \"R1\",\n      \"statement\": \"Implement rect_area in geometry.py; raise ValueError('sides must not be negative') when a side is negative.\"\n    },\n    {\n      \"id\": \"R2\",\n      \"statement\": \"Preserve the public signature.\"\n    }\n  ],\n  \"gate\": \"bash .codegen/contracts/geometry-area/gate.sh\"\n}\n"
+  },
+  "script": {
+    "builder": {
+      "geometry-area": [
+        {
+          "files": {
+            "geometry.py": "def rect_area(width, height):\n    if width < 0 or height < 0:\n        raise ValueError(\"sides must not be negative\")\n    return float(width * height)\n",
+            "shared.txt": "from geometry\n"
+          }
+        }
+      ],
+      "stats-mean": [
+        {
+          "sleep": 4,
+          "files": {
+            "stats.py": "def mean(values):\n    if not values:\n        raise ValueError(\"values must not be empty\")\n    return sum(values) / len(values)\n",
+            "shared.txt": "from stats\n"
+          }
+        }
+      ]
+    }
+  },
+  "runs": [
+    [
+      "build",
+      "--parallel",
+      "2"
+    ]
+  ]
+}

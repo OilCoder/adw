@@ -1,0 +1,18 @@
+{
+  "run": "STAMP-research",
+  "results": {
+    "las-null": {
+      "status": "NO_MODELS",
+      "model": null,
+      "attempt": 0,
+      "steps": 0,
+      "report": null,
+      "final": "",
+      "run": "STAMP-research",
+      "rejected": [
+        "claude-haiku-4-5",
+        "claude-sonnet-5"
+      ]
+    }
+  }
+}

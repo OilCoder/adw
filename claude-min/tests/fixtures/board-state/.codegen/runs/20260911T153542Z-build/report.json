@@ -1,0 +1,620 @@
+{
+  "run": "20260911T153542Z-build",
+  "integration": "codegen/20260911T153542Z-build",
+  "user_branch": "master",
+  "contracts": {
+    "rewire-formula-consumer": {
+      "status": "PASS",
+      "model": "opencode-go/glm-5.3-flash",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "TIMEOUT",
+          "steps": 0,
+          "files": [],
+          "detail": ""
+        },
+        {
+          "attempt": 2,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "TIMEOUT",
+          "steps": 0,
+          "files": [],
+          "detail": ""
+        },
+        {
+          "attempt": 3,
+          "model": "opencode-go/glm-5.3-flash",
+          "verdict": "PASS",
+          "steps": 6,
+          "files": [
+            "src/app/AnalysisWorkspace.tsx"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "src/app/AnalysisWorkspace.tsx"
+      ],
+      "duration_ms": 1746674
+    },
+    "rename-formula-parser": {
+      "status": "PASS",
+      "model": "opencode-go/glm-5.3-flash",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "TIMEOUT",
+          "steps": 0,
+          "files": [],
+          "detail": ""
+        },
+        {
+          "attempt": 2,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "TIMEOUT",
+          "steps": 0,
+          "files": [],
+          "detail": ""
+        },
+        {
+          "attempt": 3,
+          "model": "opencode-go/glm-5.3-flash",
+          "verdict": "PASS",
+          "steps": 22,
+          "files": [
+            "src/formulas/expression.ts",
+            "src/formulas/formula-parser.ts",
+            "src/formulas/parser.ts"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "src/formulas/expression.ts",
+        "src/formulas/formula-parser.ts",
+        "src/formulas/parser.ts"
+      ],
+      "duration_ms": 1816307
+    },
+    "create-las-facade": {
+      "status": "PASS",
+      "model": "opencode-go/glm-5.3-flash",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "TIMEOUT",
+          "steps": 0,
+          "files": [],
+          "detail": ""
+        },
+        {
+          "attempt": 2,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "TIMEOUT",
+          "steps": 0,
+          "files": [],
+          "detail": ""
+        },
+        {
+          "attempt": 3,
+          "model": "opencode-go/glm-5.3-flash",
+          "verdict": "PASS",
+          "steps": 23,
+          "files": [
+            "src/las/index.ts",
+            "src/las/parser.test.ts"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "src/las/index.ts",
+        "src/las/parser.test.ts"
+      ],
+      "duration_ms": 1783948
+    },
+    "rewire-las-app-consumers": {
+      "status": "PASS",
+      "model": "opencode-go/glm-5.3-flash",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "TIMEOUT",
+          "steps": 0,
+          "files": [],
+          "detail": ""
+        },
+        {
+          "attempt": 2,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "TIMEOUT",
+          "steps": 0,
+          "files": [],
+          "detail": ""
+        },
+        {
+          "attempt": 3,
+          "model": "opencode-go/glm-5.3-flash",
+          "verdict": "PASS",
+          "steps": 8,
+          "files": [
+            "src/app/ImportScreen.tsx",
+            "src/app/las-roundtrip.ts"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "src/app/ImportScreen.tsx",
+        "src/app/las-roundtrip.ts"
+      ],
+      "duration_ms": 1745547
+    },
+    "rewire-las-benchmark-consumers": {
+      "status": "PASS",
+      "model": "opencode-go/glm-5.3-flash",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "TIMEOUT",
+          "steps": 0,
+          "files": [],
+          "detail": ""
+        },
+        {
+          "attempt": 2,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "TIMEOUT",
+          "steps": 0,
+          "files": [],
+          "detail": ""
+        },
+        {
+          "attempt": 3,
+          "model": "opencode-go/glm-5.3-flash",
+          "verdict": "PASS",
+          "steps": 6,
+          "files": [
+            "benchmarks/corpus.ts",
+            "benchmarks/parser.bench.ts"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "benchmarks/corpus.ts",
+        "benchmarks/parser.bench.ts"
+      ],
+      "duration_ms": 1756890
+    },
+    "rename-las-parser": {
+      "status": "PASS",
+      "model": "opencode-go/glm-5.3-flash",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "TIMEOUT",
+          "steps": 0,
+          "files": [],
+          "detail": ""
+        },
+        {
+          "attempt": 2,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "TIMEOUT",
+          "steps": 0,
+          "files": [],
+          "detail": ""
+        },
+        {
+          "attempt": 3,
+          "model": "opencode-go/glm-5.3-flash",
+          "verdict": "PASS",
+          "steps": 26,
+          "files": [
+            "src/las/index.ts",
+            "src/las/las-parser.ts",
+            "src/las/parser.ts",
+            "src/las/writer.test.ts"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "src/las/index.ts",
+        "src/las/las-parser.ts",
+        "src/las/parser.ts",
+        "src/las/writer.test.ts"
+      ],
+      "duration_ms": 1785577
+    },
+    "split-analysis-workspace": {
+      "status": "PASS",
+      "model": "opencode/mimo-v2.5-free",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "PASS",
+          "steps": 34,
+          "files": [
+            "src/app/AnalysisWorkspace.tsx",
+            "src/app/analysis/QualityPanel.tsx",
+            "src/app/analysis/controls.tsx",
+            "src/app/analysis/shared.ts"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "src/app/AnalysisWorkspace.tsx",
+        "src/app/analysis/QualityPanel.tsx",
+        "src/app/analysis/controls.tsx",
+        "src/app/analysis/shared.ts"
+      ],
+      "duration_ms": 391813
+    },
+    "split-analysis-processing": {
+      "status": "PASS",
+      "model": "opencode/mimo-v2.5-free",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "PASS",
+          "steps": 18,
+          "files": [
+            "src/app/AnalysisWorkspace.tsx",
+            "src/app/analysis/ProcessingPanel.tsx"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "src/app/AnalysisWorkspace.tsx",
+        "src/app/analysis/ProcessingPanel.tsx"
+      ],
+      "duration_ms": 162501
+    },
+    "split-analysis-petrophysics": {
+      "status": "PASS",
+      "model": "opencode/mimo-v2.5-free",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "PASS",
+          "steps": 24,
+          "files": [
+            "src/app/AnalysisWorkspace.tsx",
+            "src/app/analysis/PetrophysicsPanel.tsx"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "src/app/AnalysisWorkspace.tsx",
+        "src/app/analysis/PetrophysicsPanel.tsx"
+      ],
+      "duration_ms": 283125
+    },
+    "split-analysis-intervals": {
+      "status": "PASS",
+      "model": "opencode/mimo-v2.5-free",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "PASS",
+          "steps": 11,
+          "files": [
+            "src/app/AnalysisWorkspace.tsx",
+            "src/app/analysis/IntervalsPanel.tsx"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "src/app/AnalysisWorkspace.tsx",
+        "src/app/analysis/IntervalsPanel.tsx"
+      ],
+      "duration_ms": 157251
+    },
+    "split-analysis-comparison": {
+      "status": "PASS",
+      "model": "opencode/mimo-v2.5-free",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "PASS",
+          "steps": 13,
+          "files": [
+            "src/app/AnalysisWorkspace.tsx",
+            "src/app/analysis/ComparisonPanel.tsx"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "src/app/AnalysisWorkspace.tsx",
+        "src/app/analysis/ComparisonPanel.tsx"
+      ],
+      "duration_ms": 147794
+    },
+    "split-analysis-compose": {
+      "status": "PASS",
+      "model": "opencode-go/deepseek-v4-flash",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "STRUCTURE",
+          "steps": 24,
+          "files": [
+            "src/app/analysis/AnalysisWorkspace.tsx"
+          ],
+          "detail": "src/app/analysis/AnalysisWorkspace.tsx: same name as src/app/AnalysisWorkspace.tsx"
+        },
+        {
+          "attempt": 2,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "STRUCTURE",
+          "steps": 23,
+          "files": [
+            "src/app/AnalysisWorkspace.tsx",
+            "src/app/analysis/AnalysisWorkspace.tsx"
+          ],
+          "detail": "src/app/analysis/AnalysisWorkspace.tsx: same name as src/app/AnalysisWorkspace.tsx"
+        },
+        {
+          "attempt": 3,
+          "model": "opencode-go/glm-5.3-flash",
+          "verdict": "STRUCTURE",
+          "steps": 19,
+          "files": [
+            "src/app/AnalysisWorkspace.tsx",
+            "src/app/analysis/AnalysisWorkspace.tsx"
+          ],
+          "detail": "src/app/analysis/AnalysisWorkspace.tsx: same name as src/app/AnalysisWorkspace.tsx"
+        },
+        {
+          "attempt": 4,
+          "model": "opencode-go/glm-5.3-flash",
+          "verdict": "STRUCTURE",
+          "steps": 26,
+          "files": [
+            "src/app/AnalysisWorkspace.tsx",
+            "src/app/analysis/AnalysisWorkspace.tsx"
+          ],
+          "detail": "src/app/analysis/AnalysisWorkspace.tsx: same name as src/app/AnalysisWorkspace.tsx"
+        },
+        {
+          "attempt": 5,
+          "model": "opencode-go/deepseek-v4-flash",
+          "verdict": "STRUCTURE",
+          "steps": 18,
+          "files": [
+            "src/app/AnalysisWorkspace.tsx",
+            "src/app/analysis/AnalysisWorkspace.tsx"
+          ],
+          "detail": "src/app/analysis/AnalysisWorkspace.tsx: same name as src/app/AnalysisWorkspace.tsx"
+        },
+        {
+          "attempt": 6,
+          "model": "opencode-go/deepseek-v4-flash",
+          "verdict": "PASS",
+          "steps": 38,
+          "files": [
+            "src/app/analysis/AnalysisWorkspace.tsx"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "src/app/analysis/AnalysisWorkspace.tsx"
+      ],
+      "duration_ms": 1602849
+    },
+    "e2e-real": {
+      "status": "PASS",
+      "model": "opencode/mimo-v2.5-free",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "PASS",
+          "steps": 14,
+          "files": [
+            ".github/workflows/e2e.yml",
+            "tests/e2e/import-viewer.spec.ts",
+            "vite.config.ts"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        ".github/workflows/e2e.yml",
+        "tests/e2e/import-viewer.spec.ts",
+        "vite.config.ts"
+      ],
+      "duration_ms": 158138
+    },
+    "wire-analysis": {
+      "status": "PASS",
+      "model": "opencode/mimo-v2.5-free",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "PASS",
+          "steps": 10,
+          "files": [
+            "src/app/WorkspaceScreen.tsx"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "src/app/WorkspaceScreen.tsx"
+      ],
+      "duration_ms": 143898
+    },
+    "track-presets": {
+      "status": "PASS",
+      "model": "opencode/mimo-v2.5-free",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "PASS",
+          "steps": 10,
+          "files": [
+            "src/viewer/track-presets.ts"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "src/viewer/track-presets.ts"
+      ],
+      "duration_ms": 92361
+    },
+    "wire-track-presets": {
+      "status": "PASS",
+      "model": "opencode/mimo-v2.5-free",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "PASS",
+          "steps": 12,
+          "files": [
+            "src/app/WorkspaceScreen.tsx"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "src/app/WorkspaceScreen.tsx"
+      ],
+      "duration_ms": 126404
+    },
+    "track-layout-stable": {
+      "status": "PASS",
+      "model": "opencode/mimo-v2.5-free",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "PASS",
+          "steps": 12,
+          "files": [
+            "src/app/WorkspaceScreen.tsx",
+            "src/app/app.css"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "src/app/WorkspaceScreen.tsx",
+        "src/app/app.css"
+      ],
+      "duration_ms": 166746
+    },
+    "export-visual-wire": {
+      "status": "MERGE_CONFLICT",
+      "model": "opencode-go/glm-5.3-flash",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "GATE_FAIL",
+          "steps": 35,
+          "files": [
+            "src/app/ExportCenter.tsx"
+          ],
+          "detail": "\n\n       6 |   await page.locator('input[type=\"file\"]').setInputFiles(\"data/Cox_'A'_1.las\")\n       7 |   await page.getByRole('navigation', { name: 'Navegaci\u00f3n principal' }).getByRole('button', { name: 'Exportar' }).click()\n    >  8 |   await page.getByRole('button', { name: 'Marcar todas' }).click()\n         |                                                            ^\n       9 |   await page.getByRole('button', { name: 'Preparar PNG' }).click()\n      10 |   await expect(page.getByLabel('Resumen del archivo preparado').getByText('PNG')).toBeVisible()\n      11 |   await expect(page.getByRole('button', { name: 'Descargar PNG' })).toBeVisible()\n        at /home/pokinux/.las-viewer-v5-codegen-sandboxes/export-visual-wire/.codegen/contracts/export-visual-wire/export.spec.ts:8:60\n\n    Error Context: test-results/.codegen-contracts-export--61614-xportaci\u00f3n-visual-integrada-chromium/error-context.md\n\n    attachment #2: trace (application/zip) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    test-results/.codegen-contracts-export--61614-xportaci\u00f3n-visual-integrada-chromium/trace.zip\n    Usage:\n\n        npx playwright show-trace test-results/.codegen-contracts-export--61614-xportaci\u00f3n-visual-integrada-chromium/trace.zip\n\n    \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n  1 failed\n    [chromium] \u203a .codegen/contracts/export-visual-wire/export.spec.ts:3:1 \u203a PNG y PDF se preparan mediante la exportaci\u00f3n visual integrada \n\n"
+        },
+        {
+          "attempt": 2,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "PASS",
+          "steps": 9,
+          "files": [
+            "src/app/ExportCenter.tsx"
+          ],
+          "detail": ""
+        }
+      ],
+      "reason": "error: patch failed: src/app/App.tsx:12",
+      "branch": "codegen/20260911T153542Z-build-export-visual-wire",
+      "patch": ".codegen/runs/20260911T153542Z-build/export-visual-wire/candidate.diff"
+    },
+    "design-icon-tooling": {
+      "status": "PASS",
+      "model": "opencode/mimo-v2.5-free",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "PASS",
+          "steps": 6,
+          "files": [
+            "package-lock.json",
+            "package.json"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "package-lock.json",
+        "package.json"
+      ],
+      "duration_ms": 42931
+    },
+    "design-domain-colors": {
+      "status": "SKIPPED",
+      "reason": "dependency failed: design-icons"
+    },
+    "design-icons": {
+      "status": "FAIL",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "opencode/mimo-v2.5-free",
+          "verdict": "PASS",
+          "steps": 28,
+          "files": [
+            "src/app/App.tsx",
+            "src/app/WorkspaceScreen.tsx",
+            "src/app/analysis/ComparisonPanel.tsx",
+            "src/app/analysis/IntervalsPanel.tsx",
+            "src/app/analysis/PetrophysicsPanel.tsx",
+            "src/app/analysis/ProcessingPanel.tsx",
+            "src/app/analysis/QualityPanel.tsx",
+            "src/app/app.css"
+          ],
+          "detail": ""
+        }
+      ],
+      "reason": "GATE BROKEN: it fails only in files outside the contract's scope; fix the gate or the contract, not the builder. GATE_FAIL: src/design/icons.test.ts(3,1): error TS2307: Cannot find module"
+    },
+    "docs-honest": {
+      "status": "PENDING"
+    },
+    "archive-change": {
+      "status": "RUNNING",
+      "started": "2026-09-12T17:00:00.000Z",
+      "model": "opencode/mimo-v2.5-free",
+      "attempt": 2
+    }
+  }
+}

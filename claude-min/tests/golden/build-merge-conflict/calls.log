@@ -1,0 +1,2 @@
+builder geometry-area call=1 model=claude-haiku-4-5 max-turns=40 mode=default allow=20 deny=9 cwd=sandbox
+builder stats-mean call=1 model=claude-haiku-4-5 max-turns=40 mode=default allow=20 deny=9 cwd=sandbox

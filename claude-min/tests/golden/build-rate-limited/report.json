@@ -1,0 +1,36 @@
+{
+  "run": "STAMP-build",
+  "integration": "codegen/STAMP-build",
+  "user_branch": "master",
+  "contracts": {
+    "safe-divide": {
+      "status": "PASS",
+      "model": "claude-sonnet-5",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "claude-haiku-4-5",
+          "verdict": "RATE_LIMITED",
+          "steps": 0,
+          "cost": 0,
+          "files": [],
+          "detail": ""
+        },
+        {
+          "attempt": 2,
+          "model": "claude-sonnet-5",
+          "verdict": "PASS",
+          "steps": 5,
+          "cost": 0.01,
+          "files": [
+            "calculator.py"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "calculator.py"
+      ],
+    }
+  }
+}

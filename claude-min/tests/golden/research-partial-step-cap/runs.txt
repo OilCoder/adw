@@ -1,0 +1,10 @@
+$ codegen research  → exit 0
+            last words: DONE ./report.md
+  PARTIAL   las-null  .codegen/research/las-null.md  [claude-haiku-4-5]
+  las-null: PARTIAL (30 steps)
+  las-null: attempt 1 with claude-haiku-4-5
+Research summary
+[codegen] research las-null: PARTIAL with claude-haiku-4-5, report at .codegen/research/las-null.md. Last words: DONE ./report.md. Accept it or split it into new ids; the other questions keep running.
+[codegen] research run ended: 1 PARTIAL; not DONE: las-null (PARTIAL). Judge the new reports and continue.
+research STAMP-research: 1 questions, ladder claude-haiku-4-5 > claude-sonnet-5
+

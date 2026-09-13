@@ -1,0 +1,15 @@
+$ codegen build --parallel 1  → exit 0
+  FAIL            safe-divide  TIMEOUT: 
+  safe-divide: FAIL after 2 attempts
+  safe-divide: TIMEOUT (0 steps, 0 files)
+  safe-divide: TIMEOUT (0 steps, 0 files)
+  safe-divide: attempt 1 with claude-haiku-4-5
+  safe-divide: attempt 2 with claude-haiku-4-5
+0/1 contracts passed their gate.
+Build STAMP-build on branch codegen/STAMP-build: 0/1 PASS; failed: safe-divide (FAIL)
+Continue this run after fixing contracts with: node .claude/codegen.mjs build --resume [--only ids]
+[codegen] build ended: 0/1 PASS; failed: safe-divide (FAIL). Diagnose the failed ones, fix their contracts or gates, then build --resume.
+[codegen] contract safe-divide FAILED after 2 attempts; last verdict TIMEOUT: . Build so far: 0/1 PASS; failed: safe-divide (FAIL). The run continues. Diagnose it now (tail .codegen/runs/STAMP-build/safe-divide/gate-2.txt) and leave its contract or gate fixed and committed; launch nothing while the run is alive.
+board: .codegen/board.html
+build STAMP-build: 1 contracts, parallel 1, ladder claude-haiku-4-5
+

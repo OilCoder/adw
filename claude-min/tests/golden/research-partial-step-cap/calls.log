@@ -1,0 +1,1 @@
+researcher las-null call=1 model=claude-haiku-4-5 max-turns=30 mode=default allow=7 deny=2 cwd=den

@@ -1,0 +1,104 @@
+{
+  "updatedAt": "2026-09-12T17:05:00.000Z",
+  "phase": "detenido",
+  "phaseCls": "bad",
+  "phaseSub": "el build murió con contratos en curso; reanuda con --resume",
+  "alive": false,
+  "researchAlive": false,
+  "waiting": null,
+  "build": {
+    "run": "20260911T153542Z-build",
+    "passed": 18,
+    "total": 23,
+    "failed": [
+      "export-visual-wire",
+      "design-icons"
+    ],
+    "gateBroken": [
+      "design-icons"
+    ],
+    "pending": 2,
+    "running": [
+      "archive-change"
+    ],
+    "integration": {
+      "branch": "codegen/20260911T153542Z-build",
+      "merged": true
+    },
+    "closedBy": {
+      "opencode-go/glm-5.3-flash": 6,
+      "opencode/mimo-v2.5-free": 11,
+      "opencode-go/deepseek-v4-flash": 1
+    }
+  },
+  "research": {
+    "total": 14,
+    "done": 9,
+    "partial": 3,
+    "rejected": 2,
+    "alive": false
+  },
+  "cost": {
+    "total": 0,
+    "byRole": {
+      "builder": 0,
+      "researcher": 0
+    },
+    "byModel": {
+      "builder": {
+        "mimo-v2.5-free": {
+          "sessions": 28,
+          "cost": 0,
+          "ms": 0
+        },
+        "glm-5.3-flash": {
+          "sessions": 8,
+          "cost": 0,
+          "ms": 0
+        },
+        "deepseek-v4-flash": {
+          "sessions": 2,
+          "cost": 0,
+          "ms": 0
+        }
+      },
+      "researcher": {
+        "qwen3.8-flash": {
+          "sessions": 3,
+          "cost": 0,
+          "ms": 0
+        },
+        "glm-5.3-flash": {
+          "sessions": 7,
+          "cost": 0,
+          "ms": 0
+        },
+        "glm-5.3": {
+          "sessions": 1,
+          "cost": 0,
+          "ms": 0
+        },
+        "qwen3.8-max": {
+          "sessions": 1,
+          "cost": 0,
+          "ms": 0
+        },
+        "deepseek-v4-flash": {
+          "sessions": 2,
+          "cost": 0,
+          "ms": 0
+        }
+      }
+    }
+  },
+  "supervisor": null,
+  "quota": null,
+  "openai": null,
+  "lastNotify": {
+    "at": "2026-09-12T17:10:35.489Z",
+    "text": "build ended: 23/23 PASS. Tell the user it is ready to merge.",
+    "delivered": true,
+    "port": null,
+    "reason": null
+  }
+}

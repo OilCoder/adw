@@ -1,0 +1,11 @@
+board: .codegen/board.html
+build finished
+
+Build STAMP-build on branch codegen/STAMP-build: 1/3 PASS; failed: stats-mean (MERGE_CONFLICT); skipped: 1
+  MERGE_CONFLICT  stats-mean [claude-haiku-4-5, 1 attempt(s)]
+  PASS            geometry-area [claude-haiku-4-5, 1 attempt(s)]
+  SKIPPED         report  dependency failed: stats-mean
+
+1/3 contracts passed their gate.
+Continue this run after fixing contracts with: node .claude/codegen.mjs build --resume [--only ids]
+Land it with: node .claude/codegen.mjs merge --partial

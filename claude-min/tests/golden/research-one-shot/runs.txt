@@ -1,0 +1,8 @@
+$ codegen research  → exit 0
+  DONE      las-null  .codegen/research/las-null.md  [claude-haiku-4-5]  written in one go
+  las-null: DONE (6 steps, written in one go)
+  las-null: attempt 1 with claude-haiku-4-5
+Research summary
+[codegen] research run ended: 1 DONE; written in one go, never re-read (judge harder): las-null. Judge the new reports and continue.
+research STAMP-research: 1 questions, ladder claude-haiku-4-5 > claude-sonnet-5
+

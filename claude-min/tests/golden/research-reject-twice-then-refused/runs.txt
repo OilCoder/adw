@@ -1,0 +1,27 @@
+$ codegen research  → exit 0
+  DONE      las-null  .codegen/research/las-null.md  [claude-haiku-4-5]
+  las-null: DONE (3 steps)
+  las-null: attempt 1 with claude-haiku-4-5
+Research summary
+[codegen] research run ended: 1 DONE. Judge the new reports and continue.
+research STAMP-research: 1 questions, ladder claude-haiku-4-5 > claude-sonnet-5
+
+$ codegen research --reject las-null  → exit 0
+  DONE      las-null  .codegen/research/las-null.md  [claude-sonnet-5]  skipped: claude-haiku-4-5
+  las-null: DONE (3 steps)
+  las-null: attempt 1 with claude-sonnet-5
+Research summary
+[codegen] research run ended: 1 DONE. Judge the new reports and continue.
+research STAMP-research: 1 questions, ladder claude-haiku-4-5 > claude-sonnet-5 (questions skip models that already failed them)
+
+$ codegen research --reject las-null  → exit 0
+  NO_MODELS las-null  (no report)  [null]  skipped: claude-haiku-4-5, claude-sonnet-5
+  las-null: NO_MODELS (tried claude-haiku-4-5, claude-sonnet-5)
+Research summary
+[codegen] research las-null: NO_MODELS with null, no report. Accept it or split it into new ids; the other questions keep running.
+[codegen] research run ended: 1 NO_MODELS; not DONE: las-null (NO_MODELS). Judge the new reports and continue.
+research STAMP-research: 1 questions, ladder claude-haiku-4-5 > claude-sonnet-5 (questions skip models that already failed them)
+
+$ codegen research --reject las-null  → exit 1
+codegen: cannot reject las-null: no report recorded
+
