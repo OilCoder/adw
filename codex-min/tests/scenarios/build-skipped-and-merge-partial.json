@@ -1,0 +1,46 @@
+{
+  "fixture": "parallel-basic",
+  "script": {
+    "builder": {
+      "stats-mean": [
+        {
+          "files": {}
+        }
+      ],
+      "geometry-area": [
+        {
+          "files": {
+            "geometry.py": "def rect_area(width, height):\n    if width < 0 or height < 0:\n        raise ValueError(\"sides must not be negative\")\n    return float(width * height)\n"
+          }
+        }
+      ],
+      "report": [
+        {
+          "files": {
+            "report.py": "from stats import mean\nfrom geometry import rect_area\n\n\ndef summary(values, width, height):\n    return f\"mean={mean(values)} area={rect_area(width, height)}\"\n"
+          },
+          "tools": [
+            "read",
+            "read",
+            "write",
+            "edit"
+          ]
+        }
+      ]
+    }
+  },
+  "runs": [
+    [
+      "build",
+      "--parallel",
+      "3"
+    ],
+    [
+      "merge"
+    ],
+    [
+      "merge",
+      "--partial"
+    ]
+  ]
+}

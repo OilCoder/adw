@@ -1,0 +1,27 @@
+{
+  "contracts": [
+    { "id": "rewire-formula-consumer", "title": "Conectar App a la fachada pública de fórmulas", "depends_on": [] },
+    { "id": "rename-formula-parser", "title": "Dar nombre único al parser de fórmulas", "depends_on": ["rewire-formula-consumer"] },
+    { "id": "create-las-facade", "title": "Crear la fachada pública LAS ausente", "depends_on": [] },
+    { "id": "rewire-las-app-consumers", "title": "Conectar App a la fachada pública LAS", "depends_on": ["rewire-formula-consumer", "create-las-facade"] },
+    { "id": "rewire-las-benchmark-consumers", "title": "Conectar benchmarks a la fachada pública LAS", "depends_on": ["create-las-facade"] },
+    { "id": "rename-las-parser", "title": "Dar nombre único al parser LAS", "depends_on": ["rename-formula-parser", "rewire-las-app-consumers", "rewire-las-benchmark-consumers"] },
+    { "id": "split-analysis-workspace", "title": "Extraer controles compartidos y panel de calidad", "depends_on": ["rename-las-parser"] },
+    { "id": "split-analysis-processing", "title": "Extraer panel de procesamiento", "depends_on": ["split-analysis-workspace"] },
+    { "id": "split-analysis-petrophysics", "title": "Extraer panel de petrofísica", "depends_on": ["split-analysis-processing"] },
+    { "id": "split-analysis-intervals", "title": "Extraer panel de intervalos", "depends_on": ["split-analysis-petrophysics"] },
+    { "id": "split-analysis-comparison", "title": "Extraer panel de comparación", "depends_on": ["split-analysis-intervals"] },
+    { "id": "split-analysis-compose", "title": "Crear composición delgada y retirar monolito", "depends_on": ["split-analysis-comparison"] },
+    { "id": "e2e-real", "title": "Establecer gates Playwright con Chromium real", "depends_on": ["split-analysis-compose"] },
+    { "id": "wire-analysis", "title": "Conectar el análisis desde la aplicación", "depends_on": ["e2e-real"] },
+    { "id": "track-presets", "title": "Definir presets industriales por mnemónico en viewer", "depends_on": ["wire-analysis"] },
+    { "id": "wire-track-presets", "title": "Aplicar el layout industrial al cargar un LAS", "depends_on": ["track-presets"] },
+    { "id": "track-layout-stable", "title": "Estabilizar geometría, lectura y redibujo de pistas", "depends_on": ["wire-track-presets"] },
+    { "id": "export-visual-wire", "title": "Unificar la exportación visual en una implementación", "depends_on": ["track-layout-stable"] },
+    { "id": "design-icon-tooling", "title": "Autorizar e instalar lucide-react", "depends_on": ["export-visual-wire"] },
+    { "id": "design-domain-colors", "title": "Añadir tokens y primitivas visuales por dominio", "depends_on": ["design-icon-tooling"] },
+    { "id": "design-icons", "title": "Aplicar iconos y color semántico en la aplicación", "depends_on": ["design-domain-colors"] },
+    { "id": "docs-honest", "title": "Documentar únicamente capacidades expuestas y verificadas", "depends_on": ["design-icons"] },
+    { "id": "archive-change", "title": "Archivar la propuesta de cambio aplicada", "depends_on": ["docs-honest"] }
+  ]
+}

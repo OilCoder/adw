@@ -1,0 +1,88 @@
+#!/usr/bin/env node
+// A stand-in for the real `codex` binary, for tests/golden.sh: no model, no
+// network, deterministic. Put tests/fake-codex first in PATH.
+//
+//   codex exec --json --ephemeral --ignore-user-config --ignore-rules --skip-git-repo-check
+//              --sandbox workspace-write -c approval_policy=never -c web_search=… --model M
+//              --cd DIR --output-last-message FILE PROMPT
+//   codex queue --thread ID --message TEXT        (accepted, exit 0)
+//
+// plays a scripted step and prints the JSONL events codex exec prints.
+// The script comes from $FAKE_CODEX_SCRIPT (JSON): { "<agent>": { "<id>": [step, ...], "*": [...] } }
+// where <agent> is builder or researcher (told from the prompt), <id> the contract
+// or question id in the prompt, and the n-th call for that (agent, id) plays the
+// n-th step (the last one repeats); "<id>@<model>" gives one model its own script (race scenarios).
+// A step: { "files": { "path": "content" | null }, "steps": 3, "tools": ["write"],
+//           "text": "final text", "sleep": 0, "rate_limited": false,
+//           "usage": {input_tokens, cached_input_tokens, output_tokens} }.
+// Call counters live in $FAKE_CODEX_STATE.
+
+import { readFileSync, writeFileSync, mkdirSync, existsSync, appendFileSync, rmSync } from "node:fs"
+import path from "node:path"
+
+const argv = process.argv.slice(2)
+const sub = argv.shift()
+if (sub === "queue") process.exit(0)
+if (sub !== "exec") { console.error(`fake codex: unsupported command ${sub}`); process.exit(2) }
+const state = process.env.FAKE_CODEX_STATE ?? "/tmp/fake-codex-state"
+mkdirSync(state, { recursive: true })
+
+const opt = { c: [] }
+const positional = []
+for (let i = 0; i < argv.length; i++) {
+  const a = argv[i]
+  if (a === "-c") { opt.c.push(argv[i + 1]); i++ }
+  else if (["--sandbox", "--model", "--cd", "--output-last-message"].includes(a)) { opt[a.slice(2)] = argv[i + 1]; i++ }
+  else if (a.startsWith("--")) opt[a.slice(2)] = true
+  else positional.push(a)
+}
+const prompt = positional[0]
+if (prompt === undefined) { console.error("fake codex: a prompt argument is required"); process.exit(2) }
+const cwd = opt.cd ?? process.cwd()
+const agent = /Research question /.test(prompt) ? "researcher" : "builder"
+const id = (prompt.match(/contracts\/([^/]+)\/contract\.json/) ?? prompt.match(/Research question (\S+):/) ?? [])[1] ?? "*"
+const script = process.env.FAKE_CODEX_SCRIPT ? JSON.parse(readFileSync(process.env.FAKE_CODEX_SCRIPT, "utf8")) : {}
+const key = script[agent]?.[`${id}@${opt.model}`] ? `${id}@${opt.model}` : id
+const steps = script[agent]?.[key] ?? script[agent]?.["*"] ?? [{}]
+const counter = path.join(state, `${agent}.${key}.calls`)
+const n = existsSync(counter) ? Number(readFileSync(counter, "utf8")) : 0
+writeFileSync(counter, String(n + 1))
+const step = steps[Math.min(n, steps.length - 1)]
+
+const emit = (e) => process.stdout.write(JSON.stringify(e) + "\n")
+// What the harness handed this call: recorded so a golden proves which fences each role got.
+const cfg = Object.fromEntries(opt.c.map((kv) => kv.split("=")))
+const agentsMd = existsSync(path.join(cwd, "AGENTS.md")) ? readFileSync(path.join(cwd, "AGENTS.md"), "utf8").split("\n")[0].slice(0, 40) : "none"
+appendFileSync(
+  path.join(state, "calls.log"),
+  `${agent} ${id} call=${n + 1} model=${opt.model} sandbox=${opt.sandbox} approval=${cfg.approval_policy} search=${cfg.web_search} user-config=${opt["ignore-user-config"] ? "ignored" : "loaded"} agents-md="${agentsMd}" cwd=${cwd.includes("codegen-sandboxes") ? "sandbox" : cwd.includes(".work") ? "den" : "project"}\n`,
+)
+
+if (step.sleep) await new Promise((r) => setTimeout(r, step.sleep * 1000))
+emit({ type: "thread.started", thread_id: "00000000-0000-0000-0000-000000000000" })
+emit({ type: "turn.started" })
+if (step.rate_limited) {
+  emit({ type: "error", message: "Rate limit reached for this model; try again later" })
+  emit({ type: "turn.failed", error: { message: "Rate limit reached for this model; try again later" } })
+  process.exit(1)
+}
+
+const files = step.files ?? {}
+const tools = step.tools ?? Object.keys(files).map(() => "write")
+const total = step.steps ?? 3
+for (let s = 0; s < total; s++) {
+  const t = tools[s] ?? "read"
+  if (t === "write" || t === "edit")
+    emit({ type: "item.completed", item: { id: `item_${s}`, type: "file_change", changes: [{ path: path.join(cwd, Object.keys(files)[0] ?? "x"), kind: t === "write" ? "add" : "update" }], status: "completed" } })
+  else emit({ type: "item.completed", item: { id: `item_${s}`, type: "command_execution", command: "/bin/bash -lc 'cat x'", aggregated_output: "", exit_code: 0, status: "completed" } })
+}
+for (const [rel, content] of Object.entries(files)) {
+  const abs = path.join(cwd, rel)
+  if (content === null) { rmSync(abs, { force: true }); continue }
+  mkdirSync(path.dirname(abs), { recursive: true })
+  writeFileSync(abs, content)
+}
+const text = step.text ?? "DONE"
+emit({ type: "item.completed", item: { id: `item_${total}`, type: "agent_message", text } })
+if (opt["output-last-message"]) writeFileSync(opt["output-last-message"], text)
+emit({ type: "turn.completed", usage: step.usage ?? { input_tokens: 2000, cached_input_tokens: 1000, cache_write_input_tokens: 0, output_tokens: 300, reasoning_output_tokens: 50 } })

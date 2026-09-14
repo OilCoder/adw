@@ -1,0 +1,3 @@
+{"at":"TS","kind":"notify","text":"research run ended: 1 DONE. Judge the new reports and continue.","delivered":false,"thread":null,"reason":"no supervisor session in this project"}
+{"at":"TS","kind":"research","id":"las-null","question":"In the LAS 2.0 well log standard, how is the NULL value declared and how should readers treat it? Give the exact section/mnemonic.","status":"DONE","model":"gpt-5.6-luna","models":["gpt-5.6-luna"],"steps":8,"one_shot":false,"report":".codegen/research/las-null.md"}
+{"at":"TS","kind":"research-start","run":"STAMP-research","questions":[{"id":"las-null","question":"In the LAS 2.0 well log standard, how is the NULL value declared and how should readers treat it? Give the exact section/mnemonic."}]}

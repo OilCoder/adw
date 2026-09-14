@@ -1,0 +1,58 @@
+{
+  "fixture": "parallel-basic",
+  "script": {
+    "researcher": {
+      "las-null": [
+        {
+          "files": {
+            "report.md": "# las-null\n\n## Summary for contracts\n\n- NULL is declared in the ~Well section as the NULL mnemonic; readers replace it with missing.\n\n## Answer\n\nThe ~W section declares `NULL.` with a value such as -999.25.\n\n## Evidence\n\n- https://example.org/las20 \u2014 spec text, high confidence.\n\n## Open points\n\nNone.\n"
+          },
+          "tools": [
+            "write",
+            "edit"
+          ],
+          "text": "DONE ./report.md"
+        }
+      ]
+    },
+    "builder": {
+      "stats-mean": [
+        {
+          "files": {
+            "stats.py": "def mean(values):\n    if not values:\n        raise ValueError(\"values must not be empty\")\n    return sum(values) / len(values)\n"
+          }
+        }
+      ],
+      "geometry-area": [
+        {
+          "files": {
+            "geometry.py": "def rect_area(width, height):\n    if width < 0 or height < 0:\n        raise ValueError(\"sides must not be negative\")\n    return float(width * height)\n"
+          }
+        }
+      ],
+      "report": [
+        {
+          "files": {
+            "report.py": "from stats import mean\nfrom geometry import rect_area\n\n\ndef summary(values, width, height):\n    return f\"mean={mean(values)} area={rect_area(width, height)}\"\n"
+          },
+          "tools": [
+            "read",
+            "read",
+            "write",
+            "edit"
+          ]
+        }
+      ]
+    }
+  },
+  "runs": [
+    [
+      "research"
+    ],
+    [
+      "build",
+      "--parallel",
+      "2"
+    ]
+  ]
+}

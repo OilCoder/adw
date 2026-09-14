@@ -1,0 +1,20 @@
+$ codegen build --parallel 3  → exit 0
+  PASS            geometry-area [gpt-5.6-luna, 1 attempt(s)]
+  PASS            report [gpt-5.6-luna, 1 attempt(s)]
+  PASS            stats-mean [gpt-5.6-luna, 1 attempt(s)]
+  geometry-area: PASS (3 steps, 1 files, 0.015 cr)
+  geometry-area: attempt 1 with gpt-5.6-luna
+  geometry-area: merged into codegen/STAMP-build
+  report: PASS (3 steps, 1 files, 0.015 cr)
+  report: attempt 1 with gpt-5.6-luna
+  report: merged into codegen/STAMP-build
+  stats-mean: PASS (3 steps, 1 files, 0.015 cr)
+  stats-mean: attempt 1 with gpt-5.6-luna
+  stats-mean: merged into codegen/STAMP-build
+3/3 contracts passed their gate.
+Build STAMP-build on branch codegen/STAMP-build: 3/3 PASS
+Land it with: node .codex/codegen.mjs merge
+[codegen] build ended: 3/3 PASS. Tell the user it is ready to merge.
+board: .codegen/board.html
+build STAMP-build: 3 contracts, parallel 3, ladder gpt-5.6-luna > gpt-5.6-terra
+

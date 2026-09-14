@@ -1,0 +1,19 @@
+# The supervisor's Codex session in this project (loaded once the project is
+# trusted: Codex asks the first time you open it here). Prompt and permissions
+# must agree, or the model improvises: .codex/instructions/supervisor.md says
+# what the profile below enforces.
+model = "gpt-6-astra"
+model_reasoning_effort = "medium"
+approval_policy = "on-request"
+default_permissions = "supervisor"
+
+[permissions.supervisor]
+description = "Supervisor: writes .codegen and wiki, reads everything else"
+extends = ":workspace"
+
+[permissions.supervisor.filesystem.":workspace_roots"]
+"." = "write"
+"src" = "read"
+"tests" = "read"
+".codex" = "read"
+"AGENTS.md" = "read"

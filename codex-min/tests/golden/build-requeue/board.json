@@ -1,0 +1,57 @@
+{
+  "phase": "parado",
+  "phaseCls": "",
+  "phaseSub": "sin actividad registrada",
+  "alive": false,
+  "researchAlive": false,
+  "waiting": null,
+  "build": {
+    "run": "STAMP-build",
+    "passed": 3,
+    "total": 3,
+    "failed": [],
+    "gateBroken": [],
+    "pending": 0,
+    "running": [],
+    "integration": {
+      "branch": "codegen/STAMP-build",
+      "merged": false
+    },
+    "closedBy": {
+      "gpt-5.6-luna": 3
+    }
+  },
+  "research": {
+    "total": 0,
+    "done": 0,
+    "partial": 0,
+    "rejected": 0,
+    "alive": false
+  },
+  "cost": {
+    "total": 0.043500000000000004,
+    "byRole": {
+      "builder": 0.043500000000000004,
+      "researcher": 0
+    },
+    "byModel": {
+      "builder": {
+        "gpt-5.6-luna": {
+          "sessions": 3,
+          "cost": 0.043500000000000004,
+        }
+      },
+      "researcher": {}
+    }
+  },
+  "supervisor": null,
+  "quota": null,
+  "openai": null,
+  "claude": null,
+  "lastNotify": {
+    "text": "build ended: 3/3 PASS. Tell the user it is ready to merge.",
+    "delivered": false,
+    "port": null,
+    "reason": "no supervisor session in this project"
+  }
+}

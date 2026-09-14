@@ -1,0 +1,6 @@
+{"at":"TS","kind":"build-end","run":"STAMP-build","passed":3,"total":3}
+{"at":"TS","kind":"build-start","run":"STAMP-build","integration":"codegen/STAMP-build","contracts":3,"only":null,"parallel":3}
+{"at":"TS","kind":"contract","id":"geometry-area","status":"PASS","title":"rect_area","objective":"Implement rect_area in geometry.py; raise ValueError('sides must not be negative') when a side is negative.","model":"gpt-5.6-luna","models":["gpt-5.6-luna"],"attempts":1,"files":1}
+{"at":"TS","kind":"contract","id":"report","status":"PASS","title":"summary","objective":"Implement summary in report.py using stats.mean and geometry.rect_area, formatted exactly as 'mean=<mean> area=<area>'.","model":"gpt-5.6-luna","models":["gpt-5.6-luna"],"attempts":1,"files":1}
+{"at":"TS","kind":"contract","id":"stats-mean","status":"PASS","title":"mean","objective":"Implement mean in stats.py; raise ValueError('values must not be empty') on an empty list.","model":"gpt-5.6-luna","models":["gpt-5.6-luna"],"attempts":1,"files":1}
+{"at":"TS","kind":"notify","text":"build ended: 3/3 PASS. Tell the user it is ready to merge.","delivered":false,"thread":null,"reason":"no supervisor session in this project"}

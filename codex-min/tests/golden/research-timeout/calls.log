@@ -1,0 +1,2 @@
+researcher las-null call=1 model=gpt-5.6-luna sandbox=workspace-write approval=never search=live user-config=ignored agents-md="You are the Researcher for exactly one q" cwd=den
+researcher las-null call=2 model=gpt-5.6-terra sandbox=workspace-write approval=never search=live user-config=ignored agents-md="You are the Researcher for exactly one q" cwd=den

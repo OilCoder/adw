@@ -1,0 +1,28 @@
+{
+  "fixture": "parallel-basic",
+  "script": {
+    "researcher": {
+      "las-null": [
+        {
+          "files": {
+            "report.md": "# las-null\n\n## Answer\n\nThe NULL value is declared in the well section. This paragraph is long enough to count as a written report, well past the two hundred character threshold the script uses to tell a report from an empty file. This paragraph is long enough to count as a written report, well past the two hundred character threshold the script uses to tell a report from an empty file. \n\n## Open points\n\nSummary missing.\n"
+          },
+          "tools": [
+            "write"
+          ],
+          "text": "PARTIAL ./report.md missing summary"
+        }
+      ]
+    }
+  },
+  "runs": [
+    [
+      "research"
+    ],
+    [
+      "research",
+      "--reject",
+      "las-null"
+    ]
+  ]
+}

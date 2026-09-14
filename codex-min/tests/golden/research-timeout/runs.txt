@@ -1,0 +1,12 @@
+$ codegen research  → exit 0
+  TIMEOUT   las-null  (no report)  [gpt-5.6-terra]  skipped: gpt-5.6-luna, gpt-5.6-terra
+  las-null: TIMEOUT (0 steps)
+  las-null: TIMEOUT (0 steps)
+  las-null: TIMEOUT (tried gpt-5.6-luna, gpt-5.6-terra)
+  las-null: attempt 1 with gpt-5.6-luna
+  las-null: attempt 2 with gpt-5.6-terra
+Research summary
+[codegen] research las-null: TIMEOUT with gpt-5.6-terra, no report. Accept it or split it into new ids; the other questions keep running.
+[codegen] research run ended: 1 TIMEOUT; not DONE: las-null (TIMEOUT). Judge the new reports and continue.
+research STAMP-research: 1 questions, ladder gpt-5.6-luna > gpt-5.6-terra
+

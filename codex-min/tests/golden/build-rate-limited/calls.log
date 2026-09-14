@@ -1,0 +1,2 @@
+builder safe-divide call=1 model=gpt-5.6-luna sandbox=workspace-write approval=never search=disabled user-config=ignored agents-md="You are the Builder for exactly one cont" cwd=sandbox
+builder safe-divide call=2 model=gpt-5.6-terra sandbox=workspace-write approval=never search=disabled user-config=ignored agents-md="You are the Builder for exactly one cont" cwd=sandbox

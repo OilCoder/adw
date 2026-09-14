@@ -1,0 +1,4 @@
+no build run yet
+
+Research summary
+  NO_REPORT las-null  (no report)  [gpt-5.6-terra]  skipped: gpt-5.6-luna, gpt-5.6-terra

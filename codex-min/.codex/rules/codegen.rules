@@ -1,0 +1,18 @@
+# Execution policy of the supervisor's session (Starlark; Codex loads
+# <repo>/.codex/rules/*.rules once the project is trusted). The most
+# restrictive matching decision wins.
+#
+# research and build spawn `codex exec` agents that need ~/.codex and the
+# network, which the sandbox denies: the supervisor runs them escalated and
+# these rules approve that without a prompt; merge writes .git, which the
+# sandbox protects. status, structure and board run inside the sandbox.
+prefix_rule(pattern=["node", ".codex/codegen.mjs", "research"], decision="allow", justification="research spawns codex exec agents outside the sandbox")
+prefix_rule(pattern=["node", ".codex/codegen.mjs", "build"], decision="allow", justification="build spawns codex exec agents outside the sandbox")
+prefix_rule(pattern=["node", ".codex/codegen.mjs", "merge"], decision="allow", justification="merge fast-forwards the user's branch (.git)")
+
+# What the supervisor must never do by hand: the script lands work with
+# `merge`, and nothing is deleted or pushed from this session.
+prefix_rule(pattern=["git", "merge"], decision="forbidden", justification="landing is `node .codex/codegen.mjs merge`")
+prefix_rule(pattern=["git", "push"], decision="forbidden", justification="the user pushes")
+prefix_rule(pattern=["git", "reset"], decision="forbidden", justification="never rewrite history from the supervisor")
+prefix_rule(pattern=["rm"], decision="forbidden", justification="the supervisor deletes nothing")

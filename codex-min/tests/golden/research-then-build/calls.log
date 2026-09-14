@@ -1,0 +1,4 @@
+builder geometry-area call=1 model=gpt-5.6-luna sandbox=workspace-write approval=never search=disabled user-config=ignored agents-md="You are the Builder for exactly one cont" cwd=sandbox
+builder report call=1 model=gpt-5.6-luna sandbox=workspace-write approval=never search=disabled user-config=ignored agents-md="You are the Builder for exactly one cont" cwd=sandbox
+builder stats-mean call=1 model=gpt-5.6-luna sandbox=workspace-write approval=never search=disabled user-config=ignored agents-md="You are the Builder for exactly one cont" cwd=sandbox
+researcher las-null call=1 model=gpt-5.6-luna sandbox=workspace-write approval=never search=live user-config=ignored agents-md="You are the Researcher for exactly one q" cwd=den

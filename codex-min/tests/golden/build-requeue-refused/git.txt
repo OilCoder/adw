@@ -1,0 +1,7 @@
+codegen/STAMP-build
+master
+== codegen/STAMP-build
+codegen(geometry-area): Implement rect_area in geometry.py; raise ValueError('sides must not be negative') when a side is negative.
+fixture
+== master
+fixture

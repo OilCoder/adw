@@ -1,0 +1,23 @@
+{
+  "fixture": "parallel-basic",
+  "models": {
+    "timeouts_seconds": {
+      "researcher": 2
+    }
+  },
+  "script": {
+    "researcher": {
+      "las-null": [
+        {
+          "sleep": 6,
+          "files": {}
+        }
+      ]
+    }
+  },
+  "runs": [
+    [
+      "research"
+    ]
+  ]
+}

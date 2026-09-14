@@ -1,0 +1,18 @@
+{
+  "fixture": "parallel-basic",
+  "script": {
+    "researcher": {
+      "las-null": [
+        {
+          "files": {},
+          "text": "I could not find it."
+        }
+      ]
+    }
+  },
+  "runs": [
+    [
+      "research"
+    ]
+  ]
+}

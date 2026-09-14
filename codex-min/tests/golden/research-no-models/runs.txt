@@ -1,0 +1,20 @@
+$ codegen research  → exit 0
+  NO_REPORT las-null  (no report)  [gpt-5.6-terra]  skipped: gpt-5.6-luna, gpt-5.6-terra
+  las-null: NO_REPORT (3 steps)
+  las-null: NO_REPORT (3 steps)
+  las-null: NO_REPORT (tried gpt-5.6-luna, gpt-5.6-terra)
+  las-null: attempt 1 with gpt-5.6-luna
+  las-null: attempt 2 with gpt-5.6-terra
+Research summary
+[codegen] research las-null: NO_REPORT with gpt-5.6-terra, no report. Last words: I could not find it.. Accept it or split it into new ids; the other questions keep running.
+[codegen] research run ended: 1 NO_REPORT; not DONE: las-null (NO_REPORT). Judge the new reports and continue.
+research STAMP-research: 1 questions, ladder gpt-5.6-luna > gpt-5.6-terra
+
+$ codegen research  → exit 0
+  NO_MODELS las-null  (no report)  [null]  skipped: gpt-5.6-luna, gpt-5.6-terra
+  las-null: NO_MODELS (tried gpt-5.6-luna, gpt-5.6-terra)
+Research summary
+[codegen] research las-null: NO_MODELS with null, no report. Accept it or split it into new ids; the other questions keep running.
+[codegen] research run ended: 1 NO_MODELS; not DONE: las-null (NO_MODELS). Judge the new reports and continue.
+research STAMP-research: 1 questions, ladder gpt-5.6-luna > gpt-5.6-terra
+

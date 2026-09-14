@@ -1,0 +1,7 @@
+builder geometry-area call=1 model=gpt-5.6-luna sandbox=workspace-write approval=never search=disabled user-config=ignored agents-md="You are the Builder for exactly one cont" cwd=sandbox
+builder stats-mean call=1 model=gpt-5.6-luna sandbox=workspace-write approval=never search=disabled user-config=ignored agents-md="You are the Builder for exactly one cont" cwd=sandbox
+builder stats-mean call=2 model=gpt-5.6-terra sandbox=workspace-write approval=never search=disabled user-config=ignored agents-md="You are the Builder for exactly one cont" cwd=sandbox
+builder stats-mean call=3 model=gpt-5.6-luna sandbox=workspace-write approval=never search=disabled user-config=ignored agents-md="You are the Builder for exactly one cont" cwd=sandbox
+builder stats-mean call=4 model=gpt-5.6-terra sandbox=workspace-write approval=never search=disabled user-config=ignored agents-md="You are the Builder for exactly one cont" cwd=sandbox
+builder stats-mean call=5 model=gpt-5.6-luna sandbox=workspace-write approval=never search=disabled user-config=ignored agents-md="You are the Builder for exactly one cont" cwd=sandbox
+builder stats-mean call=6 model=gpt-5.6-terra sandbox=workspace-write approval=never search=disabled user-config=ignored agents-md="You are the Builder for exactly one cont" cwd=sandbox

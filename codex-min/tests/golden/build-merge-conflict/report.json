@@ -1,0 +1,54 @@
+{
+  "run": "STAMP-build",
+  "integration": "codegen/STAMP-build",
+  "user_branch": "master",
+  "contracts": {
+    "stats-mean": {
+      "status": "MERGE_CONFLICT",
+      "model": "gpt-5.6-luna",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "gpt-5.6-luna",
+          "verdict": "PASS",
+          "steps": 3,
+          "cost": 0.0145,
+          "files": [
+            "shared.txt",
+            "stats.py"
+          ],
+          "detail": ""
+        }
+      ],
+      "reason": "",
+      "branch": "codegen/STAMP-build-stats-mean",
+      "patch": ".codegen/runs/STAMP-build/stats-mean/candidate.diff"
+    },
+    "geometry-area": {
+      "status": "PASS",
+      "model": "gpt-5.6-luna",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "gpt-5.6-luna",
+          "verdict": "PASS",
+          "steps": 3,
+          "cost": 0.0145,
+          "files": [
+            "geometry.py",
+            "shared.txt"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "geometry.py",
+        "shared.txt"
+      ],
+    },
+    "report": {
+      "status": "SKIPPED",
+      "reason": "dependency failed: stats-mean"
+    }
+  }
+}

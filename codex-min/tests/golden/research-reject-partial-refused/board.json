@@ -1,0 +1,52 @@
+{
+  "phase": "parado",
+  "phaseCls": "",
+  "phaseSub": "sin actividad registrada",
+  "alive": false,
+  "researchAlive": false,
+  "waiting": null,
+  "build": {
+    "run": null,
+    "passed": 0,
+    "total": 3,
+    "failed": [],
+    "gateBroken": [],
+    "pending": 3,
+    "running": [],
+    "integration": null,
+    "closedBy": {}
+  },
+  "research": {
+    "total": 1,
+    "done": 0,
+    "partial": 1,
+    "rejected": 0,
+    "alive": false
+  },
+  "cost": {
+    "total": 0.0145,
+    "byRole": {
+      "builder": 0,
+      "researcher": 0.0145
+    },
+    "byModel": {
+      "builder": {},
+      "researcher": {
+        "gpt-5.6-luna": {
+          "sessions": 1,
+          "cost": 0.0145,
+        }
+      }
+    }
+  },
+  "supervisor": null,
+  "quota": null,
+  "openai": null,
+  "claude": null,
+  "lastNotify": {
+    "text": "research run ended: 1 PARTIAL; written in one go, never re-read (judge harder): las-null; not DONE: las-null (PARTIAL). Judge the new reports and continue.",
+    "delivered": false,
+    "port": null,
+    "reason": "no supervisor session in this project"
+  }
+}

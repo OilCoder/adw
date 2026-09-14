@@ -1,0 +1,20 @@
+{
+  "run": "STAMP-research",
+  "results": {
+    "las-null": {
+      "status": "NO_REPORT",
+      "model": "gpt-5.6-terra",
+      "attempt": 2,
+      "steps": 3,
+      "cost": 0.145,
+      "one_shot": false,
+      "report": null,
+      "final": "I could not find it.",
+      "run": "STAMP-research",
+      "rejected": [
+        "gpt-5.6-luna",
+        "gpt-5.6-terra"
+      ]
+    }
+  }
+}

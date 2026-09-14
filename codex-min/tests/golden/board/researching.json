@@ -1,0 +1,105 @@
+{
+  "updatedAt": "2026-09-12T17:05:00.000Z",
+  "phase": "investigando",
+  "phaseCls": "run",
+  "phaseSub": "desde 16:53 · 12 min · 2 preguntas",
+  "alive": false,
+  "researchAlive": true,
+  "waiting": null,
+  "build": {
+    "run": "20260911T153542Z-build",
+    "passed": 18,
+    "total": 23,
+    "failed": [
+      "export-visual-wire",
+      "design-icons"
+    ],
+    "gateBroken": [
+      "design-icons"
+    ],
+    "pending": 2,
+    "running": [
+      "archive-change"
+    ],
+    "integration": {
+      "branch": "codegen/20260911T153542Z-build",
+      "merged": null
+    },
+    "closedBy": {
+      "opencode-go/glm-5.3-flash": 6,
+      "opencode/mimo-v2.5-free": 11,
+      "opencode-go/deepseek-v4-flash": 1
+    }
+  },
+  "research": {
+    "total": 14,
+    "done": 9,
+    "partial": 3,
+    "rejected": 2,
+    "alive": true
+  },
+  "cost": {
+    "total": 4.61,
+    "byRole": {
+      "builder": 3.2,
+      "researcher": 1.41
+    },
+    "byModel": {
+      "builder": {
+        "glm-5.3-flash": {
+          "sessions": 12,
+          "cost": 2.1,
+          "input": 1000000,
+          "output": 200000,
+          "ms": 3600000
+        },
+        "mimo-v2.5-free": {
+          "sessions": 5,
+          "cost": 0,
+          "input": 400000,
+          "output": 80000,
+          "ms": 600000
+        }
+      },
+      "researcher": {
+        "glm-5.3-flash": {
+          "sessions": 4,
+          "cost": 1.41,
+          "input": 500000,
+          "output": 90000,
+          "ms": 1200000
+        }
+      }
+    }
+  },
+  "supervisor": {
+    "sessionId": "ses_fixed",
+    "title": "Desarrollo profesional de visor de registros",
+    "slug": "quiet-knight",
+    "lastAt": "2026-09-12T17:04:00.000Z",
+    "lastKind": "tool"
+  },
+  "quota": null,
+  "openai": {
+    "at": "2026-09-12T17:03:00.000Z",
+    "plan": "pro",
+    "rolling": {
+      "percent": 23.5,
+      "limited": false,
+      "resetsAt": "2026-09-12T19:05:00.000Z"
+    },
+    "weekly": {
+      "percent": 41.2,
+      "limited": false,
+      "resetsAt": "2026-09-16T04:25:00.000Z"
+    }
+  },
+  "claude": null,
+  "lastNotify": {
+    "at": "2026-09-12T17:10:35.489Z",
+    "text": "build ended: 23/23 PASS. Tell the user it is ready to merge.",
+    "delivered": true,
+    "port": null,
+    "reason": null
+  }
+}

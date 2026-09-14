@@ -1,0 +1,46 @@
+{
+  "run": "STAMP-build",
+  "integration": "codegen/STAMP-build",
+  "user_branch": "master",
+  "contracts": {
+    "stats-mean": {
+      "status": "FAIL",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "gpt-5.6-luna",
+          "verdict": "NO_CHANGES",
+          "steps": 2,
+          "cost": 0.0145,
+          "files": [],
+          "detail": "BLOCKED\nnone\nnot run\nmissing decision"
+        }
+      ],
+      "reason": "NO_CHANGES: BLOCKED\nnone\nnot run\nmissing decision"
+    },
+    "geometry-area": {
+      "status": "PASS",
+      "model": "gpt-5.6-luna",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "gpt-5.6-luna",
+          "verdict": "PASS",
+          "steps": 3,
+          "cost": 0.0145,
+          "files": [
+            "geometry.py"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "geometry.py"
+      ],
+    },
+    "report": {
+      "status": "SKIPPED",
+      "reason": "dependency failed: stats-mean"
+    }
+  }
+}

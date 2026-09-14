@@ -1,0 +1,22 @@
+{
+  "run": "STAMP-build",
+  "integration": "codegen/STAMP-build",
+  "user_branch": "master",
+  "contracts": {
+    "safe-divide": {
+      "status": "FAIL",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "gpt-5.6-luna",
+          "verdict": "TIMEOUT",
+          "steps": 0,
+          "cost": null,
+          "files": [],
+          "detail": ""
+        }
+      ],
+      "reason": "TIMEOUT: "
+    }
+  }
+}

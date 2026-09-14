@@ -1,0 +1,25 @@
+{
+  "_comment": "OpenAI models for Codex, cheapest first. Every call runs through `codex exec` on the user's ChatGPT subscription; the cost the board shows is what the API would have charged, in the credits of the Codex pricing page (`prices`, per million tokens: input, cached input, output; luna 5/0.5/30, terra 50/5/300, sol 100/10/500, astra 250/25/1250, read 2026-09-14), the subscription charges quota. Luna is the cheap model: it does the building and the research; Terra is the rescue rung. Astra is the supervisor (the TUI session, set in .codex/config.toml) and is deliberately out of the ladder: a contract that Luna and Terra both fail is a wrong contract or gate. Each contract or question starts at the first model and climbs at most max_models_per_item rungs, two attempts per rung. Edit by hand. A ladder entry may be a group (array) of models: one rung, raced by builders and tried one by one by researchers. timeouts_seconds.silence: no output at all in that many seconds drops the model at once (NO_RESPONSE), not remembered as a failure.",
+  "researcher": [
+    "gpt-5.6-luna",
+    "gpt-5.6-terra"
+  ],
+  "builder": [
+    "gpt-5.6-luna",
+    "gpt-5.6-terra"
+  ],
+  "max_models_per_item": 2,
+  "prices": {
+    "gpt-5.6-luna": { "input": 5, "cached": 0.5, "output": 30 },
+    "gpt-5.6-terra": { "input": 50, "cached": 5, "output": 300 },
+    "gpt-5.6-sol": { "input": 100, "cached": 10, "output": 500 },
+    "gpt-6-astra": { "input": 250, "cached": 25, "output": 1250 }
+  },
+  "timeouts_seconds": {
+    "researcher": 600,
+    "builder": 900,
+    "gate": 300,
+    "install": 600,
+    "silence": 90
+  }
+}

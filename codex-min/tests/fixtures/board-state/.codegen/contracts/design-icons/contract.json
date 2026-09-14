@@ -1,0 +1,1 @@
+{ "objective": "Add lucide-react and one icon per domain colour in src/design/icons.tsx.", "read": ["src/design/colors.ts"], "allowed_to_modify": ["src/design/**"], "protected": ["tests/**"], "requirements": [{ "id": "R1", "statement": "Export an icon per domain." }], "gate": "bash .codegen/contracts/design-icons/gate.sh" }

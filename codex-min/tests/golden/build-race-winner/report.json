@@ -1,0 +1,38 @@
+{
+  "run": "STAMP-build",
+  "integration": "codegen/STAMP-build",
+  "user_branch": "master",
+  "contracts": {
+    "safe-divide": {
+      "status": "PASS",
+      "model": "gpt-5.6-terra",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "gpt-5.6-luna",
+          "verdict": "GATE_FAIL",
+          "steps": 3,
+          "cost": 0.0145,
+          "files": [
+            "calculator.py"
+          ],
+          "detail": "\ntest_divides_evenly (test_calculator.SafeDivideTests.test_divides_evenly) ... ok\ntest_preserves_fraction (test_calculator.SafeDivideTests.test_preserves_fraction) ... ok\ntest_rejects_zero_divisor (test_calculator.SafeDivideTests.test_rejects_zero_divisor) ... ERROR\n\n======================================================================\nERROR: test_rejects_zero_divisor (test_calculator.SafeDivideTests.test_rejects_zero_divisor)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"$SANDBOXES/safe-divide-1/tests/test_calculator.py\", line 15, in test_rejects_zero_divisor\n    safe_divide(5, 0)\n  File \"$SANDBOXES/safe-divide-1/calculator.py\", line 2, in safe_divide\n    return dividend / divisor\n           ~~~~~~~~~^~~~~~~~~\nZeroDivisionError: division by zero\n\n----------------------------------------------------------------------\nRan 3 tests in Xs\n\nFAILED (errors=1)\n"
+        },
+        {
+          "attempt": 2,
+          "model": "gpt-5.6-terra",
+          "verdict": "PASS",
+          "steps": 4,
+          "cost": 0.145,
+          "files": [
+            "calculator.py"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "calculator.py"
+      ],
+    }
+  }
+}

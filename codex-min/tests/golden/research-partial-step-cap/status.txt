@@ -1,0 +1,5 @@
+no build run yet
+
+Research summary
+  PARTIAL   las-null  .codegen/research/las-null.md  [gpt-5.6-luna]
+            last words: DONE ./report.md

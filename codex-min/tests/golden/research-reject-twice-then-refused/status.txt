@@ -1,0 +1,4 @@
+no build run yet
+
+Research summary
+  NO_MODELS las-null  (no report)  [null]  skipped: gpt-5.6-luna, gpt-5.6-terra

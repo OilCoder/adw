@@ -1,0 +1,17 @@
+{
+  "run": "STAMP-research",
+  "results": {
+    "las-null": {
+      "status": "DONE",
+      "model": "gpt-5.6-luna",
+      "attempt": 1,
+      "steps": 8,
+      "cost": 0.0145,
+      "one_shot": false,
+      "report": ".codegen/research/las-null.md",
+      "final": "Report written.\nDONE .codegen/research/las-null.md",
+      "run": "STAMP-research",
+      "rejected": []
+    }
+  }
+}

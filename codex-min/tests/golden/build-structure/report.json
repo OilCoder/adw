@@ -1,0 +1,39 @@
+{
+  "run": "STAMP-build",
+  "integration": "codegen/STAMP-build",
+  "user_branch": "master",
+  "contracts": {
+    "safe-divide": {
+      "status": "PASS",
+      "model": "gpt-5.6-luna",
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "gpt-5.6-luna",
+          "verdict": "STRUCTURE",
+          "steps": 3,
+          "cost": 0.0145,
+          "files": [
+            "calculator.py",
+            "tmp.py"
+          ],
+          "detail": "tmp.py: provisional file"
+        },
+        {
+          "attempt": 2,
+          "model": "gpt-5.6-luna",
+          "verdict": "PASS",
+          "steps": 5,
+          "cost": 0.0145,
+          "files": [
+            "calculator.py"
+          ],
+          "detail": ""
+        }
+      ],
+      "files": [
+        "calculator.py"
+      ],
+    }
+  }
+}

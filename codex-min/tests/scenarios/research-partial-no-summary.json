@@ -1,0 +1,23 @@
+{
+  "fixture": "parallel-basic",
+  "script": {
+    "researcher": {
+      "las-null": [
+        {
+          "files": {
+            "report.md": "# las-null\n\n## Summary\n\n- NULL is declared in the ~Well section as the NULL mnemonic; readers replace it with missing.\n\n## Answer\n\nThe ~W section declares `NULL.` with a value such as -999.25.\n\n## Evidence\n\n- https://example.org/las20 \u2014 spec text, high confidence.\n\n## Open points\n\nNone.\n"
+          },
+          "tools": [
+            "write"
+          ],
+          "text": "DONE ./report.md"
+        }
+      ]
+    }
+  },
+  "runs": [
+    [
+      "research"
+    ]
+  ]
+}
