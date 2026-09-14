@@ -67,8 +67,10 @@ cheap one keeps failing in a project, move it down in `models.json`.
 - `node .opencode/codegen.mjs build [--parallel N, default 4] [--only id,id] [--resume]`:
   commits `.codegen/` and `wiki/` (seal: the supervisor has no git of its own), creates branch `codegen/<run>`, builds each
   contract in its own worktree, checks scope and protected paths, reruns the
-  gate independently, retries once with the gate output as evidence, then
-  moves to the next model, merges passing contracts into the branch.
+  gate independently, retries once with the gate output as evidence (not
+  after NO_CHANGES or TIMEOUT: a model that wrote nothing does not write on
+  a second try), then moves to the next model, merges passing contracts
+  into the branch.
   The script wakes the supervisor by sending `[codegen] …` messages into
   its session through the local OpenCode server (`opencode --port`, default
   4096, `OPENCODE_PORT` to change it; the TUI must be started as
@@ -82,7 +84,11 @@ cheap one keeps failing in a project, move it down in `models.json`.
   `--resume` continues the current run on its integration branch: contracts
   that already passed stay passed, the user's new commits (fixed gates,
   harness updates) are merged into that branch first, and `--only` limits
-  which pending contracts run. Never start a fresh `build` to continue
+  which pending contracts run. While the run is still alive, `--resume`
+  queues the fixed contracts into it instead (and new ids of `plan.json`);
+  a failed contract whose files did not change is refused. After a FAIL
+  notice reached the supervisor, the run stays open for one builder timeout
+  waiting for that queue before it ends. Never start a fresh `build` to continue
   partial work: a fresh run starts from the user's branch, which does not
   contain the previous run's passed contracts until the user merges them.
 - `node .opencode/codegen.mjs status`: report of the current run plus the

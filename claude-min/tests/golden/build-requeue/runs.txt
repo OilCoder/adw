@@ -1,0 +1,30 @@
+$ codegen (5s) build --resume --only stats-mean  → exit 0
+queued into the live run STAMP-build: stats-mean (picked up when a builder slot frees)
+sealed .codegen and the harness into a commit
+
+$ codegen build --parallel 3  → exit 0
+  PASS            geometry-area [claude-haiku-4-5, 1 attempt(s)]
+  PASS            report [claude-haiku-4-5, 1 attempt(s)]
+  PASS            stats-mean [claude-haiku-4-5, 1 attempt(s)]
+  geometry-area: PASS (3 steps, 1 files, $0.010)
+  geometry-area: attempt 1 with claude-haiku-4-5
+  geometry-area: merged into codegen/STAMP-build
+  report: PASS (3 steps, 1 files, $0.010)
+  report: attempt 1 with claude-haiku-4-5
+  report: merged into codegen/STAMP-build
+  stats-mean: FAIL after 1 attempts
+  stats-mean: NO_CHANGES (2 steps, 0 files, $0.010)
+  stats-mean: PASS (3 steps, 1 files, $0.010)
+  stats-mean: attempt 1 with claude-haiku-4-5
+  stats-mean: attempt 1 with claude-haiku-4-5
+  stats-mean: claude-haiku-4-5 wrote nothing, next model
+  stats-mean: merged into codegen/STAMP-build
+3/3 contracts passed their gate.
+Build STAMP-build on branch codegen/STAMP-build: 3/3 PASS
+Land it with: node .claude/codegen.mjs merge
+[codegen] build ended: 3/3 PASS. Tell the user it is ready to merge.
+[codegen] contract stats-mean FAILED after 1 attempts; last verdict NO_CHANGES: missing decision. Build so far: <state>. The run continues. Diagnose it now (tail .codegen/runs/STAMP-build/stats-mean/gate-1.txt), fix its contract or gate, then build --resume --only stats-mean: it queues the fix into this run (refused if nothing changed).
+board: .codegen/board.html
+build STAMP-build: 3 contracts, parallel 3, ladder claude-haiku-4-5
+requeue: stats-mean back in the queue with the user's fixes
+

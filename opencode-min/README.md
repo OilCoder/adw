@@ -42,7 +42,14 @@ The supervisor decomposes the idea, writes questions, plan, contracts and
 gates under `.codegen/`, and launches the script. It never edits product
 files. Builders can only edit paths their contract allows; the script checks
 scope, protected paths and the gate after every attempt, retries once with the
-gate output as evidence, then moves to the next model in the list.
+gate output as evidence (not after NO_CHANGES or TIMEOUT: measured over seven
+projects, that retry passed 8 % of the time against 64 % after GATE_FAIL),
+then moves to the next model in the list. A contract that fails for good
+does not end the run: the supervisor fixes it and `build --resume --only <id>`
+queues it into the live run (refused if nothing changed); after a delivered
+FAIL notice the run waits one builder timeout for that fix before ending.
+Measured before this: 8 to 17 rounds per project and 5 to 8 hours of gaps
+between them.
 
 A ladder entry is a model or a group of models (a JSON array): one rung
 either way, so `max_models_per_item` can never be eaten up by free models
@@ -82,7 +89,7 @@ FIXTURE=parallel-basic CMD=research bash smoke.sh               # one real resea
 ## Behaviour freeze (no models, seconds)
 
 ```bash
-bash tests/check.sh            # syntax, prompt/permission lint, board golden, 29 scenario goldens
+bash tests/check.sh            # syntax, prompt/permission lint, board golden, 31 scenario goldens
 bash tests/golden.sh --update  # after an intended change of behaviour, rewrite the goldens
 bash tests/golden-board.sh --update   # after an intended change of the board's HTML
 ```
@@ -93,8 +100,8 @@ installed ladder unless a scenario brings its own `models`, so the 24 original
 scenarios still test one model per rung); the verdicts PASS, GATE_FAIL,
 OUT_OF_SCOPE, PROTECTED_TOUCHED, STRUCTURE, NO_CHANGES, TIMEOUT, NO_RESPONSE, LOST,
 GATE_TRIVIAL, GATE BROKEN, MERGE_CONFLICT, SKIPPED, DONE, PARTIAL, NO_REPORT, NO_MODELS,
-one-shot, the reject refusals, resume, merge, the race (winner, loser killed, all lose
-then the paid rung) and a research group each have a scenario whose normalized outputs live in `tests/golden/`
+one-shot, the reject refusals, resume, merge, requeue into a live run (accepted and refused),
+the race (winner, loser killed, all lose then the paid rung) and a research group each have a scenario whose normalized outputs live in `tests/golden/`
 (INSTALL_FAILED and ERROR do not). Run `check.sh` before and after touching any `.mjs`.
 
 ## Following a run

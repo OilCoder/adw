@@ -56,7 +56,11 @@ background; the tool wakes it with the whole output when a run ends. It never
 edits product files: `.claude/settings.json` (installed) denies it. Builders
 can only edit paths their contract allows; the script checks scope, protected
 paths and the gate after every attempt, retries once with the gate output as
-evidence, then moves to the next model in the list. A model that only answers
+evidence (not after NO_CHANGES or TIMEOUT: measured over seven projects, that
+retry passed 8 % of the time against 64 % after GATE_FAIL), then moves to the
+next model in the list. A contract that fails for good does not end the run:
+the supervisor fixes it and `build --resume --only <id>` queues it into the
+live run (refused if nothing changed) while other contracts still build. A model that only answers
 rate-limit retries, or prints nothing at all for `timeouts_seconds.silence`
 seconds (90), is skipped at once (`RATE_LIMITED` / `NO_RESPONSE`), not after
 the timeout, and not held against it. A ladder entry may be a group (a JSON
@@ -91,7 +95,7 @@ variable for its own children.
 ## Behaviour freeze (no models, seconds)
 
 ```bash
-bash tests/check.sh            # syntax, prompt/permission lint, board golden, 30 scenario goldens
+bash tests/check.sh            # syntax, prompt/permission lint, board golden, 32 scenario goldens
 bash tests/golden.sh --update  # after an intended change of behaviour, rewrite the goldens
 bash tests/golden-board.sh --update   # after an intended change of the board's HTML
 ```

@@ -1,0 +1,4 @@
+builder geometry-area call=1 model=opencode/mimo-v2.5-free cwd=$SANDBOXES/geometry-area
+builder report call=1 model=opencode/mimo-v2.5-free cwd=$SANDBOXES/report
+builder stats-mean call=1 model=opencode/mimo-v2.5-free cwd=$SANDBOXES/stats-mean
+builder stats-mean call=2 model=opencode/mimo-v2.5-free cwd=$SANDBOXES/stats-mean

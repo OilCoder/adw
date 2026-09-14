@@ -1,0 +1,28 @@
+$ codegen (5s) build --resume --only stats-mean  → exit 0
+queued into the live run STAMP-build: stats-mean (picked up when a builder slot frees)
+sealed .codegen and the harness into a commit
+
+$ codegen build --parallel 3  → exit 0
+  PASS            geometry-area [mimo-v2.5-free, 1 attempt(s)]
+  PASS            report [mimo-v2.5-free, 1 attempt(s)]
+  PASS            stats-mean [mimo-v2.5-free, 1 attempt(s)]
+  geometry-area: PASS (3 steps, 1 files)
+  geometry-area: attempt 1 with opencode/mimo-v2.5-free
+  geometry-area: merged into codegen/STAMP-build
+  report: PASS (3 steps, 1 files)
+  report: attempt 1 with opencode/mimo-v2.5-free
+  report: merged into codegen/STAMP-build
+  stats-mean: FAIL after 1 attempts
+  stats-mean: NO_CHANGES (2 steps, 0 files)
+  stats-mean: PASS (3 steps, 1 files)
+  stats-mean: attempt 1 with opencode/mimo-v2.5-free
+  stats-mean: attempt 1 with opencode/mimo-v2.5-free
+  stats-mean: merged into codegen/STAMP-build
+  stats-mean: mimo-v2.5-free wrote nothing, next model
+3/3 contracts passed their gate.
+Build STAMP-build on branch codegen/STAMP-build: 3/3 PASS
+Land it with: node .opencode/codegen.mjs merge
+board: .codegen/board.html
+build STAMP-build: 3 contracts, parallel 3, ladder mimo-v2.5-free
+requeue: stats-mean back in the queue with the user's fixes
+

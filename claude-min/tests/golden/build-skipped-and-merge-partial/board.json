@@ -31,20 +31,20 @@
     "alive": false
   },
   "cost": {
-    "total": 0.05,
+    "total": 0.03,
     "byRole": {
-      "builder": 0.05,
+      "builder": 0.03,
       "researcher": 0
     },
     "byModel": {
       "builder": {
         "claude-haiku-4-5": {
-          "sessions": 3,
-          "cost": 0.03,
-        },
-        "claude-sonnet-5": {
           "sessions": 2,
           "cost": 0.02,
+        },
+        "claude-sonnet-5": {
+          "sessions": 1,
+          "cost": 0.01,
         }
       },
       "researcher": {}

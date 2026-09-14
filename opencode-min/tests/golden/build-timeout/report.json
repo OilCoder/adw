@@ -13,14 +13,6 @@
           "steps": 0,
           "files": [],
           "detail": ""
-        },
-        {
-          "attempt": 2,
-          "model": "opencode/mimo-v2.5-free",
-          "verdict": "TIMEOUT",
-          "steps": 0,
-          "files": [],
-          "detail": ""
         }
       ],
       "reason": "TIMEOUT: "

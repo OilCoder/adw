@@ -66,9 +66,12 @@ format in `.opencode/instructions/idea.md`; the order every project keeps in
    group (free models raced at once), each contract runs that many
    processes: pass `--parallel 5` (a group of five means up to 25 builders;
    each OpenCode process takes about 600 MB, so 5 fits a 30 GB machine).
-6. **While it runs.** Act on each `[codegen]` message: diagnose a FAIL and
-   leave its contract or gate fixed and committed right then, so `--resume`
-   can start the second the run ends. Launch nothing while the run is alive.
+6. **While it runs.** Act on each `[codegen]` message: diagnose a FAIL, fix
+   its contract or gate, and run `node .opencode/codegen.mjs build --resume
+   --only <id>` right then: with the run alive it queues the fixed contract
+   into it (the run waits for that fix as long as a builder may take); it is
+   refused if the contract and gate did not change. Split a contract by
+   editing `plan.json` and adding the new ids the same way.
 7. **When it ends.** Read the report. Say precisely what passed its gate,
    what failed and why, and what is pending. Fix and
    `node .opencode/codegen.mjs build --resume` (add `--only <ids>` to limit

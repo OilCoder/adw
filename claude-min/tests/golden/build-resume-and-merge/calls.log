@@ -1,9 +1,7 @@
 builder geometry-area call=1 model=claude-haiku-4-5 max-turns=40 mode=default allow=20 deny=9 cwd=sandbox
-builder report call=1 model=claude-haiku-4-5 max-turns=40 mode=default allow=20 deny=9 cwd=sandbox
 builder stats-mean call=1 model=claude-haiku-4-5 max-turns=40 mode=default allow=20 deny=9 cwd=sandbox
-builder stats-mean call=2 model=claude-haiku-4-5 max-turns=40 mode=default allow=20 deny=9 cwd=sandbox
-builder stats-mean call=3 model=claude-sonnet-5 max-turns=40 mode=default allow=20 deny=9 cwd=sandbox
+builder stats-mean call=2 model=claude-sonnet-5 max-turns=40 mode=default allow=20 deny=9 cwd=sandbox
+builder stats-mean call=3 model=claude-haiku-4-5 max-turns=40 mode=default allow=20 deny=9 cwd=sandbox
 builder stats-mean call=4 model=claude-sonnet-5 max-turns=40 mode=default allow=20 deny=9 cwd=sandbox
 builder stats-mean call=5 model=claude-haiku-4-5 max-turns=40 mode=default allow=20 deny=9 cwd=sandbox
-builder stats-mean call=6 model=claude-haiku-4-5 max-turns=40 mode=default allow=20 deny=9 cwd=sandbox
-builder stats-mean call=7 model=claude-sonnet-5 max-turns=40 mode=default allow=20 deny=9 cwd=sandbox
+builder stats-mean call=6 model=claude-sonnet-5 max-turns=40 mode=default allow=20 deny=9 cwd=sandbox

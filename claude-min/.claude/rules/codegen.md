@@ -67,8 +67,10 @@ cheap one keeps failing in a project, move it down in `models.json`.
 - `node .claude/codegen.mjs build [--parallel N, default 4] [--only id,id] [--resume]`:
   commits `.codegen/` and `wiki/` (seal: the supervisor has no git of its own), creates branch `codegen/<run>`, builds each
   contract in its own worktree, checks scope and protected paths, reruns the
-  gate independently, retries once with the gate output as evidence, then
-  moves to the next model, merges passing contracts into the branch.
+  gate independently, retries once with the gate output as evidence (not
+  after NO_CHANGES or TIMEOUT: a model that wrote nothing does not write on
+  a second try), then moves to the next model, merges passing contracts
+  into the branch.
   The script writes `[codegen] …` lines in its output (and in the journal,
   so the board shows them) when a question ends without DONE, a contract
   fails for good, or a run ends. Both commands run in the foreground: the
@@ -78,7 +80,10 @@ cheap one keeps failing in a project, move it down in `models.json`.
   `--resume` continues the current run on its integration branch: contracts
   that already passed stay passed, the user's new commits (fixed gates,
   harness updates) are merged into that branch first, and `--only` limits
-  which pending contracts run. Never start a fresh `build` to continue
+  which pending contracts run. While the run is still alive, `--resume`
+  queues the fixed contracts into it instead (and new ids of `plan.json`);
+  a failed contract whose files did not change is refused, and the request
+  must arrive while another contract is still building. Never start a fresh `build` to continue
   partial work: a fresh run starts from the user's branch, which does not
   contain the previous run's passed contracts until the user merges them.
 - `node .claude/codegen.mjs status`: report of the current run plus the

@@ -178,13 +178,14 @@ function notify(text) {
         ? `nothing listens on ${port}; start the TUI with OPENCODE_PORT=${port} opencode --port ${port}`
         : undefined,
   })
-  if (!listening) return
+  if (!listening) return false
   const child = spawn(
     "opencode",
     ["run", "--attach", `http://127.0.0.1:${port}`, "--session", session, `[codegen] ${text}`],
     { cwd: ROOT, detached: true, stdio: ["ignore", "ignore", "ignore"], env: { ...process.env, PWD: ROOT } },
   )
   child.unref()
+  return true
 }
 
 // Re-runs this command detached so the TUI's bash tool returns at once.
@@ -560,13 +561,48 @@ function loadPlan() {
   return plan
 }
 
+// The user's branch (fixed gates, harness updates, sealed contracts) merged
+// into the run's integration branch, from the integration clone.
+function bringUserBranch(integrationDir, userBranch, integration) {
+  git(["fetch", "-q", "origin", userBranch], integrationDir)
+  try {
+    git(["merge", "-q", "--no-edit", "-m", `codegen: bring ${userBranch} into ${integration}`, "FETCH_HEAD"], integrationDir)
+  } catch (e) {
+    throw new Error(`cannot merge ${userBranch} into ${integration}: ${String(e.stderr ?? e.message).slice(-400)}`)
+  }
+  git(["push", "-q", "origin", `${integration}:${integration}`], integrationDir)
+}
+
+// `build --resume` while a run is alive: seal the fixes and leave a request the
+// live run picks up. A failed contract whose files did not change is refused:
+// the same contract on the same ladder fails the same way.
+function requeueRequest(live, plan, only) {
+  sealAndCheckTracked()
+  const contracts = readJson(path.join(STATE, "runs", live.run, "report.json"), { contracts: {} }).contracts
+  const ids = only ?? Object.keys(contracts).filter((id) => !["PASS", "NOT_SELECTED", "PENDING", "RUNNING"].includes(contracts[id].status))
+  const unchanged = ids.filter(
+    (id) =>
+      ["FAIL", "GATE_TRIVIAL"].includes(contracts[id]?.status) &&
+      !git(["diff", "--stat", live.integration, "HEAD", "--", `.codegen/contracts/${id}`]),
+  )
+  const accepted = ids.filter((id) => !unchanged.includes(id))
+  const fresh = plan.contracts.some((c) => !contracts[c.id])
+  if (unchanged.length) console.log(`requeue refused: ${unchanged.join(", ")} unchanged since the run sealed them; fix or split, then build --resume again`)
+  if (!accepted.length && !fresh) return void (process.exitCode = 1)
+  writeJson(path.join(STATE, "runs", live.run, "requeue.json"), { ids: only ? accepted : null })
+  console.log(`queued into the live run ${live.run}: ${accepted.join(", ") || "the new contracts"} (picked up when a builder slot frees)`)
+}
+
 async function build(args) {
   const only = args.only ? String(args.only).split(",") : null
   const parallel = Number(args.parallel ?? 4)
-  const plan = loadPlan()
+  let plan = loadPlan()
   const live = readJson(path.join(STATE, "runs", "current.json"), null)
-  if (live?.pid && pidAlive(live.pid))
-    throw new Error(`build ${live.run} is still running (pid ${live.pid}); wait for it or kill it first`)
+  if (live?.pid && pidAlive(live.pid)) {
+    if (!args.resume)
+      throw new Error(`build ${live.run} is still running (pid ${live.pid}); build --resume queues fixed contracts into it`)
+    return requeueRequest(live, plan, only)
+  }
   if (!args.wait) return detach("build")
   // --resume continues the current run on its integration branch: contracts
   // that already passed stay passed, and the user's new commits (fixed gates,
@@ -586,18 +622,7 @@ async function build(args) {
   if (!previous) git(["branch", integration, "HEAD"])
   git(["clone", "-q", "--branch", integration, ROOT, integrationDir])
   if (previous) {
-    git(["fetch", "-q", "origin", userBranch], integrationDir)
-    try {
-      git(
-        ["merge", "-q", "--no-edit", "-m", `codegen: bring ${userBranch} into ${integration}`, "FETCH_HEAD"],
-        integrationDir,
-      )
-    } catch (e) {
-      throw new Error(
-        `cannot merge ${userBranch} into ${integration}: ${String(e.stderr ?? e.message).slice(-400)}`,
-      )
-    }
-    git(["push", "-q", "origin", `${integration}:${integration}`], integrationDir)
+    bringUserBranch(integrationDir, userBranch, integration)
     log(`resume ${runId}: merged ${userBranch} into ${integration}`)
   }
   writeJson(path.join(STATE, "runs", "current.json"), {
@@ -627,6 +652,34 @@ async function build(args) {
       return [c.id, { status: "PENDING" }]
     }),
   )
+  // A `build --resume` issued while this run is alive left a request: bring the
+  // user's fixes into the integration branch, reload the plan and put the
+  // requested (or every failed) contract back in the queue.
+  const awaiting = new Set()
+  const requeueFile = path.join(runDir, "requeue.json")
+  const requeue = () => {
+    const req = readJson(requeueFile, null)
+    if (!req) return false
+    rmSync(requeueFile, { force: true })
+    try {
+      bringUserBranch(integrationDir, userBranch, integration)
+      plan = loadPlan()
+    } catch (e) {
+      log(`requeue refused: ${e.message}`)
+      notify(`requeue refused: ${e.message.slice(0, 300)}. Fix it and build --resume again.`)
+      return false
+    }
+    for (const id in state) if (!plan.contracts.some((c) => c.id === id)) delete state[id]
+    const ids = req.ids ?? Object.keys(state).filter((id) => !["PASS", "NOT_SELECTED", "RUNNING"].includes(state[id].status))
+    for (const c of plan.contracts) {
+      const st = state[c.id]?.status
+      if (!["RUNNING", "PASS"].includes(st) && (!st || ids.includes(c.id) || st === "SKIPPED")) state[c.id] = { status: "PENDING" }
+    }
+    awaiting.clear()
+    journal({ kind: "build-requeue", run: runId, ids })
+    log(`requeue: ${ids.join(", ")} back in the queue with the user's fixes`)
+    return true
+  }
   const report = () => {
     writeJson(path.join(runDir, "report.json"), {
       run: runId,
@@ -640,13 +693,14 @@ async function build(args) {
   log(`board: ${path.relative(ROOT, path.join(STATE, "board.html"))}`)
 
   const next = () => {
+    requeue()
     const ready = plan.contracts.find(
       (c) => state[c.id].status === "PENDING" && c.depends_on.every((d) => state[d].status === "PASS"),
     )
     if (ready) {
       state[ready.id] = { status: "RUNNING", started: new Date().toISOString() }
       return () =>
-        buildOne(ready, { runDir, integration, integrationDir, state, report })
+        buildOne(ready, { runDir, integration, integrationDir, state, report, awaiting })
           .catch((e) => {
             state[ready.id] = { status: "ERROR", reason: String(e.stack ?? e) }
             log(`  ${ready.id}: ERROR ${e.message}`)
@@ -661,13 +715,22 @@ async function build(args) {
       ) {
         state[c.id] = {
           status: "SKIPPED",
-          reason: `dependency failed: ${c.depends_on.filter((d) => state[d].status !== "PASS").join(", ")}`,
+          reason: `dependency failed: ${c.depends_on.filter((d) => !["PENDING", "RUNNING", "PASS"].includes(state[d].status)).join(", ")}`,
         }
       }
     }
     return null
   }
   await pool(parallel, next)
+  // A failed contract whose notice reached the supervisor: keep the run open as
+  // long as a builder may take, so the fix is queued here instead of a new round.
+  while (awaiting.size) {
+    const wait = TIMEOUTS.builder ?? 900
+    log(`waiting up to ${wait}s for a fix of ${[...awaiting].join(", ")} (build --resume queues it here)`)
+    for (let t = 0; t < wait && !existsSync(requeueFile); t += 10) await new Promise((r) => setTimeout(r, 10000))
+    if (!existsSync(requeueFile)) break
+    await pool(parallel, next)
+  }
 
   rmSync(integrationDir, { recursive: true, force: true })
   const cur = readJson(path.join(STATE, "runs", "current.json"), {})
@@ -695,7 +758,7 @@ async function build(args) {
 // One contract: sandbox, dependencies, baseline gate, the builder ladder
 // (two attempts per rung, the gate output of a failed attempt as evidence for
 // the next), then land the diff or record why not.
-async function buildOne(entry, { runDir, integration, integrationDir, state, report }) {
+async function buildOne(entry, { runDir, integration, integrationDir, state, report, awaiting }) {
   const { id, contract } = entry
   const wt = path.join(SANDBOXES, id)
   const branch = `${integration}-${id}`
@@ -860,6 +923,12 @@ async function buildOne(entry, { runDir, integration, integrationDir, state, rep
         return "next"
       }
       evidence = `${a.verdict}: ${a.detail}`.slice(-3000)
+      // A model that wrote nothing does not write on a second try either
+      // (measured: 8 % after NO_CHANGES, 11 % after TIMEOUT, against 64 % after GATE_FAIL).
+      if (a.verdict === "NO_CHANGES" || a.verdict === "TIMEOUT") {
+        log(`  ${id}: ${short(rung)} wrote nothing, next model`)
+        return "next"
+      }
       if (a.verdict === "PROTECTED_TOUCHED" || a.verdict === "OUT_OF_SCOPE" || a.verdict === "STRUCTURE")
         resetSandbox(wt, base)
     },
@@ -876,9 +945,10 @@ async function buildOne(entry, { runDir, integration, integrationDir, state, rep
     const lastLine = (last?.detail ?? "").split("\n").filter(Boolean).slice(-1)[0]?.slice(0, 160)
     record("FAIL", { models, attempts: attempts.length, verdict: last?.verdict, detail: lastLine })
     log(`  ${id}: FAIL after ${attempts.length} attempts`)
-    notify(
-      `contract ${id} FAILED after ${attempts.length} attempts${broken ? " (GATE BROKEN: fails only outside the contract's scope)" : ""}; last verdict ${last?.verdict}: ${lastLine ?? ""}. Build so far: ${buildLine(state)}. The run continues. Diagnose it now (tail .codegen/runs/${path.basename(runDir)}/${id}/gate-${attempts.length}.txt) and leave its contract or gate fixed and committed; launch nothing while the run is alive.`,
+    const delivered = notify(
+      `contract ${id} FAILED after ${attempts.length} attempts${broken ? " (GATE BROKEN: fails only outside the contract's scope)" : ""}; last verdict ${last?.verdict}: ${lastLine ?? ""}. Build so far: ${buildLine(state)}. The run continues. Diagnose it now (tail .codegen/runs/${path.basename(runDir)}/${id}/gate-${attempts.length}.txt), fix its contract or gate, then build --resume --only ${id}: it queues the fix into this run (refused if nothing changed).`,
     )
+    if (delivered) awaiting.add(id)
     return
   }
   const patch = path.join(logs, "candidate.diff")

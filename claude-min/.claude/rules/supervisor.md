@@ -40,10 +40,12 @@ format in `.claude/rules/idea.md`; the order every project keeps in
    Bash tool in the background and end your turn.
 6. **While it runs.** Nobody wakes you mid-run: the output arrives whole when
    the process exits. If the user asks meanwhile, `status` shows the state
-   line and the failures so far; a FAIL there can be diagnosed and its
-   contract or gate fixed and committed while the rest keeps building, so
-   `--resume` can start the second the run ends. Launch nothing while the
-   run is alive.
+   line and the failures so far; diagnose a FAIL there, fix its contract or
+   gate, and run `node .claude/codegen.mjs build --resume --only <id>` while
+   the rest keeps building: with the run alive it queues the fixed contract
+   into it (refused if the contract and gate did not change; split a
+   contract by editing `plan.json` and adding the new ids the same way).
+   Once the run has ended, the same command starts the next round.
 7. **When it ends.** Act on every `[codegen]` line of the output (a question
    without DONE, a contract failed for good, the run's state line). Read the
    report. Say precisely what passed its gate,

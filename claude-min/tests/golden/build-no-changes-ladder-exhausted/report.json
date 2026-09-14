@@ -17,24 +17,6 @@
         },
         {
           "attempt": 2,
-          "model": "claude-haiku-4-5",
-          "verdict": "NO_CHANGES",
-          "steps": 2,
-          "cost": 0.01,
-          "files": [],
-          "detail": "BLOCKED\nnone\nnot run\nmissing decision"
-        },
-        {
-          "attempt": 3,
-          "model": "claude-sonnet-5",
-          "verdict": "NO_CHANGES",
-          "steps": 2,
-          "cost": 0.01,
-          "files": [],
-          "detail": "BLOCKED\nnone\nnot run\nmissing decision"
-        },
-        {
-          "attempt": 4,
           "model": "claude-sonnet-5",
           "verdict": "NO_CHANGES",
           "steps": 2,

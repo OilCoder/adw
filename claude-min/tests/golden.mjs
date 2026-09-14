@@ -9,7 +9,7 @@
 //               script: {…for the fake, see tests/fake-claude/claude},
 //               runs: [[args…], …] }   each run is `node .claude/codegen.mjs args…`.
 
-import { spawnSync } from "node:child_process"
+import { spawnSync, spawn } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import os from "node:os"
 import path from "node:path"
@@ -32,6 +32,8 @@ function normalize(text, work) {
     .replace(/^\d{2}:\d{2}:\d{2} /gm, "")
     .replace(/\(pid \d+\)/g, "(pid N)").replace(/pid \d+/g, "pid N").replace(/process \d+/g, "process N")
     .replace(/"pid": \d+/g, '"pid": N')
+    // A FAIL notice quotes the state line of that instant; parallel contracts make it vary.
+    .replace(/Build so far: [^.]*\. The run continues/g, "Build so far: <state>. The run continues")
     .replace(/in \d+\.\d+s/g, "in Xs")
     .replace(/^\s*"(duration_ms|updatedAt|lastAt|at|started|finished|ms)": [^,\n}]+,?\n/gm, "")
     .replace(/"(duration_ms|updatedAt|lastAt|at|started|finished|ms)": [^,\n}]+,?/g, "")
@@ -59,11 +61,28 @@ for (const name of scenarios) {
   const env = { HOME: tmp, PATH: `${path.join(HERE, "fake-claude")}:${process.env.PATH}`, FAKE_CLAUDE_SCRIPT: scriptFile, FAKE_CLAUDE_STATE: state, TZ: "UTC", GIT_AUTHOR_NAME: "golden", GIT_AUTHOR_EMAIL: "g@l", GIT_COMMITTER_NAME: "golden", GIT_COMMITTER_EMAIL: "g@l" }
   const out = {}
   let runs = ""
-  for (const run of sc.runs) {
-    const r = spawnSync("node", [".claude/codegen.mjs", ...run], { cwd: work, encoding: "utf8", env: { ...process.env, ...env } })
+  const record = (run, r) => {
     // Parallel contracts finish in any order: sort the log lines of each run.
     const lines = normalize(r.stdout + r.stderr, work).split("\n").filter(Boolean).sort()
     runs += `$ codegen ${run.join(" ")}  → exit ${r.status}\n${lines.join("\n")}\n\n`
+  }
+  // A run is an argv array, or { run, during: [{ after, edit?, run }] }: the
+  // inner commands fire while the outer one is still alive (requeue scenarios).
+  for (const entry of sc.runs) {
+    const run = Array.isArray(entry) ? entry : entry.run
+    const opts = { cwd: work, encoding: "utf8", env: { ...process.env, ...env } }
+    if (Array.isArray(entry)) { record(run, spawnSync("node", [".claude/codegen.mjs", ...run], opts)); continue }
+    const main = spawn("node", [".claude/codegen.mjs", ...run], opts)
+    let out = ""
+    main.stdout.on("data", (d) => (out += d)); main.stderr.on("data", (d) => (out += d))
+    const t0 = Date.now()
+    for (const d of entry.during) {
+      await new Promise((r) => setTimeout(r, Math.max(0, t0 + d.after * 1000 - Date.now())))
+      for (const [rel, content] of Object.entries(d.edit ?? {})) writeFileSync(path.join(work, rel), content)
+      record([`(${d.after}s)`, ...d.run], spawnSync("node", [".claude/codegen.mjs", ...d.run], opts))
+    }
+    const status = await new Promise((r) => main.on("close", r))
+    record(run, { stdout: out, stderr: "", status })
   }
   const status = spawnSync("node", [".claude/codegen.mjs", "status"], { cwd: work, encoding: "utf8", env: { ...process.env, ...env } })
   const structure = spawnSync("node", [".claude/codegen.mjs", "structure"], { cwd: work, encoding: "utf8", env: { ...process.env, ...env } })

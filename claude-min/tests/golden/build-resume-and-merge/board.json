@@ -7,19 +7,20 @@
   "waiting": null,
   "build": {
     "run": "STAMP-build",
-    "passed": 3,
+    "passed": 1,
     "total": 3,
-    "failed": [],
+    "failed": [
+      "stats-mean"
+    ],
     "gateBroken": [],
     "pending": 0,
     "running": [],
     "integration": {
       "branch": "codegen/STAMP-build",
-      "merged": true
+      "merged": false
     },
     "closedBy": {
-      "claude-sonnet-5": 1,
-      "claude-haiku-4-5": 2
+      "claude-haiku-4-5": 1
     }
   },
   "research": {
@@ -30,16 +31,16 @@
     "alive": false
   },
   "cost": {
-    "total": 0.05,
+    "total": 0.03,
     "byRole": {
-      "builder": 0.05,
+      "builder": 0.03,
       "researcher": 0
     },
     "byModel": {
       "builder": {
         "claude-haiku-4-5": {
-          "sessions": 4,
-          "cost": 0.04,
+          "sessions": 2,
+          "cost": 0.02,
         },
         "claude-sonnet-5": {
           "sessions": 1,
@@ -54,7 +55,7 @@
   "openai": null,
   "claude": null,
   "lastNotify": {
-    "text": "build ended: 3/3 PASS. Tell the user it is ready to merge.",
+    "text": "build ended: 1/3 PASS; failed: stats-mean (FAIL); skipped: 1. Diagnose the failed ones, fix their contracts or gates, then build --resume.",
     "delivered": true,
     "port": null,
     "reason": null

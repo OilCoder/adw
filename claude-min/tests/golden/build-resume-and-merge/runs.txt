@@ -5,62 +5,67 @@ $ codegen build --parallel 3  → exit 0
   geometry-area: PASS (3 steps, 1 files, $0.010)
   geometry-area: attempt 1 with claude-haiku-4-5
   geometry-area: merged into codegen/STAMP-build
-  stats-mean: FAIL after 4 attempts
-  stats-mean: NO_CHANGES (3 steps, 0 files, $0.010)
-  stats-mean: NO_CHANGES (3 steps, 0 files, $0.010)
+  stats-mean: FAIL after 2 attempts
   stats-mean: NO_CHANGES (3 steps, 0 files, $0.010)
   stats-mean: NO_CHANGES (3 steps, 0 files, $0.010)
   stats-mean: attempt 1 with claude-haiku-4-5
-  stats-mean: attempt 2 with claude-haiku-4-5
-  stats-mean: attempt 3 with claude-sonnet-5
-  stats-mean: attempt 4 with claude-sonnet-5
+  stats-mean: attempt 2 with claude-sonnet-5
+  stats-mean: claude-haiku-4-5 wrote nothing, next model
+  stats-mean: claude-sonnet-5 wrote nothing, next model
 1/3 contracts passed their gate.
 Build STAMP-build on branch codegen/STAMP-build: 1/3 PASS; failed: stats-mean (FAIL); skipped: 1
 Continue this run after fixing contracts with: node .claude/codegen.mjs build --resume [--only ids]
 Land it with: node .claude/codegen.mjs merge --partial
 [codegen] build ended: 1/3 PASS; failed: stats-mean (FAIL); skipped: 1. Diagnose the failed ones, fix their contracts or gates, then build --resume.
-[codegen] contract stats-mean FAILED after 4 attempts; last verdict NO_CHANGES: DONE. Build so far: 1/3 PASS; failed: stats-mean (FAIL); pending: 1. The run continues. Diagnose it now (tail .codegen/runs/STAMP-build/stats-mean/gate-4.txt) and leave its contract or gate fixed and committed; launch nothing while the run is alive.
+[codegen] contract stats-mean FAILED after 2 attempts; last verdict NO_CHANGES: DONE. Build so far: <state>. The run continues. Diagnose it now (tail .codegen/runs/STAMP-build/stats-mean/gate-2.txt), fix its contract or gate, then build --resume --only stats-mean: it queues the fix into this run (refused if nothing changed).
 board: .codegen/board.html
 build STAMP-build: 3 contracts, parallel 3, ladder claude-haiku-4-5 > claude-sonnet-5
 
 $ codegen build --resume --only stats-mean  → exit 0
+  FAIL            stats-mean  NO_CHANGES: DONE
   NOT_SELECTED    report
   PASS            geometry-area [claude-haiku-4-5, 1 attempt(s)]
-  PASS            stats-mean [claude-sonnet-5, 3 attempt(s)]
+  stats-mean: FAIL after 2 attempts
   stats-mean: NO_CHANGES (3 steps, 0 files, $0.010)
   stats-mean: NO_CHANGES (3 steps, 0 files, $0.010)
-  stats-mean: PASS (3 steps, 1 files, $0.010)
   stats-mean: attempt 1 with claude-haiku-4-5
-  stats-mean: attempt 2 with claude-haiku-4-5
-  stats-mean: attempt 3 with claude-sonnet-5
-  stats-mean: merged into codegen/STAMP-build
-2/3 contracts passed their gate.
-Build STAMP-build on branch codegen/STAMP-build: 2/3 PASS
+  stats-mean: attempt 2 with claude-sonnet-5
+  stats-mean: claude-haiku-4-5 wrote nothing, next model
+  stats-mean: claude-sonnet-5 wrote nothing, next model
+1/3 contracts passed their gate.
+Build STAMP-build on branch codegen/STAMP-build: 1/3 PASS; failed: stats-mean (FAIL)
 Continue this run after fixing contracts with: node .claude/codegen.mjs build --resume [--only ids]
 Land it with: node .claude/codegen.mjs merge --partial
-[codegen] build ended: 2/3 PASS. Diagnose the failed ones, fix their contracts or gates, then build --resume.
+[codegen] build ended: 1/3 PASS; failed: stats-mean (FAIL). Diagnose the failed ones, fix their contracts or gates, then build --resume.
+[codegen] contract stats-mean FAILED after 2 attempts; last verdict NO_CHANGES: DONE. Build so far: <state>. The run continues. Diagnose it now (tail .codegen/runs/STAMP-build/stats-mean/gate-2.txt), fix its contract or gate, then build --resume --only stats-mean: it queues the fix into this run (refused if nothing changed).
 board: .codegen/board.html
 build STAMP-build: 3 contracts, parallel 4, ladder claude-haiku-4-5 > claude-sonnet-5, only stats-mean
 resume STAMP-build: merged master into codegen/STAMP-build
 
 $ codegen merge  → exit 1
-codegen: not every contract passed: report (NOT_SELECTED). Fix and --resume, or merge --partial to take what passed.
+codegen: not every contract passed: stats-mean (FAIL), report (NOT_SELECTED). Fix and --resume, or merge --partial to take what passed.
 
 $ codegen build --resume  → exit 0
+  FAIL            stats-mean  NO_CHANGES: DONE
   PASS            geometry-area [claude-haiku-4-5, 1 attempt(s)]
-  PASS            report [claude-haiku-4-5, 1 attempt(s)]
-  PASS            stats-mean [claude-sonnet-5, 3 attempt(s)]
-  report: PASS (3 steps, 1 files, $0.010)
-  report: attempt 1 with claude-haiku-4-5
-  report: merged into codegen/STAMP-build
-3/3 contracts passed their gate.
-Build STAMP-build on branch codegen/STAMP-build: 3/3 PASS
-Land it with: node .claude/codegen.mjs merge
-[codegen] build ended: 3/3 PASS. Tell the user it is ready to merge.
+  SKIPPED         report  dependency failed: stats-mean
+  stats-mean: FAIL after 2 attempts
+  stats-mean: NO_CHANGES (3 steps, 0 files, $0.010)
+  stats-mean: NO_CHANGES (3 steps, 0 files, $0.010)
+  stats-mean: attempt 1 with claude-haiku-4-5
+  stats-mean: attempt 2 with claude-sonnet-5
+  stats-mean: claude-haiku-4-5 wrote nothing, next model
+  stats-mean: claude-sonnet-5 wrote nothing, next model
+1/3 contracts passed their gate.
+Build STAMP-build on branch codegen/STAMP-build: 1/3 PASS; failed: stats-mean (FAIL); skipped: 1
+Continue this run after fixing contracts with: node .claude/codegen.mjs build --resume [--only ids]
+Land it with: node .claude/codegen.mjs merge --partial
+[codegen] build ended: 1/3 PASS; failed: stats-mean (FAIL); skipped: 1. Diagnose the failed ones, fix their contracts or gates, then build --resume.
+[codegen] contract stats-mean FAILED after 2 attempts; last verdict NO_CHANGES: DONE. Build so far: <state>. The run continues. Diagnose it now (tail .codegen/runs/STAMP-build/stats-mean/gate-2.txt), fix its contract or gate, then build --resume --only stats-mean: it queues the fix into this run (refused if nothing changed).
 board: .codegen/board.html
 build STAMP-build: 3 contracts, parallel 4, ladder claude-haiku-4-5 > claude-sonnet-5
 resume STAMP-build: merged master into codegen/STAMP-build
 
-$ codegen merge  → exit 0
-landed codegen/STAMP-build on master (fast-forward): 3 commit(s), every contract passed
+$ codegen merge  → exit 1
+codegen: not every contract passed: stats-mean (FAIL), report (SKIPPED). Fix and --resume, or merge --partial to take what passed.
 
