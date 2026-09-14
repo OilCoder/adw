@@ -65,7 +65,7 @@ cheap one keeps failing in a project, move it down in `models.json`.
   is alive; so does `build`. `build` also refuses a contract whose `read`
   has a glob, the idea, a research report or more than 5 files.
 - `node .claude/codegen.mjs build [--parallel N, default 4] [--only id,id] [--resume]`:
-  commits `.codegen/` (seal), creates branch `codegen/<run>`, builds each
+  commits `.codegen/` and `wiki/` (seal: the supervisor has no git of its own), creates branch `codegen/<run>`, builds each
   contract in its own worktree, checks scope and protected paths, reruns the
   gate independently, retries once with the gate output as evidence, then
   moves to the next model, merges passing contracts into the branch.
@@ -94,5 +94,6 @@ silence window; same), `LOST` (a racer killed because another passed),
 (a dependency failed), `NOT_SELECTED` (left out by `--only`). Logs and every attempt's events are under
 `.codegen/runs/<run>/<id>/`.
 - `node .claude/codegen.mjs merge [--partial]`: fast-forwards the run's
-  integration branch into the user's branch. Refuses while a build runs,
+  integration branch into the user's branch, sealing `.codegen/` and `wiki/`
+  first. Refuses while a build runs,
   when contracts are pending (unless `--partial`), or when the tree is dirty.

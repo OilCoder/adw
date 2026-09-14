@@ -164,24 +164,19 @@ function notify(text) {
 // Sandboxes are exports of committed content: the harness and the plan must
 // be in git or the builder finds no agent and no contract.
 function sealAndCheckTracked() {
-  const dirty = git([
-    "status",
-    "--porcelain",
-    "--",
-    ".codegen",
-    ".claude",
-    "CLAUDE.md",
-    ".gitignore",
-    ":!.codegen/journal.jsonl",
-  ])
+  // wiki/ is the supervisor's other folder; it has no git of its own, so the seal commits it too
+  const sealed = [".codegen", ".claude", "CLAUDE.md", ".gitignore"].concat(
+    existsSync(path.join(ROOT, "wiki")) ? ["wiki"] : [],
+  )
+  const dirty = git(["status", "--porcelain", "--", ...sealed, ":!.codegen/journal.jsonl"])
   if (dirty) {
-    git(["add", ".codegen", ".claude", "CLAUDE.md", ".gitignore"])
+    git(["add", ...sealed])
     git(["commit", "-q", "-m", "codegen: seal plan and harness"])
     journal({
       kind: "seal",
       contracts: readJson(path.join(STATE, "plan.json"), { contracts: [] }).contracts.length,
     })
-    log("sealed .codegen and the harness into a commit")
+    log(`sealed ${sealed.includes("wiki") ? ".codegen, wiki" : ".codegen"} and the harness into a commit`)
   }
 }
 
@@ -1009,6 +1004,8 @@ async function merge(args) {
     )
   const branch = git(["rev-parse", "--abbrev-ref", "HEAD"])
   if (branch !== current.user_branch) throw new Error(`checkout ${current.user_branch} first (on ${branch})`)
+  // The supervisor may have written wiki/ or .codegen/ after the build sealed them: seal again.
+  sealAndCheckTracked()
   // The script's own outputs (journal, board) never block a merge: they change on every event.
   if (
     git([
