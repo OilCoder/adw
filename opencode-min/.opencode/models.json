@@ -1,5 +1,5 @@
 {
-  "_comment": "Free first as ONE group (OpenCode Zen, cost 0; builders race the whole group at once and the gate picks the winner, researchers try its members one by one; a group is one rung of max_models_per_item, so a paid model is always reached; the five that passed the one-contract smoke on 2026-09-12 in under 25 s: mimo 18 s, big-pickle 12 s, ling 9 s, muse-spark 15-24 s; nemotron-3.5-lightning (42 s) and nemotron-3-ultra (198 s) also passed but were left out for speed; the other 24 free models return a server error), then OpenCode Go cheapest first by models.dev price, current versions only. Zen rate limits are shared across projects. Same ladder for both roles: cheap models research well; when three rungs fail a contract the contract or the gate is wrong, not the model. Every model here must also be whitelisted in opencode.json; the script refuses to start otherwise. Edit by hand. timeouts_seconds.silence: a model with no output at all in that many seconds is dropped at once (NO_RESPONSE), not remembered as a failure.",
+  "_comment": "Free first as ONE group (OpenCode Zen, cost 0; builders race the whole group at once and the gate picks the winner, researchers try its members one by one; a group is one rung of max_models_per_item, so a paid model is always reached; the five that passed the one-contract smoke on 2026-09-12 in under 25 s: mimo 18 s, big-pickle 12 s, ling 9 s, muse-spark 15-24 s; nemotron-3.5-lightning (42 s) and nemotron-3-ultra (198 s) also passed but were left out for speed; the other 24 free models return a server error), then OpenCode Go ordered by measured speed and pass rate over 8 field projects (2026-09-13: glm-5.3-flash 77 s median PASS, 78 % of 163 attempts; mimo-v2.5 109 s, 83 %; qwen3.8-flash 450 s, 46 %, last), the rest by models.dev price. Zen rate limits are shared across projects. Same ladder for both roles: cheap models research well; when three rungs fail a contract the contract or the gate is wrong, not the model. Every model here must also be whitelisted in opencode.json; the script refuses to start otherwise. Edit by hand. timeouts_seconds.silence: a model with no output at all in that many seconds is dropped at once (NO_RESPONSE), not remembered as a failure.",
   "researcher": [
     [
       "opencode/mimo-v2.5-free",
@@ -8,9 +8,8 @@
       "opencode/ling-3.0-flash-fin-free",
       "opencode/muse-spark-1.2-contributor-free"
     ],
-    "opencode-go/mimo-v2.5",
-    "opencode-go/qwen3.8-flash",
     "opencode-go/glm-5.3-flash",
+    "opencode-go/mimo-v2.5",
     "opencode-go/hy3",
     "opencode-go/deepseek-v4-flash",
     "opencode-go/deepseek-v4.1-flash",
@@ -24,7 +23,8 @@
     "opencode-go/glm-5.3",
     "opencode-go/grok-4.6",
     "opencode-go/qwen3.8-max",
-    "opencode-go/kimi-k3"
+    "opencode-go/kimi-k3",
+    "opencode-go/qwen3.8-flash"
   ],
   "builder": [
     [
@@ -34,9 +34,8 @@
       "opencode/ling-3.0-flash-fin-free",
       "opencode/muse-spark-1.2-contributor-free"
     ],
-    "opencode-go/mimo-v2.5",
-    "opencode-go/qwen3.8-flash",
     "opencode-go/glm-5.3-flash",
+    "opencode-go/mimo-v2.5",
     "opencode-go/hy3",
     "opencode-go/deepseek-v4-flash",
     "opencode-go/deepseek-v4.1-flash",
@@ -50,7 +49,8 @@
     "opencode-go/glm-5.3",
     "opencode-go/grok-4.6",
     "opencode-go/qwen3.8-max",
-    "opencode-go/kimi-k3"
+    "opencode-go/kimi-k3",
+    "opencode-go/qwen3.8-flash"
   ],
   "max_models_per_item": 3,
   "timeouts_seconds": {
