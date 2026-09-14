@@ -11,14 +11,14 @@ Research summary
 research STAMP-research: 1 questions, ladder mimo-v2.5-free > muse-spark-1.3-contributor-free > big-pickle
 
 $ codegen research  → exit 0
-  NO_REPORT las-null  (no report)  [mimo-v2.5]  skipped: mimo-v2.5-free, muse-spark-1.3-contributor-free, big-pickle, ling-3.0-flash-fin-free, muse-spark-1.2-contributor-free, mimo-v2.5
+  NO_REPORT las-null  (no report)  [glm-5.3-flash]  skipped: mimo-v2.5-free, muse-spark-1.3-contributor-free, big-pickle, ling-3.0-flash-fin-free, muse-spark-1.2-contributor-free, glm-5.3-flash
   las-null: NO_REPORT (3 steps)
   las-null: NO_REPORT (3 steps)
   las-null: NO_REPORT (3 steps)
-  las-null: NO_REPORT (tried mimo-v2.5-free, muse-spark-1.3-contributor-free, big-pickle, ling-3.0-flash-fin-free, muse-spark-1.2-contributor-free, mimo-v2.5)
+  las-null: NO_REPORT (tried mimo-v2.5-free, muse-spark-1.3-contributor-free, big-pickle, ling-3.0-flash-fin-free, muse-spark-1.2-contributor-free, glm-5.3-flash)
   las-null: attempt 1 with opencode/ling-3.0-flash-fin-free
   las-null: attempt 2 with opencode/muse-spark-1.2-contributor-free
-  las-null: attempt 3 with opencode-go/mimo-v2.5
+  las-null: attempt 3 with opencode-go/glm-5.3-flash
 Research summary
 research STAMP-research: 1 questions, ladder mimo-v2.5-free > muse-spark-1.3-contributor-free > big-pickle
 

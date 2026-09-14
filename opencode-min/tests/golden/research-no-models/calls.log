@@ -3,4 +3,4 @@ researcher las-null call=2 model=opencode/muse-spark-1.3-contributor-free cwd=$W
 researcher las-null call=3 model=opencode/big-pickle cwd=$WORK
 researcher las-null call=4 model=opencode/ling-3.0-flash-fin-free cwd=$WORK
 researcher las-null call=5 model=opencode/muse-spark-1.2-contributor-free cwd=$WORK
-researcher las-null call=6 model=opencode-go/mimo-v2.5 cwd=$WORK
+researcher las-null call=6 model=opencode-go/glm-5.3-flash cwd=$WORK

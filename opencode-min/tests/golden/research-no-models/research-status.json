@@ -3,7 +3,7 @@
   "results": {
     "las-null": {
       "status": "NO_REPORT",
-      "model": "opencode-go/mimo-v2.5",
+      "model": "opencode-go/glm-5.3-flash",
       "attempt": 3,
       "steps": 3,
       "one_shot": false,
@@ -17,7 +17,7 @@
         "opencode/big-pickle",
         "opencode/ling-3.0-flash-fin-free",
         "opencode/muse-spark-1.2-contributor-free",
-        "opencode-go/mimo-v2.5"
+        "opencode-go/glm-5.3-flash"
       ]
     }
   }
