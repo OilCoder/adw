@@ -29,7 +29,7 @@ to them; Claude Code ignores files it does not know.
 | `.claude/lib/board-html.mjs`, `lib/board.css` | the board's HTML, one function per section, styles inlined. **A redesign touches only these two.** |
 | `.claude/agents/*.md` | builder and researcher: `name`, `description`, `maxTurns` (native) plus `allow` and `deny`, the permission rules the script hands to `claude -p` as a settings file |
 | `.claude/rules/*.md` | the supervisor's rules (supervisor, codegen, structure, idea), loaded by Claude Code into the session |
-| `templates/` | `CLAUDE.md` and `settings.json` for the supervisor, `models.default.json` for Garden, `statusline.sh` for the quota |
+| `templates/` | `CLAUDE.md` and `settings.json` for the supervisor, `statusline.sh` for the quota |
 | `.claude/models.json` | the ladder |
 
 The board reloads `lib/board-html.mjs` and `lib/board.css` whenever they change on disk,

@@ -464,7 +464,10 @@ ronda), (c) los huecos entre build-end y `--resume` (5 a 8 h por proyecto,
   pero no tiene git; `merge` se negaba por árbol sucio).
 - **Escalera por velocidad medida**: grupo gratis > glm-5.3-flash (77 s
   mediana PASS, 78 % de 163) > mimo-v2.5 (109 s, 83 %) > resto por precio >
-  qwen3.8-flash al final (450 s, 46 %). También en `templates/models.default.json`.
+  qwen3.8-flash al final (450 s, 46 %). Los templates de modelos se borraron
+  el 2026-09-14: la única escalera es `.opencode/models.json` (gratis en grupo
+  primero, luego pago), instalada en los ocho proyectos de campo con sus
+  whitelists; Garden crea proyectos "sin plantilla".
 - **Sin reintento con el mismo modelo tras NO_CHANGES / TIMEOUT** (pasaba
   8 % y 11 % de las veces; tras GATE_FAIL 64 %, tras OUT_OF_SCOPE 73 %, esos
   se conservan).
