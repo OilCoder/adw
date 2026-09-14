@@ -311,6 +311,8 @@ function journalEntry(d, j) {
         title: "Build reanudado",
         meta: `${e.only ? `${esc(e.only.join(", "))} · ` : ""}paralelo ${e.parallel}`,
       }
+    case "build-requeue":
+      return { cls: "run", icon: "play", title: "Contratos re-encolados", meta: esc(e.ids.join(", ")) }
     case "build-end":
       return {
         cls: e.passed === e.total ? "ok" : "bad",

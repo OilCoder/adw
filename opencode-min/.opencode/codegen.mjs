@@ -568,6 +568,9 @@ function bringUserBranch(integrationDir, userBranch, integration) {
   try {
     git(["merge", "-q", "--no-edit", "-m", `codegen: bring ${userBranch} into ${integration}`, "FETCH_HEAD"], integrationDir)
   } catch (e) {
+    try {
+      git(["merge", "--abort"], integrationDir)
+    } catch {}
     throw new Error(`cannot merge ${userBranch} into ${integration}: ${String(e.stderr ?? e.message).slice(-400)}`)
   }
   git(["push", "-q", "origin", `${integration}:${integration}`], integrationDir)
@@ -586,10 +589,10 @@ function requeueRequest(live, plan, only) {
       !git(["diff", "--stat", live.integration, "HEAD", "--", `.codegen/contracts/${id}`]),
   )
   const accepted = ids.filter((id) => !unchanged.includes(id))
-  const fresh = plan.contracts.some((c) => !contracts[c.id])
   if (unchanged.length) console.log(`requeue refused: ${unchanged.join(", ")} unchanged since the run sealed them; fix or split, then build --resume again`)
-  if (!accepted.length && !fresh) return void (process.exitCode = 1)
-  writeJson(path.join(STATE, "runs", live.run, "requeue.json"), { ids: only ? accepted : null })
+  if (!accepted.length && !plan.contracts.some((c) => !contracts[c.id])) return void (process.exitCode = 1)
+  // New ids of plan.json are queued by the live run on their own: it reloads the plan.
+  writeJson(path.join(STATE, "runs", live.run, "requeue.json"), { ids: accepted })
   console.log(`queued into the live run ${live.run}: ${accepted.join(", ") || "the new contracts"} (picked up when a builder slot frees)`)
 }
 
@@ -670,7 +673,7 @@ async function build(args) {
       return false
     }
     for (const id in state) if (!plan.contracts.some((c) => c.id === id)) delete state[id]
-    const ids = req.ids ?? Object.keys(state).filter((id) => !["PASS", "NOT_SELECTED", "RUNNING"].includes(state[id].status))
+    const ids = req.ids
     for (const c of plan.contracts) {
       const st = state[c.id]?.status
       if (!["RUNNING", "PASS"].includes(st) && (!st || ids.includes(c.id) || st === "SKIPPED")) state[c.id] = { status: "PENDING" }

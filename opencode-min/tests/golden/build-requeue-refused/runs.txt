@@ -1,4 +1,4 @@
-$ codegen (5s) build --resume --only stats-mean  → exit 1
+$ codegen (5s) build --resume  → exit 1
 requeue refused: stats-mean unchanged since the run sealed them; fix or split, then build --resume again
 
 $ codegen build --parallel 3  → exit 0

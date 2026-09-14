@@ -450,3 +450,36 @@ Pendiente: portar a claude-min (corte por silencio y grupos; allí `RATE_LIMITED
 ya cubre parte), memoria `opencode-min-ladder-design` superada (grupo = peldaño),
 instalar en v6 cuando su corrida termine y agrupar a mano su `models.json`
 (install.sh no lo toca).
+
+## Tiempo por ronda, medido y recortado (2026-09-13 / 14)
+
+Medición sobre los diarios de ocho proyectos (v4, v5, v6, reservoir-sim,
+prodpipe, facies-ml, voice-audit, project-garden): la generación en sí es
+1 a 3 min por contrato; el tiempo real se iba en (a) modelos gratis muertos
+con la escalera plana vieja (~5 h en v6, ya resuelto por el grupo + corte por
+silencio), (b) la cola de un contrato que falla y sube peldaños (~40 min por
+ronda), (c) los huecos entre build-end y `--resume` (5 a 8 h por proyecto,
+8 a 17 rondas). Cambios, todos con escenario golden:
+- **Sello de `wiki/`** en `build` y en `merge` (el supervisor escribe ahí
+  pero no tiene git; `merge` se negaba por árbol sucio).
+- **Escalera por velocidad medida**: grupo gratis > glm-5.3-flash (77 s
+  mediana PASS, 78 % de 163) > mimo-v2.5 (109 s, 83 %) > resto por precio >
+  qwen3.8-flash al final (450 s, 46 %). También en `templates/models.default.json`.
+- **Sin reintento con el mismo modelo tras NO_CHANGES / TIMEOUT** (pasaba
+  8 % y 11 % de las veces; tras GATE_FAIL 64 %, tras OUT_OF_SCOPE 73 %, esos
+  se conservan).
+- **`build --resume` con corrida viva la re-encola**: sella, rechaza los
+  contratos FAIL/GATE_TRIVIAL cuyos archivos no cambiaron desde el sello,
+  deja `runs/<run>/requeue.json`; el proceso vivo trae la rama del usuario a
+  la de integración, recarga `plan.json` (ids nuevos entran) y pone PENDING
+  lo pedido. Tras un aviso de FAIL entregado, la corrida espera un timeout
+  de builder (900 s) por ese arreglo antes de cerrar. Un requeue rechazado
+  dentro del proceso vivo (plan inválido) no limpia esa espera: el supervisor
+  recibe el aviso y reenvía dentro de la ventana.
+- Motivo de SKIPPED solo lista dependencias realmente fallidas.
+- Runner golden: una entrada de `runs` puede ser `{run, during:[{after,
+  edit?, run}]}` para disparar comandos con la corrida viva; la línea de
+  estado dentro de los avisos se normaliza (`Build so far: <state>`).
+Todo portado a claude-min (sin espera de gracia: allí nadie despierta al
+supervisor a mitad de corrida). Pendiente: instalar en las-viewer-v6 cuando
+termine su build vivo y medir la próxima corrida.

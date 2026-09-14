@@ -47,9 +47,7 @@
           "after": 5,
           "run": [
             "build",
-            "--resume",
-            "--only",
-            "stats-mean"
+            "--resume"
           ]
         }
       ]
